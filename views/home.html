@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+       <title>HTML_CodeSniffer</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <link rel="stylesheet" type="text/css" href="../public/css/home.css">
+        <link rel="stylesheet" type="text/css" media="print" href="../public/css/home-print.css">
+        <link rel="stylesheet" media="screen" type="text/css" href="../public/css/HTMLCS.css">
+
+        <script type="text/javascript" src="../src/HTML_CodeSniffer/HTMLCS.js"></script>
+        <script type="text/javascript" src="../src/home.js"></script>
+        <script type="text/javascript" src="../public/js/lib/jquery.js"></script>
+		
+</head>
+<body>
+<div class="off" id="back-to-top"><span><a href="#">top</a></span></div>
+<div id="code-input">
+                    <form onsubmit="javascript:runHTMLCSTest(false); return false;" action="" id="runHTMLCS">
+                        <div onclick="hideDiv()" id="code-overlay">
+                            <div id="test-area-graphic"></div>Paste your code here
+                        </div>
+
+                        <textarea cols="100" rows="20" title="Enter the source code to be sniffed" id="source"></textarea>
+
+                        <div id="test-options">
+                            <fieldset>
+                                <legend>Standard:</legend>
+                            <ul>
+                                <li><input type="radio" class="radio-input" id="WCAG2A" name="level" value="WCAG2A"><span class="radio-gen"></span><label for="WCAG2A"> WCAG 2.0 Level A</label></li>
+
+                                <li><input type="radio" class="radio-input" id="WCAG2AA" name="level" value="WCAG2AA"><span class="radio-gen"></span><label for="WCAG2AA"> WCAG 2.0 Level AA</label></li>
+
+                                <li><input type="radio" checked="" class="radio-input" id="WCAG2AAA" name="level" value="WCAG2AAA"><span class="radio-gen radio-on"></span><label for="WCAG2AAA"> WCAG 2.0 Level AAA</label></li>
+
+                                <li><input type="radio" class="radio-input" id="Section508" name="level" value="Section508"><span class="radio-gen"></span><label for="Section508"> Section 508</label></li>
+                            </ul>
+                            </fieldset>
+
+                            <button id="run-button" type="submit">Run HTML_CodeSniffer</button>
+
+                        </div>
+                    </form>
+
+
+</div>
+<div id="resultsWrapper"></div>
+				
+</body>
+
+
+</html>

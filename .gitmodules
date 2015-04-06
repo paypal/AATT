@@ -1,0 +1,3 @@
+[submodule "src/htmlcs"]
+	path = src/htmlcs
+	url = https://github.com/squizlabs/HTML_CodeSniffer.git

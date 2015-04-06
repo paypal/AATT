@@ -1,0 +1,11 @@
+{
+		"loadImages": true,
+		"loadPlugins": false,
+		"proxy": null,
+		"diskCache": false,
+		"ignoreSslErrors": true,
+		"localAccessRemote": false,
+		"cookies": null,
+		"outputEncoding": "utf8",
+		"scriptEncoding": "utf8"
+	}

@@ -1,0 +1,28 @@
+{
+  "name": "Accessbility",
+  "version": "1.0",
+  "keywords": ["phantomjs", "Accessibility", "headless", "webkit"],
+  "description": "Headless WebKit with JS API",
+  
+  "Contributor": [ {
+    "name": "Tsaran Victor",
+    "email": "vtsaran@paypal.com"
+  } ],
+  
+  
+  "main": "lib/phantomjs",
+  "bin": {
+    "phantomjs": "./bin/phantomjs"
+  },
+    "dependencies": {
+	"express"	:  "3.0",
+	"handlebars"	:  "1.0.7",
+	"nodemon" 	:  "0.7.2",
+    "consolidate"	:  "0.4.0",
+    "phantomjs" : "*"	
+    
+  },
+  "devDependencies": {
+    "nodeunit": "~0.7.4"
+  }
+}

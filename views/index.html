@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<head>
+    <title>PayPal Accessibility Tool - Home</title>
+    <meta charset="utf-8">
+
+    <link href="/css/lib/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/lib/bootstrap-accessibility.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" media="print" href="/css/home-print.css">
+    <link rel="stylesheet" type="text/css" href="/css/home.css">
+    <style>
+        .inline{display: inline ; margin-left:10px;}
+    </style>
+    <script>
+        function showImg(url){
+            var imgDiv = document.getElementById('shot');
+            imgDiv.innerHTML=  '<img src="/' + url + '" border="0">';
+        }
+
+        function getImg(url){
+            var imgDiv = document.getElementById('shot');
+            imgDiv.innerHTML= 'Getting screenshot';
+
+            $.get( url, function( data ) {
+                imgDiv.innerHTML = data
+            });
+
+        }
+         function showProgress(){
+            var $progDiv = $('#progress');
+            $progDiv.toggleClass('hide');
+            $progDiv.prepend('<h3>Loading results. Please wait...... ')
+         }
+    </script>
+</head>
+
+<body>
+ <div id="test-area">
+     <div class="container">
+
+            <div class="" style="position: relative; ">
+                <div style="">
+                   <img src="/img/AATT_a11y-edge_sticker.png" height="100" width="100px" border="0" alt="PayPal Opensource">
+                </div>
+                <div style="position: absolute; bottom: 0;left:1020px">
+
+                      <a id="loginButton" data-toggle="modal" href="#myModal" style="text-decoration:underline;font-size: 16px;">Login</a>
+                              &nbsp;&nbsp;&nbsp;&nbsp;
+                      <a id="logoutButton"  href="./logout" style="text-decoration:underline;font-size: 16px;">Log Out</a>
+                      <a  href="./help" style="text-decoration:underline;font-size: 16px; ">Help</a>
+                </div>      
+            </div>
+            <hr>
+          <div class="test-area-body">
+            <h2>Automated Accessibility Testing Tool (AATT)</h2>
+                <p>Checks code for conformance to the Web Content Accessibility Guidelines (WCAG) 2.0, A, AA </p>
+            </div>
+             <p> Test results will be shown below.</p>
+
+
+                <div class="tabSection">
+                    <ul id="myTab" class="nav nav-tabs" role="tablist">
+                        <li class="active" role="presentation">
+                            <a id="hometab" href="#home" data-toggle="tab" role="tab" aria-controls="home" aria-selected="true" aria-expanded="true" tabindex="0">
+                                Page URL
+                            </a>
+                        </li>
+                        <li role="presentation">
+                            <a id="sniffHTMLTab" href="#sniffHTMLTabPanel" data-toggle="tab" role="tab" aria-controls="sniffHTMLTabPanel" tabindex="-1">
+                                Test HTML
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="myTabContent" class="tab-content">
+                        <div class="tab-pane fade in active" id="home" role="tabpanel" tabIndex="0" aria-labelledby="hometab" aria-hidden="false">
+                                <div id="code-input">
+                                    <form id="requestURL" method="post" action="/sniffURL">
+                                        <label for="textURL" class="textURL">Page URL</label>
+                                        <input id="textURL" type="text" name="textURL" placeholder="EG, http://example.com/mypage.html" size="100"/>
+                                        <input type="hidden" id="user" name="userName" value="{{{userName}}}"/>
+                                        <button type="submit" id="submitButton" class="btn btn-primary btn-medium">Test Page</button>
+
+                                        <div style="margin-left:90px;text-align:left">
+                                        <br>
+                                        <label for="scrshot" class="inline">Screenshot </label>   
+                                        <input type="checkbox" style="font-size: 50px;" class="chkbox" id="scrshot" name="scrshot">
+                                        <br/><br/>
+
+                                        <strong> Show </strong> &nbsp;&nbsp;
+
+                                        <label for="msgErr" class="inline">Errors </label>   
+                                            <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgErr" name="msgErr" checked="true">
+
+                                        <label for="msgWarn" class="inline">Warnings</label>   
+                                            <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgWarn" name="msgWarn">
+
+                                        <label for="msgNotice" class="inline">Notices </label>   
+                                            <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgNotice" name="msgNotice">
+
+                                        </div>    
+                                    </form>
+                                </div>  
+                            </div>
+                        <div class="tab-pane fade" id="sniffHTMLTabPanel" role="tabpanel" tabIndex="-1" aria-labelledby="sniffHTMLTab" aria-hidden="true">
+                                <form id="sniff" method="post" action="/sniffHTML">
+                                    <textarea name="source" id="source" cols="100" rows="20" title="Enter the source code to be sniffed" id="source"></textarea>
+                                    <br/>
+                                    <button type="submit" class="btn btn-primary btn-medium">Test Content</button>
+                                </form> 
+                        </div>
+                </div> <!-- close my TabContent -->
+
+                <div id="progress" class="hide" role="alert">
+                    <h3> Loading.... Please Wait.... </h3>
+                    <div id="rotatingDiv" class="show"></div>
+                    <img id="rotatingImg" src="/img/logo_347x50_PPa11y.png" border="0" class="actionImage" alt="Loading Please wait">
+
+                    <p class="note">If this page appears for more than 50 seconds, <a href="/getURL">click here to reload.</a></p>
+
+                </div>
+
+                <div id="test-results">
+                    {{data}}
+                </div>
+                
+               <!-- example modal  -->
+                <div id="myModal" class="modal fade " tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">                                
+                    <div  class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form id="loginForm" method="post" action="/login">
+                                <div class="modal-header">
+                                    <h3 id="myModalLabel">Stage Login Details</h3>
+                                </div>
+                                <div class="modal-body">                                        
+                                            <label for="userName">User Name</label>
+                                            <input id="userName" type="text" name="userName" placeholder="stage user name" title="Enter the user name" />
+                                            <label for="password">Password</label>
+                                            <input id="password" type="password" name="password" placeholder="stage password" title="Enter the password"/>
+                                            <label for="stageName">Stage/Domain Name</label>
+                                            <input id="stageName" type="text" name="stageName" placeholder="stage2qa.paypal.com"/>
+                                            <input type="hidden" id="server" name="server" value="paypal">
+                                            <!--label for="server">Server</label>
+                                            <select id="server" name="server">
+                                                <option value="paypal" selected>PayPal</option>
+                                                <option value="ebay">eBay</option>
+                                                <option value="paypaladmin">PayPal Admin</option>
+                                                <option value="paypalmerchant">PayPal Merchant</option>
+                                                <option value="paypalpartner">PayPal Partner</option>
+                                            </select-->
+                                            <div id="partnerDiv" class="hide" style="">
+                                                <label for="partner">Parter Name</label>
+                                                <input id="partner" type="text" name="partner" placeholder="Partner Name"/>
+                                            </div>
+                                            <div id="merchantDiv" class="hide" style="">
+                                                <label for="merchant">Merchant Login</label>
+                                                <input id="merchant" type="text" name="merchant" placeholder="Merchant Login / Vendor Name"/>
+                                            </div>                                          
+                                </div>
+                                <div class="modal-footer">
+                                      <button class="btn" data-dismiss="modal">Close</button>
+                                      <input class="btn btn-primary" type="submit" id="saveSubmit" value="Login"/>
+                                </div>
+                            </form>                         
+                        </div><!-- /.modal-content -->
+                    </div><!-- /.modal-dialog -->
+                </div><!-- /.modal -->
+
+
+                <!-- Modal -->
+                <div class="modal fade" id="screenshot" tabindex="-1" role="alertdialog"  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-body" id="shot">
+                        <img src="https://www.google.com/images/srpr/logo11w.png" alt="Google logo as placeholder">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <hr style="height: 1px;">
+                <footer>
+                    <a href="http://paypal.github.io" alt="PayPal Open Source">PayPal Open Source</a>
+                </footer>
+
+                <script src="/js/lib/jquery.js"></script>
+                <script src="/js/lib/bootstrap.min.js"></script>
+                <script src="/js/lib/bootstrap-accessibility.min.js"></script>
+                <script src="/js/validation.js"></script>
+                <script type="text/javascript" src="/js/lib/__jquery.tablesorter.js"></script>
+                <script src="/js/lib/table2CSV.js"></script>
+                <script type="text/javascript">
+                
+
+                            var string = "" + unescape(location.search)
+                                , string = string.substring(string.indexOf("?")+1,string.length)
+
+                            if(string!='')
+                            {   
+                                var tab = string.split('&'), nameVal = new Array();
+                                // console.log($('#' + tab[0]))
+                                $('#' + tab[0]).tab('show')
+                            }
+
+                            (function($) {
+                                var constructOrig = $.fn.tablesorter;
+                                    $.fn.extend({
+                                        tablesorter: function(options) {
+                                            var $headers =$($.find('th'));                                          
+                                            if ( $headers.length>0 ){                                           
+                                                $headers[0].setAttribute('tabIndex','0');
+                                                $headers[0].setAttribute('aria-sort','ascending')
+
+                                                $headers.keydown(function(e) {
+                                                    var k = e.which || e.keyCode
+                                                        , $this= $(this)
+
+                                                    if (!/(13|32|37|39)/.test(k)) return
+
+                                                    index = $headers.index(this)
+                                                    if (k == 37) index--
+                                                    if (k == 39) index++
+
+                                                    if(index < 0) index = $headers.length -1
+                                                    if(index == $headers.length) index = 0
+                                                    if(k == 37 || k === 39){
+                                                        this.setAttribute('tabIndex','-1');
+                                                        $headers[index].setAttribute('tabIndex','0');
+                                                        $headers[index].focus();
+                                                    }
+                                                    //console.log(this, $headers,  index);
+                                                    if( k === 32 || k === 13) {
+                                                        $this.click()
+                                                        setTimeout(function(){
+                                                            // console.log($this.attr('class'))
+                                                            if($this.hasClass('headerSortUp'))  $this.attr('aria-sort','descending')
+                                                            if($this.hasClass('headerSortDown')) $this.attr('aria-sort','ascending')
+                                                        } , 200)
+                                                    }                                                       
+                                                });     
+                                            }                               
+                                            constructOrig.apply(this, arguments);
+                                        }   
+                                    })
+                            })(jQuery);
+
+                        $(function() {      
+                            $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}}});
+                        }); 
+                        $("#export").on('click', function (event) {
+                            $('#test-results-table').table2CSV({delivery:'download'}, event);
+                        });
+
+                        var $scrmodal= $('#screenshot');        //get a common instance 
+
+                        $( "#sniff" ).submit(function( event ) {
+                            event.preventDefault();
+                            $( "#test-results" ).attr('aria-busy', 'true');
+                            document.getElementById('shot').innerHTML = document.getElementById('progress').innerHTML;
+                            $scrmodal.modal('show');
+
+                            var $form = $( this ),
+                                source = document.getElementById('source').value,
+                                url = $form.attr( "action" );
+                            var posting = $.post( url, { source: source } );
+
+                            posting.done(function( data ) {
+                                $scrmodal.modal('hide');
+                                $( "#test-results" ).empty().append( data ).attr('aria-busy', 'false');
+
+                                setTimeout(function(){
+                                    $("#export").on('click', function (event) {
+                                        $('#test-results-table').table2CSV({delivery:'download'}, event);
+                                    });
+                                    $(function() {      
+                                        $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}, 5:{sorter: false} }});
+                                    });
+                                },100)
+                            })
+
+                        })
+
+                        $( "#requestURL" ).submit(function( event ) {
+                            event.preventDefault();
+                            $( "#test-results" ).attr('aria-busy', 'true');
+                            document.getElementById('shot').innerHTML = document.getElementById('progress').innerHTML;
+                            $scrmodal.modal('show');
+
+                            var 
+                                textURL = document.getElementById('textURL').value,
+                                url = $(this).attr( "action" ),
+                                scrshot =  $("#scrshot").is(":checked"),
+                                msgErr =  $("#msgErr").is(":checked"),
+                                msgWarn =  $("#msgWarn").is(":checked"),
+                                msgNotice =  $("#msgNotice").is(":checked");
+
+                                // console.log(scrshot, msgErr, msgWarn, msgNotice)
+
+                            var posting = $.post( url, { 
+                                                        textURL: textURL, 
+                                                        scrshot: scrshot,
+                                                        msgErr: msgErr,
+                                                        msgWarn: msgWarn,
+                                                        msgNotice: msgNotice
+                                                        });
+                            // console.log(textURL);
+                            posting.done(function( data ) {
+                                // console.log(data)
+                                $scrmodal.modal('hide');
+                                $( "#test-results" ).empty().append( data.data ).attr('aria-busy', 'false');
+
+                                setTimeout(function(){
+                                    $("#export").on('click', function (event) {
+                                        $('#test-results-table').table2CSV({delivery:'download'}, event);
+                                    });
+                                    $(function() {      
+                                        $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}, 5:{sorter: false} }});
+                                    });                                    
+                                },100)
+                            })
+
+                        })
+
+                        $('#server').change(function( event ) {
+                             var server= this.value;
+                             if(this.value === 'paypalmerchant') {
+                                $('#partnerDiv').removeClass('hide')
+                                $('#merchantDiv').removeClass('hide')                               
+                             }else if(this.value ==='paypalpartner'){
+                                $('#partnerDiv').removeClass('hide')
+                                $('#merchantDiv').addClass('hide')
+                             }
+                             else {
+                                $('#partnerDiv').addClass('hide')
+                                $('#merchantDiv').addClass('hide')
+                            }                                   
+                        })
+
+                        $( "#loginForm" ).submit(function( event ) {
+                            event.preventDefault();
+                            // $( "#test-results" ).attr('aria-busy', 'true');
+                            document.getElementById('shot').innerHTML = '<h3> Logging in .. Please wait </h3><div id="rotatingDiv" class="show"></div><img id="rotatingImg" src="/img/logo_347x50_PPa11y.png" border="0" class="actionImage" alt="Loading Please wait">';
+
+                            $scrmodal.modal('show');
+
+                            var 
+                                userName = document.getElementById('userName').value,
+                                password = document.getElementById('password').value,
+                                stageName = document.getElementById('stageName').value,
+                                server = document.getElementById('server').value,
+                                partner = document.getElementById('partner').value,
+                                merchant = document.getElementById('merchant').value,
+
+                                url = $(this).attr( "action" );
+
+                                // console.log('partner', partner, 'merchant', merchant)
+
+                            if( server === 'paypalmerchant' || server === 'paypalpartner') {
+                                var posting = $.post( url, { 
+                                                                userName: userName,
+                                                                password: password,
+                                                                stageName:stageName,
+                                                                server:server,
+                                                                partner:partner,
+                                                                merchant:merchant
+                                                            } 
+                                                    );
+                            }else{
+                                var posting = $.post( url, { userName: userName , password: password, stageName:stageName, server:server } );                           
+                            }   
+
+                            // console.log(textURL);
+                            posting.done(function( data ) {
+                                // console.log('logged in userName', data.userName)
+                                document.getElementById('shot').innerHTML = '';
+                                document.getElementById('shot').innerHTML = '<h3>Logged In......</h3>';
+
+                                setTimeout(function(){
+                                    $scrmodal.modal('hide');
+                                    $('#myModal').modal('hide');                                    
+                                    
+                                    $("#loginButton").addClass("hideLoginButton");
+                                    $("#logoutButton").addClass("showLogoutButton").focus();
+                                },3000)
+                            })
+
+                        })                      
+
+                            </script>
+                        </body>
+                    </html>  
+

@@ -1,0 +1,28 @@
+{
+  "name": "AATT",
+  "version": "0.0.1",
+  "description": "Automated Accessibility Testing Tool",
+  "main": "app.js",
+  "dependencies": {
+    "consolidate": "~0.10.0",
+    "express": "~4.10.7",
+    "express-session": "~1.10.1",
+    "handlebars": "~2.0.0",
+    "body-parser": "~1.10.1",
+    "phantomjs": "~1.9.13"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.paypal.com/pkhan/AATT.git"
+  },
+  "keywords": [
+    "Selenium",
+    "NodeJS"
+  ],
+  "author": "",
+  "license": "BSD"
+}
