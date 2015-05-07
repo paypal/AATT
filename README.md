@@ -5,11 +5,11 @@ Browser-based accessibility testing tools and plugins require manually testing e
 AATT tests web applications for conformance to the Web Content Accessibility Guidelines (WCAG) 2.0. Find a list of the WCAG 2.0 rules checked on the [HTML CodeSniffer WCAG Standard Summary](http://squizlabs.github.io/HTML_CodeSniffer/Standards/WCAG2/) page.
 AATT provides an accessibility API and custom web application for [HTML CodeSniffer](http://squizlabs.github.io/HTML_CodeSniffer/).  Using the AATT web application, you can configure test server configurations inside the firewall, and test individual pages.
 
-AATT includes HTMLCodeSnifer with Express and PhantomJS, which runs on Node. 
+AATT includes HTMLCodeSniffer with Express and PhantomJS, which runs on Node. 
 
 For example, it can be used to test Java web applications using [SeLion](https://github.com/paypal/selion/) automation test frameworks. 
 
-For node applications, it can be integrated into the [Nemojs](https://github.com/paypal/nemo)  to run accessiblity testing during automated unit testing .
+For node applications, it can be integrated into [NemoJS testing framework](https://github.com/paypal/nemo)  to run accessibility testing during automated unit testing .
 
 
 
