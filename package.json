@@ -17,12 +17,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.paypal.com/pkhan/AATT.git"
+    "url": "https://github.com/paypal/AATT.git"
   },
   "keywords": [
     "Selenium",
-    "NodeJS"
+    "NodeJS",
+    "accessibility",
+    "testing"
   ],
-  "author": "",
+  "author": "Nawaz Khan",
   "license": "BSD"
 }
