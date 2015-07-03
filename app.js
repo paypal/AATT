@@ -165,3 +165,34 @@ if (fs.existsSync(ssl_path)) {
 			res.redirect('/');	
 	});
 
+	app.post('/evaluate', function(req, res) {
+		var tempFilename = 'tmp/'+ new Date().getTime() + '.html';
+
+		var priority = req.body.priority;	// Accept piority as parameter to pull results by priority
+		var output = req.body.output;		// json or html string output
+
+		// console.log('P R I O R I T Y app.js ' , priority);
+		// console.log('O U T P U T ' , output);
+
+		if(typeof priority === 'undefined' || priority ==='') priority = 'P1,P2,P3,P4';
+		if(typeof output === 'undefined' || output ==='') output = 'string';
+
+		fs.writeFile(tempFilename, req.body.source, function (err,data) {
+		  if (err) {
+		    return console.log(err);
+			res.end();
+		  }
+			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', priority ,output]
+		 	childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
+
+		 	stdout = stdout.replace('done','');
+	    	res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
+	    	res.write(stdout);
+	    	res.end();
+	    	console.log(stdout);		
+			fs.unlink(tempFilename);
+			  
+			});
+		});
+	});	 	
+
