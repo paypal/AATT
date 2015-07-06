@@ -24,11 +24,9 @@ app.set('views', __dirname + '/views');
 app.engine('html', cons.handlebars);
 app.set('view engine', 'html');
 
+app.use(bodyParser.json({limit: '100mb'}));
+app.use(bodyParser.urlencoded({limit: '100mb', extended: true}));
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({
-	extended: true
-}));
 app.use(session({ resave: true,
 	      saveUninitialized: true,
 	      secret: 'uwotm8' }));
