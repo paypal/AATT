@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+ <meta charset="utf-8">
+  <head>
+	<title>Home - PayPal Accessibility Tool</title>
+    <meta charset="utf-8">
+ </head>
+<body>
+
+ <div id="test-area">
+	<div class="max-width">
+	<h3>Run your code through the Sniffer</h3>
+	<p>Run HTML_CodeSniffer over your own code to see how it works. The sniffer below will test your source code against your selected guideline.<br>
+	Test results will be shown underneath the code block.</p>
+		<div id="code-input">
+			<form id="runHTMLCS" method="post" action="http://localhost/evaluate">
+				<div id="code-overlay" onclick="hideDiv()">
+				<div id="test-area-graphic"></div>Paste your code here
+				</div>
+				<textarea id="source" name="source" title="Enter the source code to be sniffed" rows="20" cols="100">
+					<!DOCTYPE html>
+					<html lang="en">
+					<head>
+					  <meta charset="utf-8" />
+					  <title>Test</title>
+					</head>
+					<body>
+
+					<form accept-charset="UTF-8" id="webform-client-form-15745" method="post" action="#" >
+					  <div>
+
+					    <select id="stateOrProvince" name="stateOrProvince" class="validate" required="required" aria-required="true">
+					      <option value="KY">Kentucky</option>
+					      <option value="CA">California</option>
+					    </select>
+					    <button type="submit" value="Submit" name="op" id="edit-submit" class="btn btn-primary form-submit">Submit</button>
+					</div>
+					</form>  
+					</body>
+					</html>
+				</textarea>
+				<div id="test-options">
+				<label for="priority">Priority &nbsp;&nbsp; </label> 
+					<input type="text" id="priority" name="priority" value="P1"> 
+				
+				<!--fieldset>
+				<legend>Standard:</legend>
+				<ul>
+				<li><input type="radio" value="WCAG2A" name="level" id="WCAG2A" class="radio-input"><span class="radio-gen"></span><label for="WCAG2A"> WCAG 2.0 Level A</label></li>
+				<li><input type="radio" value="WCAG2AA" name="level" id="WCAG2AA" class="radio-input"><span class="radio-gen"></span><label for="WCAG2AA"> WCAG 2.0 Level AA</label></li>
+				<li><input type="radio" value="WCAG2AAA" name="level" id="WCAG2AAA" class="radio-input" checked><span class="radio-gen radio-on"></span><label for="WCAG2AAA"> WCAG 2.0 Level AAA</label></li>
+				<li><input type="radio" value="Section508" name="level" id="Section508" class="radio-input"><span class="radio-gen"></span><label for="Section508"> Section 508</label></li>
+				</ul>
+				</fieldset-->
+				<br><br><button type="submit" id="run-button">Run HTML_CodeSniffer</button>
+				</div>
+			</form>
+		</div> <!-- close code-input -->
+		<div id="resultsWrapper"></div> <!-- close #test-results -->
+	</div> <!-- close .max-width -->
+</div> <!-- close #text-area --> 
+
+
+</body>
+</html>
