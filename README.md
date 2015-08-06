@@ -113,6 +113,9 @@ You could also pass a certain element to run the scan. This is useful particular
 ```
 For more details, please refer to: [nemo-accessibility plugin](https://github.com/paypal/nemo-accessibility)
 
+## How to Use with nightwatchJS
+[Nightwatch JS](http://nightwatchjs.org ) is another UI automated testing framework powered by Node.js and uses the Selenium WebDriver API. To call AATT, you need to use the [request module](https://github.com/request/request). NightwatchJs has call back functions like before and after hooks that would be called before or after executing a test case. Request to AATT API should be done in after hook passing the source code of the page to the API.  Here is an [example commit](https://github.com/mpnkhan/nightwatch/commit/a377e860e0bfbd21d9e365e86fb3e6c4ec0e63f0)  on how to do this with Nightwatch. 
+
 ## How to Use the AATT web application 
  
 The AATT web application can be used to test HTML code snippets or pages. To test logged in pages on a test server, first configure the login credentials in AATT which creates a cookied experience. Then, enter the url for the page you want to test. 
