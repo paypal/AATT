@@ -67,7 +67,7 @@ xmlhttp.send("source=" + document.getElementById('source').value + "&priority=" 
 
  [Learn more about nemo](https://github.com/paypal/nemo)
 
-`nemo-accessibility` plugin uses the AATT accessibility API to evaluate HTML source. Therefore you must specify the API url under `nemoData` like below.
+`nemo-accessibility` plugin uses the AATT accessibility API to evaluate HTML source. Therefore you must specify the API url under as a plugin argument like below.
 
  ```json
    "nemo-accessibility":{
