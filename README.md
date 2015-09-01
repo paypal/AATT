@@ -63,49 +63,60 @@ xmlhttp.send("source=" + document.getElementById('source').value + "&priority=" 
 ```
 ## How to Use with nemo-accessibility as a plugin
 
-[Nemo](https://github.com/paypal/nemo) is a node.js based automation framework for browser automation. It's plugin-architecture helps switch on/off different capabilities. The nemo-accessibility plugin performs accessibility scanning while running browser automation using [Nemo framework](https://github.com/paypal/nemo).
+[Nemo](https://github.com/paypal/nemo) is a node.js based automation framework for browser automation. It's plugin-architecture helps switch on/off different capabilities. The [nemo-accessibility](https://github.com/paypal/nemo-accessibility) plugin performs accessibility scanning while running browser automation using [Nemo framework](https://github.com/paypal/nemo).
 
  [Learn more about nemo](https://github.com/paypal/nemo)
 
-`nemo-accessibility` plugin uses the AATT accessibility API to evaluate HTML source. Therefore you must specify the API url under `nemoData` like below.
+`nemo-accessibility` plugin uses the AATT accessibility API to evaluate HTML source. Therefore you must specify the API url under as a plugin argument like below.
 
  ```json
-    "nemoData": {
-       "accessibilityApiUrl" : "https://your_nodejs_server/evaluate"
+   "nemo-accessibility":{
+        "module":"nemo-accessibility",
+        "arguments": ["https://your_nodejs_accessibility_server/evaluate"]
     }
  ```
-Once `nemo-accessibility` plugin is registered, you should now have `nemo.accessibility` object available. `nemo.accessibility` exposes a method called `scan` to help you run accessibility evaluation against your page. `scan` method takes an _optional_ object like below,
+Once `nemo-accessibility` plugin is registered, you should now have `nemo.accessibility` namespace available in your tests. `nemo.accessibility` exposes a method called `scan` to help you run accessibility evaluation against your page/element. `scan` method takes an _optional_ object like below,
 
 ```javascript
- var options = {
-    'priority': 'P1' or ['P1','P2','P3'], //expects either a string or an array; default is ALL priorities
-    'element': nemo.drivex.find({'locator':'iframe','type':'tagName'}), //default is entire page
+  var options = {
+    'priority': 'P1' or ['P1','P2','P3'], //expects either a string or an array; default is ['P1','P2','P3','P4']
+    'element': driver.findElement(wd.tagName('iframe')), //default is entire page
     'output': 'html' or 'json' //default is html
  }
 ```
 
-`scan` method returns a promise with resulting `HTML` or `json` response from [PAET api][1] when fulfilled. You can then write the HTML to a file or parse JSON response for later reporting. For example,
+`scan` method returns a promise with resulting `HTML` or `json` response from [AATT api][1] when fulfilled. You can then write the HTML to a file or parse JSON response for later reporting. For example,
 
 ``` javascript
    nemo.driver.get('http://www.yahoo.com');
    nemo.accessibility.scan().then(function (result) {
-     fs.writeFile('test/functional/report/accessibility.html', result, function (err) {
-                 done();
+     fs.writeFile('report/accessibilityResult.html', result, function (err) {
+           done();
      });
    });
 ```
-You could also pass a certain element to run the scan. This is useful particularly when you already scanned an entire page, and the nemo test opened a dialog box; you can now scan just the newly opened dialog box since you already scanned the rest of the page before.
+You could also run accessibility scan on a _certain_ _element_ like below. This is useful when lets say you scanned an entire page already, and subsequently a certain automated test interaction opened a dialog box; you can now only scan newly opened dialog box since you already scanned the rest of the page before.
+You could also run accessibility scan on a _certain_ _element_ like below. This is useful when lets say you scanned an entire page already, and subsequently a certain automated test interaction opened a dialog box; you can now only scan newly opened dialog box since you already scanned the rest of the page before.
+
+Here is a "made up" example, (note this example uses excellent [nemo-view](https://github.com/paypal/nemo-view) plugin for finding elements)
 
 ```javascript
   it('will run scan on an element', function (done) {
         nemo.driver.get('http://www.paypal.com');
-        var element = nemo.driver.findElement(nemo.wd.By.tagName('video')),
+        nemo.accessibility.scan().then(function (result) {
+            fs.writeFile('report/entirePage.html',result,function (err) {
+               done();
+            });
+        });
+        var welcomePage = nemo.view.welcomePage;
+        welcomePage.buttonThatOpensAPopup().click();
+        var element = welcomePage.popup();,
             options = {
                 'priority': ['P1', 'P2'],
                 'element': element
             };
         nemo.accessibility.scan(options).then(function (result) {
-            fs.writeFile('test/functional/report/scanAnElement.html', result, function (err) {
+            fs.writeFile('report/scanAnElement.html', result, function (err) {
                 done();
             });
         });
