@@ -110,7 +110,7 @@ Here is a "made up" example, (note this example uses excellent [nemo-view](https
         });
         var welcomePage = nemo.view.welcomePage;
         welcomePage.buttonThatOpensAPopup().click();
-        var element = welcomePage.popup();,
+        var element = welcomePage.popup(),
             options = {
                 'priority': ['P1', 'P2'],
                 'element': element
