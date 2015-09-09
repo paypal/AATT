@@ -30,10 +30,10 @@ cd AATT
 sudo npm install
 git submodule init
 git submodule update
-$ node app.js
+$ DEBUG=AATT* http_port=3000 node app.js
 ```
 
-You can now access the running instance of AATT from https://localhost
+You can now access the running instance of AATT from http://localhost:3000
 *Note*: if you get "access" errors from Node, please make sure to shut down your Apache server by running the following from the command line:
 
 ```sh
@@ -41,7 +41,7 @@ $ sudo apachectl stop
 ```
 
 ## Integration with AATT API
-AATT has an APIfor evaluating HTML Source code from other servers. The API EndPoint is: https://your_nodejs_server/evaluate
+AATT provides an API for evaluating HTML Source code from other servers. The API EndPoint is: https://your_nodejs_server/evaluate
 
 * Accepts the following parameters:
   1. "source" to send the HTML source of the page. Can be a whole page or partial page source 
