@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Test</title>
+		<style>
+			body{text-align:center}
+			#container{width:760px;margin:0 auto; text-align:left ;overflow:hidden}	
+			
+			.hide { display:none}
+			.pplogo {
+				display:block;
+				width:240px;
+				height:189px;
+				background:url('paypal-logo1x.svg') no-repeat 0 0;
+				text-indent:-1000em;
+			}	
+			.sr-only {
+			  position: absolute !important;
+			  height: 1px; width: 1px; 
+			  overflow: hidden;
+			  clip: rect(1px 1px 1px 1px); /* IE6, IE7 */
+			  clip: rect(1px, 1px, 1px, 1px);
+			}
+
+		</style>  
+</head>
+<body>
+<div id='container'>
+	<h1> Test cases for Accessibility Tools</h1>
+	
+	<h2> Form input fields </h2>
+	<form>
+
+		<fieldset>
+			<legend> Form Fields </legend>
+			Element with hidden CSS style:  <input 	type='text' id='ip1'  class="hide">  <br><br>
+			Element with JS hiding input : <input 	type='text' id='ip2'> <br><br>
+			
+			Input type = hiddden <input type="hidden" id="ip3" name="ip3"> <br><br>
+			
+			<h3> Aria-label </h3>
+			<button aria-label="Close">X</button>
+			
+			<h3> Aria-labelledBy</h3>
+			<input type="text" aria-labelledBy="mName"> <br><span id="mName"> Middle Name</span> <br><br>
+		 	<h3> Aria-describedBy</h3>
+			<input type="text" aria-describedBy="lName"> <br><span id="lName"> Last Name </span> <br><br>
+		
+			<p><input type="submit" id="submit" value="Submit form"></p>
+		
+	</fieldset>
+
+	</form>  
+	<hr>
+		<h2> Contrast </h2>
+	<p>
+		<img src="lowcontrast.gif" alt="Low contrast image">
+	</p>
+	<p style="background-color:#cccccc; color:#dddddd">
+		Low-contrast font color and unreadable texts? visit http://contrastrebellion.com/
+	</p>
+</div>
+	<script>
+		document.getElementById('ip2').style.display='none';
+	</script>
+	
+</body>
+</html>

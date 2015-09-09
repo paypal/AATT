@@ -1,0 +1,83 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+    <title>Donate</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" /> 
+    <meta name="apple-mobile-web-app-capable" content="yes" /> 
+<head>
+  <link rel="stylesheet" href="bootstrap.min.css">
+  <style>
+  .flexcontainer {
+   display: -webkit-flex;
+   display: flex;
+   -webkit-flex-direction: row /* works with row or column */
+   flex-direction: row;
+   -webkit-align-items: center;
+   align-items: center;
+   -webkit-justify-content: center;
+   justify-content: center;
+}
+  input {display:block ; margin:50px;width:200px;}
+  </style>
+</head>
+<body>
+<div class="flexcontainer">
+
+	<button data-target="#myModal" data-toggle="modal"  id="btnDonate" class="btn btn-primary btn-lg" type="button" style="margin-top:50px;">
+		  Donate
+	</button>
+	
+	<div aria-labelledby="myModalLabel" role="dialog" tabindex="-1" class="modal fade" id="myModal">
+		<div role="document" class="modal-dialog">
+		  <div class="modal-content">
+
+			<div class="modal-header">
+			  <button aria-label="Close" data-dismiss="modal" class="close" type="button"><span aria-hidden="true">×</span></button>
+			  <h4 id="myModalLabel" class="modal-title">Sign-in</h4>
+			</div>
+			<div class="modal-body" id="signForm">
+			</div>
+			<div class="modal-footer">
+			  <button data-dismiss="modal" class="btn btn-default" type="button">Close</button>
+			  <button  class="btn btn-primary" type="button">Save changes</button>
+			</div>
+
+		  </div><!-- /.modal-content -->
+		</div><!-- /.modal-dialog -->
+  </div>
+</div>
+
+<script src="jquery.js"></script>
+
+<script>
+var docfrag = document.createDocumentFragment();
+var flDs ={
+			Email:"Email",
+			passwd:"Create your password", 
+			conpasswd:"Confirm your Password"
+		};
+for(fld in flDs)
+{
+    var label = flDs[fld]; 
+	var inp = document.createElement("input");
+	inp.setAttribute('type', 'text');
+	inp.setAttribute('placeholder', label);
+	//console.log(fld, label);
+	docfrag.appendChild(inp);
+}
+$( "#btnDonate" ).on( "click", function() {
+	$('#signForm').append(docfrag);
+});
+
+ /*
+ var $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))) 
+  $target.one('show.bs.modal', function (showEvent) {
+	kalert('shown');
+  }
+*/  
+</script>
+<script src="bootstrap.min.js"></script>
+
+
+</body>
+</html>
