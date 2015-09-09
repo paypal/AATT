@@ -1,23 +1,28 @@
-// B A S I C 	C O N F I G
-var http_port = 80;		// Start with Sudo for starting in  port 80 or 443
-var https_port = 443;
-var ssl_path= 'crt/ssl.key';
-var cert_file = 'cert/abc.cer';
-
-
-//R E Q U I R E S 
+//R E Q U I R E S
 var express = require('express')
 var app = express();
 var http = require('http'); 
 var https = require('https');
 var cons = require('consolidate')
 var childProcess = require('child_process');
-var path =require("path");
+var path =require('path');
 var phantomjs = require('phantomjs/lib/phantomjs');
 var binPath = phantomjs.path
-var fs = require("fs");
+var fs = require('fs');
 var bodyParser = require('body-parser');
 var session = require('express-session');
+var debug = require('debug');
+var log = debug('AATT:log');
+var error = debug('AATT:error');
+var nconf = require('nconf');
+
+nconf.env().argv();
+
+// B A S I C 	C O N F I G
+var http_port = nconf.get('http_port') || 80;		// Start with Sudo for starting in  port 80 or 443
+var https_port = nconf.get('https_port') || 443;
+var ssl_path= 'crt/ssl.key';
+var cert_file = 'cert/abc.cer';
 
 
 app.set('views', __dirname + '/views');
@@ -48,12 +53,12 @@ if (fs.existsSync(ssl_path)) {
 		};
 		var httpsServer = https.createServer(options, app);
 		httpsServer.listen(https_port);
-		console.log('Express started on port ' + https_port);	
+		log('Express started on port ' , https_port);
 
 } else {
 		var server = http.createServer(app);
 		app.listen(http_port);					
-		console.log('Express started on port ' + http_port);
+		log('Express started on port ', http_port);
 }
 
 	app.get('/', function(req, res) {
@@ -93,7 +98,7 @@ if (fs.existsSync(ssl_path)) {
 
 		if (typeof req.session.userName !== 'undefined') {
 			userName = req.session.userName;
-			console.log('Testing logged in session: -> ', userName)
+			log('Testing logged in session: -> ', userName)
 		}
 		childArgs = ['--config=config/config.json', path.join(__dirname, 'src/PAET.js')
 						, req.body.textURL
@@ -105,7 +110,7 @@ if (fs.existsSync(ssl_path)) {
 					];
 		childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 			res.json({ userName: userName, data: stdout });
-			console.log(stdout);
+			log(stdout);
 		});
 	});
 
@@ -123,13 +128,13 @@ if (fs.existsSync(ssl_path)) {
 
 			fs.writeFile(tempFilename, source , function (err,data) {
 			  if (err) {
-			    return console.log(err);
+			   return error(err);
 			  }
 
 			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', 'P1,P2,P3,P4']
 			 	childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 				res.json(stdout);
-				console.log(stdout);
+				log(stdout);
 			});
 
 		});
@@ -141,13 +146,13 @@ if (fs.existsSync(ssl_path)) {
 			stageName = req.body.stageName,
 			server = req.body.server
 
-			console.log(userName, password, stageName, server);
+			log(userName, password, stageName, server);
 			req.session.userName = userName;
 
 		var childArgs1 = ['--config=config/config.json', path.join(__dirname, 'src/login.js'), userName, password, stageName, server]
 			childProcess.execFile(binPath, childArgs1, function(err, stdout, stderr) {
 			res.json({ userName: userName, data: stdout });
-			console.log(stdout);		 
+			log(stdout);
 		});
 	});
 
@@ -156,7 +161,7 @@ if (fs.existsSync(ssl_path)) {
 				var fs = require('fs');
 				fs.unlink(req.session.userName+'.txt', function (err) {
 					if (err) throw err;
-					console.log('successfully deleted cookies');
+					log('successfully deleted cookies');
 				});
 				delete req.session.userName;
 			}
@@ -177,7 +182,7 @@ if (fs.existsSync(ssl_path)) {
 
 		fs.writeFile(tempFilename, req.body.source, function (err,data) {
 		  if (err) {
-		    return console.log(err);
+		    return error(err);
 			res.end();
 		  }
 			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', priority ,output]
@@ -187,7 +192,7 @@ if (fs.existsSync(ssl_path)) {
 	    	res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
 	    	res.write(stdout);
 	    	res.end();
-	    	console.log(stdout);		
+	    	log(stdout);
 			fs.unlink(tempFilename);
 			  
 			});
