@@ -25,7 +25,7 @@ var HTMLCS_RUNNER = new function() {
 						'Principle4': 'Robust'
 					};
 					
-					content += '<div id="test-area"><div  class="container"><div id="test-results"><div id="resultsWrapper" class="resultsWrapperActive">';
+					content += '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Evaluate</title></head><body>';
 
 					if (msgs.length === 0) {
 						resultsWrapper.innerHTML = '<span class="no-violations">No violations found</span>';
@@ -146,7 +146,7 @@ var HTMLCS_RUNNER = new function() {
 
 					content  = content + heading;		
 					content += '</tbody></table>';
-					content += '</div></div></div></div>';
+					content += '</body></html>';
 
 			} catch (e) {
 					console.log('Error:', e.toString());
