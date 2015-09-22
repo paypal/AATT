@@ -171,29 +171,36 @@ if (fs.existsSync(ssl_path)) {
 	app.post('/evaluate', function(req, res) {
 		var tempFilename = 'tmp/'+ new Date().getTime() + '.html';
 
-		var priority = req.body.priority;	// Accept piority as parameter to pull results by priority
-		var output = req.body.output;		// json or html string output
+		var priority = req.body.priority;	// Piority Eg P1,P2,P3,P4  	default:all
+		var output = req.body.output;		// Eg. json, string  		default: string
+		var engine	= req.body.engine;		//Eg htmlcs, chrome 		default:htmlcs
 
 		// console.log('P R I O R I T Y app.js ' , priority);
 		// console.log('O U T P U T ' , output);
 
 		if(typeof priority === 'undefined' || priority ==='') priority = 'P1,P2,P3,P4';
 		if(typeof output === 'undefined' || output ==='') output = 'string';
+		var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', priority, output];
 
+		switch(engine){
+			case "chrome":
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), tempFilename, output];
+				break;
+		}		
+		console.log('E N G I N E ' , engine, childArgs);		
 		fs.writeFile(tempFilename, req.body.source, function (err,data) {
 		  if (err) {
 		    return error(err);
 			res.end();
 		  }
-			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', priority ,output]
 		 	childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 
-		 	stdout = stdout.replace('done','');
-	    	res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
-	    	res.write(stdout);
-	    	res.end();
-	    	log(stdout);
-			fs.unlink(tempFilename);
+			 	stdout = stdout.replace('done','');
+		    	res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
+		    	res.write(stdout);
+		    	res.end();
+		    	log(stdout);
+				fs.unlink(tempFilename);
 			  
 			});
 		});
