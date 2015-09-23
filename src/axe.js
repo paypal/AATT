@@ -44,70 +44,40 @@ var page = require('webpage').create(),
 
                 // Include all sniff files.
                 var fs = require('fs');            
-                page.injectJs('./src/chrome/dist/js/axs_testing.js');
+                page.injectJs('./src/axe/axe.min.js');
 
                 // console.log('O U T P U T ' , output);
  
                 if(address.indexOf("file:") === -1){
                     screenshot_url=  'screenshots/' +  Math.floor((Math.random()*1000)+1) +'.png';
-                    page.render(screenshot_url);
+                    // page.render(screenshot_url);
                 }
+
                 var data = {
                     screenshot_url : screenshot_url
                 };
-                
                 var evalData = page.evaluate(function(data) {
                     var screenshot_url = data.screenshot_url;
-
-                    var configuration = new axs.AuditConfiguration();
-                    configuration.showUnsupportedRulesWarning = false;
-                    configuration.scope = document.body;
-                    var results = axs.Audit.run(configuration);
-
-                    // console.log(JSON.stringify(document.body));
-
-                    var audit = results.map(function    (result) {
-                        var DOMElements = result.elements;
-                        var message = '';
-                        if(result.result ==='FAIL'){
-                            if (DOMElements !== undefined) {
-                                var maxElements = Math.min(DOMElements.length, 5);
-
-                                for (var i = 0; i < maxElements; i++) {
-                                    var el = DOMElements[i];
-                                    message += '\n';
-                                    try {
-                                        message += axs.utils.getQuerySelectorText(el);
-                                    } catch (err) {
-                                        message += ' tagName:' + el.tagName;
-                                        message += ' id:' + el.id;
-                                    }
-                                }
-                            }
-                            return {
-                                heading: result.rule.heading,
-                                result: result.result,
-                                severity: result.rule.severity,
-                                elements: message
-                            };
-                        }   //Return Failures only
+                    var audit = axe.a11yCheck(document.body, function (results) {
+                        var violations = results.violations
+                        for (var i=violations.length;i--;){
+                            delete violations[i].helpUrl;
+                            delete violations[i].tags;              
+                            delete violations[i].nodes;
+                        } 
+                        return violations;
                     });
-
-                    // var report =  axs.Audit.createReport(results);
-                    for (var i=audit.length;i--;){
-                      if (audit[i] == null) audit.splice(i,1);
-                    }
                     return  audit;
                 }, data);
-                var htmlStr = buildHtmlTable( evalData ,'Chrome Accessibility Plugin');
+                // console.log(evalData);
+                var htmlStr = buildHtmlTable( evalData ,'Axe Accessibility Plugin');
                 console.log(htmlStr);
                 phantom.exit();
             }, 200);
         }//end if
-    });//end
+    });//end  page.open
 
     /***************** H E L P E R   F U N C T I O N S *******************/
-       // Builds the HTML Table out of myList json data from Ivy restful service.
         function buildHtmlTable(arr) {
             var heading ='' 
                 , msg
@@ -119,13 +89,14 @@ var page = require('webpage').create(),
                 return;
             }           
             content += '<table id="test-results-table" class="tablesorter">';
-            content += '<thead><tr><th>Heading</th><th>Result</th><th>severity</th><th>Elements</th></tr></thead><tbody>';
+            content += '<thead><tr><th>Id</th><th>Description</th><th>severity</th><th>Help</th><th>Impact</th></tr></thead><tbody>';
             for (var key in arr) {
                 msg = arr[key];
-                content += '<tr class="error"><td  class="number"><span class="flag">' + msg.heading + '</span></td>';
-                content += '<td  class="messagePrinciple">' + msg.result + '</td>';
-                content += '<td  class="messagePrinciple">' + msg.severity + '</td>';
-                content += '<td  class="messagePrinciple">' + msg.elements + '</td>';
+                content += '<tr class="error">';
+                    content += '<td  class="messagePrinciple">' + msg.id + '</td>';
+                    content += '<td  class="messagePrinciple">' + msg.description + '</td>';
+                    content += '<td  class="messagePrinciple">' + msg.help + '</td>';
+                    content += '<td  class="messagePrinciple">' + msg.impact + '</td>';
                 content += '</tr>';
             }    
             content += '</tbody></table>';
