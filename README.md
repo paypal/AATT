@@ -141,7 +141,7 @@ Optionally, you can configure the tool to save a screensnap of the html page you
 
 ## Copyright and License
 
-Copyright 2015, eBay Software Foundation under [the BSD license](LICENSE.md).
+Copyright 2015, PayPal under [the BSD license](LICENSE.md).
 
 ## Contributors
  - Prem Nawaz Khan,  developer || [https://github.com/mpnkhan](https://github.com/mpnkhan) || [@mpnkhan](https://twitter.com/mpnkhan)
