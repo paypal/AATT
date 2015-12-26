@@ -39,7 +39,9 @@ var HTMLCS_RUNNER = new function() {
 					content += '<link rel="stylesheet" type="text/css" href="https://paet.corp.ebay.com/css/home.css">';																								
 */					
 					content += '<table id="test-results-table" class="tablesorter"><thead><tr>';
-					content += '<th>Principle</th><th>Message</th><th>Code snippet</th><th>Techniques</th></thead></tr><tbody>';
+					if(standard=='Section508') content += '<th>Message</th><th>Rule</th>';
+					else content += '<th>Principle</th><th>Message</th><th>Code snippet</th><th>Techniques</th>';
+					content += '</thead></tr><tbody>';
 
 					var errors   = 0;
 					var warnings = 0;
@@ -74,40 +76,48 @@ var HTMLCS_RUNNER = new function() {
 							var outerHTML = msg.element.outerHTML;
 						}
 						// Get the success criterion so we can provide a link.
-						var msgParts   = msg.code.split('.');
-						var principle  = msgParts[1];
-						var sc         = msgParts[3].split('_').slice(0, 3).join('_');
-						var techniques = msgParts[4];
-						techniques     = techniques.split(',');
-						var priority;
-						
-						switch(principles[principle]){
-							case "Robust":
-								priority = "P4";
-								break;
-							case "Understandable":
-								priority = "P3";
-								break;
-							case "Operable":
-								priority = "P2";
-								break;
-							case "Perceivable":
-								priority = "P1";
-								break;
-						}
+						var msgParts   = msg.code.split('.');						
+						if(standard=='Section508'){
+							// var msgParts  = code.split('.', 3);
+					        var paragraph     = msgParts[1].toLowerCase();
+					        var principle = [
+					            ['Section', '1194.22 (' + paragraph + ')']
+					        ];					       
+				        }else{
+					        					
+							var principle  = msgParts[1];
+							var sc         = msgParts[3].split('_').slice(0, 3).join('_');
+							var techniques = msgParts[4];
+							techniques     = techniques.split(',');
+							var priority;
+							
+							switch(principles[principle]){
+								case "Robust":
+									priority = "P4";
+									break;
+								case "Understandable":
+									priority = "P3";
+									break;
+								case "Operable":
+									priority = "P2";
+									break;
+								case "Perceivable":
+									priority = "P1";
+									break;
+							}
 
-								//Build our own filter different from HTMLCodeSniffer
-				                if(techniques.indexOf('G18')!='-1')  priority='P2';         //Issue #25 drop color contrast issue priority to P2                                                                            
-				                															// With current logic all Perceivable are P1 and color contrast is perceivable can't change guideline
-				                // if(techniques.indexOf('H91')!='-1')  priority='P4';                                                                              
-																	
-								// Build a message code without the standard name.
-								msgParts.shift();
-								msgParts.unshift('[Standard]');
+									//Build our own filter different from HTMLCodeSniffer
+					                if(techniques.indexOf('G18')!='-1')  priority='P2';         //Issue #25 drop color contrast issue priority to P2                                                                            
+					                															// With current logic all Perceivable are P1 and color contrast is perceivable can't change guideline
+					                // if(techniques.indexOf('H91')!='-1')  priority='P4';                                                                              
+																		
+									// Build a message code without the standard name.
+									msgParts.shift();
+									msgParts.unshift('[Standard]');
+						}		
 								var noStdMsgParts = msgParts.join('.');
 						
 						 // console.log('P R I O R I T Y -> ' + prtyArr.indexOf(priority));
-
 						if(type !== "Warning" &&  type !== "Notice" && prtyArr.indexOf(priority) !=-1 ) {		//&& prtyArr.indexOf(priority) === 0
 							errors += 1;
 							content += '<tr class="' + type.toLowerCase() + '">';
@@ -128,6 +138,11 @@ var HTMLCS_RUNNER = new function() {
 							content += '</tr>';
 							count++
 						}
+						if(standard=='Section508'){
+							errors += 1;
+							content += '<td class="messageText"> ' + msg.msg + '</td>';
+							content += '<td class="messageTechniques"> ' + principle + '</td>';							
+						}	
 							
 					} //Closing for loop
 					if(errors === 0) {
