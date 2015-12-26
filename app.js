@@ -186,8 +186,11 @@ if (fs.existsSync(ssl_path)) {
 			case "chrome":
 				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), tempFilename, output];
 				break;
+			case "axe":
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), tempFilename, output];
+				break;
 		}		
-		console.log('E N G I N E ' , engine, childArgs);		
+		console.log('E N G I N E ' , engine, childArgs);
 		fs.writeFile(tempFilename, req.body.source, function (err,data) {
 		  if (err) {
 		    return error(err);
