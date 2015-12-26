@@ -28,7 +28,8 @@ var HTMLCS_RUNNER = new function() {
 					content += '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Evaluate</title></head><body>';
 
 					if (msgs.length === 0) {
-						resultsWrapper.innerHTML = '<span class="no-violations">No violations found</span>';
+						// resultsWrapper.innerHTML = '<span class="no-violations">No violations found</span>';
+						console.log('No violations found');
 						return;
 						}
 /*

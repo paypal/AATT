@@ -174,13 +174,16 @@ if (fs.existsSync(ssl_path)) {
 		var priority = req.body.priority;	// Piority Eg P1,P2,P3,P4  	default:all
 		var output = req.body.output;		// Eg. json, string  		default: string
 		var engine	= req.body.engine;		//Eg htmlcs, chrome 		default:htmlcs
+		var level = req.body.level;		//E.g. WCAG2AA, WCAG2A, WCAG2AAA, Section508 	default:WCAG2AA
 
 		// console.log('P R I O R I T Y app.js ' , priority);
 		// console.log('O U T P U T ' , output);
 
 		if(typeof priority === 'undefined' || priority ==='') priority = 'P1,P2,P3,P4';
 		if(typeof output === 'undefined' || output ==='') output = 'string';
-		var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', priority, output];
+		if(typeof level === 'undefined' || level ==='') level = 'WCAG2AA';
+
+		var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, level, priority, output];
 
 		switch(engine){
 			case "chrome":

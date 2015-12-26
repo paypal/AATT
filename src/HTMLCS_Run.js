@@ -79,6 +79,7 @@ var page = require('webpage').create(),
                     case 'WCAG2A':
                     case 'WCAG2AA':
                     case 'WCAG2AAA':
+                    case 'Section508':                    
                         page.evaluate(function(data) {
                             var screenshot_url = data.screenshot_url;
                             var standard = data.standard;
