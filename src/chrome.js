@@ -50,7 +50,7 @@ var page = require('webpage').create(),
  
                 if(address.indexOf("file:") === -1){
                     screenshot_url=  'screenshots/' +  Math.floor((Math.random()*1000)+1) +'.png';
-                    page.render(screenshot_url);
+                    // page.render(screenshot_url);
                 }
                 var data = {
                     screenshot_url : screenshot_url
