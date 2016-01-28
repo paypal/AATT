@@ -111,7 +111,7 @@ var page = require('webpage').create(),
         function buildHtmlTable(arr) {
             var heading ='' 
                 , msg
-                , content = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Evaluate</title></head><body>'
+                , content = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Evaluate</title><style>table, th, td {border: 1px solid blue;}</style></head><body>'
         
             if (arr.length === 0) {
                 content += '<span class="no-violations">No violations found</span>';

@@ -25,7 +25,7 @@ var HTMLCS_RUNNER = new function() {
 						'Principle4': 'Robust'
 					};
 					
-					content += '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Evaluate</title></head><body>';
+					content += '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Evaluate</title></head><style>table, th, td {border: 1px solid red;}</style><body>';
 
 					if (msgs.length === 0) {
 						// resultsWrapper.innerHTML = '<span class="no-violations">No violations found</span>';

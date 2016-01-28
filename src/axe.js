@@ -42,7 +42,7 @@ page.open(args[1], function (status) {
     function buildHtmlTable(arr) {
         var heading ='' 
             , msg
-            , content = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Evaluate</title></head><body>'
+            , content = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>Axe Results</title><style>table, th, td {border: 1px solid green;}</style></head><body>'
     
         if (arr.length === 0) {
             content += '<span class="no-violations">No violations found</span>';
@@ -50,7 +50,7 @@ page.open(args[1], function (status) {
             return;
         }           
         content += '<table id="test-results-table" class="tablesorter">';
-        content += '<thead><tr><th>Id</th><th>Description</th><th>severity</th><th>Help</th><th>Impact</th></tr></thead><tbody>';
+        content += '<thead><tr><th>Id</th><th>Description</th><th>Help</th><th>Impact</th></tr></thead><tbody>';
         for (var key in arr) {
             msg = arr[key];
             content += '<tr class="error">';
