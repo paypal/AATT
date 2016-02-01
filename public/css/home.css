@@ -1238,7 +1238,6 @@ form {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) inset, 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 #code-input, #code-input-upload {
-	text-align:center; 
 	min-height: 50px;
 	margin-top:0px;
 	width:98%;

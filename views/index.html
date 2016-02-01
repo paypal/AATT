@@ -77,32 +77,48 @@
                         <div class="tab-pane fade in active" id="home" role="tabpanel" tabIndex="0" aria-labelledby="hometab" aria-hidden="false">
                                 <div id="code-input">
                                     <form id="requestURL" method="post" action="/sniffURL">
-                                        <label for="textURL" class="textURL">Page URL</label>
-                                        <input id="textURL" type="text" name="textURL" placeholder="EG, http://example.com/mypage.html" size="100"/>
-                                        <input type="hidden" id="user" name="userName" value="{{{userName}}}"/>
-                                        <button type="submit" id="submitButton" class="btn btn-primary btn-medium">Test Page</button>
-
-                                        <div style="margin-left:90px;text-align:left">
-                                        <br>
-                                        <label for="scrshot" class="inline">Screenshot </label>   
-                                        <input type="checkbox" style="font-size: 50px;" class="chkbox" id="scrshot" name="scrshot">
-                                        <br/><br/>
-
-                                        <strong> Show </strong> &nbsp;&nbsp;
-
-                                        <label for="msgErr" class="inline">Errors </label>   
+                                     <div class="row">
+                                        <div class="col-xs-6 col-md-12">
+                                          <div class="form-group form-inline">
+                                            <label for="textURL" class="textURL" style="display:inline;padding-left:10px;">Page URL</label>
+                                           <input id="textURL" type="text" class="form-control" name="textURL" placeholder="EG, http://example.com/mypage.html" size="100"/>
+                                          <input type="hidden" id="user" name="userName" value="{{{userName}}}"/>                      
+                                          </div>
+                                        </div>                                   
+                                      </div> <!-- row1-->
+                                      <div class="row">
+                                        <div class="col-xs-6 col-md-12">
+                                          <div class="form-group form-inline">
+                                            <label for="scrshot" class="inline">Screenshot </label>   
+                                            <input type="checkbox" style="font-size: 50px;" class="chkbox" id="scrshot" name="scrshot">
+                                          </div>                                   
+                                        </div>                                   
+                                      </div>  <!-- row2-->
+                                      <div class="row">
+                                        <div class="col-xs-6 col-md-12">
+                                          <div class="form-group form-inline" style="padding-left:10px;">
+                                              <strong> Show </strong> &nbsp;&nbsp;
+                                            <label for="msgErr" class="inline">Errors </label>   
                                             <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgErr" name="msgErr" checked="true">
 
-                                        <label for="msgWarn" class="inline">Warnings</label>   
+                                            <label for="msgWarn" class="inline">Warnings</label>   
                                             <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgWarn" name="msgWarn">
 
-                                        <label for="msgNotice" class="inline">Notices </label>   
+                                            <label for="msgNotice" class="inline">Notices </label>   
                                             <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgNotice" name="msgNotice">
+                                          </div>                                   
+                                        </div>                                   
+                                      </div>   <!-- row3-->
+  
+                                        <div class="row"> 
+                                        <div class="col-xs-6 col-md-12">
+                                          <button type="submit" id="submitButton" class="btn btn-primary btn-medium" style="margin-left:10px;">Test Page</button>
+                                        </div>
+                                      </div>  <!-- row4-->
 
-                                        </div>    
                                     </form>
-                                </div>  
-                            </div>
+                              </div>  <!--code-input-->
+                        </div>  <!--tab-pane -->
                         <div class="tab-pane fade" id="sniffHTMLTabPanel" role="tabpanel" tabIndex="-1" aria-labelledby="sniffHTMLTab" aria-hidden="true">
                                 <form id="sniff" method="post" action="/sniffHTML">
                                     <textarea name="source" id="source" cols="100" rows="20" title="Enter the source code to be sniffed" id="source"></textarea>
