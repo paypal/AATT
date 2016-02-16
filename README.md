@@ -47,7 +47,7 @@ AATT provides an API for evaluating HTML Source code from other servers. The API
   1. "source" to send the HTML source of the page. Can be a whole page or partial page source 
   2. "priority" to fetch reqults based on issue priorities like P1, P2, Pr or P4. It is a comma-separated value. Eg P1,P2,P3,P4
   3. "ouput" to get the jsonified string. E.g. output=json.  If this parameter is not set or left empty, it will return a string with table data that can be parsed or appended directly into your page.
-  4. "engine" E.g. engine=htmlcs. This is the engine which will scan the code. It accepts a single value of "chrome" or "htmlcs". Default to "htmlcs"
+  4. "engine" E.g. engine=htmlcs. This is the engine which will scan the code. It accepts a single value of "axe", chrome" or "htmlcs". Default to "htmlcs"
   5. "level" This option applies only for the default htmlcs evaluation engine. Options can be either of the following WCAG2AA, WCAG2A, WCAG2AAA, Section508  . Defaults to "WCAG2A"
 
     
@@ -85,7 +85,7 @@ Once `nemo-accessibility` plugin is registered, you should now have `nemo.access
     'priority': 'P1' or ['P1','P2','P3'], //expects either a string or an array; default is ['P1','P2','P3','P4']
     'element': driver.findElement(wd.tagName('iframe')), //default is entire page
     'output': 'html' or 'json', //default is html,
-    'engine': 'htmlcs' or 'chrome', //default is htmlcs
+    'engine': 'axe', 'htmlcs' or 'chrome', //default is htmlcs
     'level': 'WCAG2AA' or 'WCAG2A' or  'WCAG2AAA' //option applies to htmlcs only and default to WCAG2AA
  }
 ```
@@ -103,12 +103,17 @@ Once `nemo-accessibility` plugin is registered, you should now have `nemo.access
 
 You could also run accessibility scan on a _certain_ _element_ like below. This is useful when lets say you scanned an entire page already, and subsequently a certain automated test interaction opened a dialog box; you can now only scan newly opened dialog box since you already scanned the rest of the page before.
 
-Here is a "made up" example, (note this example uses excellent [nemo-view](https://github.com/paypal/nemo-view) plugin for finding elements)
+Here is a  [example](https://github.com/paypal/nemo-accessibility/blob/master/example/dynamicpage.js), (note this example uses excellent [nemo-view](https://github.com/paypal/nemo-view) plugin for finding elements)
 
 ```javascript
   it('will run scan on an element', function (done) {
         nemo.driver.get('http://www.paypal.com');
-        nemo.accessibility.scan().then(function (result) {
+        var options = {
+            'priority': ['P1', 'P2'],
+            'source': 'btnDonate',
+            'engine' : 'htmlcs'
+        };        
+        nemo.accessibility.scan(options).then(function (result) {
             fs.writeFile('report/entirePage.html',result,function (err) {
                done();
             });
@@ -118,7 +123,8 @@ Here is a "made up" example, (note this example uses excellent [nemo-view](https
         var element = welcomePage.popup(),
             options = {
                 'priority': ['P1', 'P2'],
-                'element': element
+                'element': element,
+                'engine' : 'axe'
             };
         nemo.accessibility.scan(options).then(function (result) {
             fs.writeFile('report/scanAnElement.html', result, function (err) {
