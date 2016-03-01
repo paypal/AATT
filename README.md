@@ -154,6 +154,8 @@ Optionally, you can configure the tool to save a screensnap of the html page you
 
 Copyright 2015, PayPal under [the BSD license](LICENSE.md).
 
+[1]: https://yourhostname/evaluate "AATT api"
+
 ## Contributors
  - Prem Nawaz Khan,  developer || [https://github.com/mpnkhan](https://github.com/mpnkhan) || [@mpnkhan](https://twitter.com/mpnkhan)
  - Cathy O'Connor, design || [@cagocon](https://twitter.com/cagocon)
