@@ -1,0 +1,268 @@
+body {
+    margin: 20px;
+    line-height: 150%;
+}
+
+.h1 {
+    font-size: 2em;
+    margin: 0.67em 0;
+    font-weight: bold;
+}
+
+h2 {
+    margin: 2em 0 0;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid #aaa;
+}
+
+h5 {
+    font-size: 1em;
+}
+
+.fake-heading {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 0.67em 0;
+}
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin: 0px;
+    padding: 0px;
+}
+
+th {
+    font-weight: bold;
+}
+
+th, td {
+    border: 1px solid #999;
+    padding: 4px;
+}
+
+tbody th {
+    text-align: left;
+    font-weight: normal;
+}
+
+.table--tool {
+    width: 100%;
+}
+
+.table--tool tbody th {
+    width: 20%;
+}
+
+.table--tool td {
+    width: 4%;
+}
+
+.error {
+    background: #a8ff26;
+}
+
+.warning {
+    background: #fba300;
+}
+
+.different {
+    background: #980f0f;
+    color: #fff;
+}
+
+.notfound {
+    background: #ff7c7c;
+}
+
+.identified {
+    background: #A5D9FF;
+}
+
+.manual {
+    background: #e685ff;
+}
+
+.wrong {
+    background: #ffcccc;
+}
+
+.false-positive {
+    background: #981389;
+    color: #fff;
+}
+
+.container {
+    width: 800px;
+}
+
+.example {
+    border: 1px solid #000;
+    padding: 10px;
+}
+
+.example--contain {
+    overflow: hidden;
+}
+
+.example--wide {
+    width: 200%;
+    overflow: hidden;
+}
+
+.constrained {
+    width: 50em;
+}
+
+.red {
+    color: #B31212;
+}
+.green {
+    color: green;
+}
+
+.no-outine {
+    outline:none;
+}
+
+.small-text {
+    font-size: 8px;
+}
+.italic {
+    font-style: italic;
+}
+.all-caps {
+    text-transform: uppercase;
+}
+.justify {
+    text-align: justify;
+}
+.line-height {
+    line-height: 90%;
+}
+
+.low-contrast-small-aa,
+a.low-contrast-small-aa:active,
+a.low-contrast-small-aa:focus,
+a.low-contrast-small-aa:visited {
+    font-size: 12px;
+    color: #757980;
+}
+
+.low-contrast-large-aa,
+a.low-contrast-large-aa:active,
+a.low-contrast-large-aa:focus,
+a.low-contrast-large-aa:visited {
+    font-size: 20px;
+    color: #878c8c;
+}
+
+.low-contrast-small-aaa,
+a.low-contrast-small-aaa:active,
+a.low-contrast-small-aaa:focus,
+a.low-contrast-small-aaa:visited {
+    font-size: 12px;
+    color: #9499a1;
+}
+
+.low-contrast-large-aaa,
+a.low-contrast-large-aaa:active,
+a.low-contrast-large-aaa:focus,
+a.low-contrast-large-aaa:visited {
+    font-size: 20px;
+    color: #81858c;
+}
+
+input.low-contrast {
+    border: 1px #dddddd solid;
+}
+
+.resize {
+    font-size:1.5em;
+    line-height: 24px;
+    max-height: 64px;
+    overflow: hidden;
+}
+
+#css-generated-text:after {
+    content: 'Pizza';
+}
+
+.poisonous {
+    color: #a1150b;
+}
+
+.safe {
+    color: #0a6703;
+}
+
+.button {
+    display: inline-block;
+    padding: 10px 20px;
+    color: #fff;
+    background: #00823b;
+    border-bottom: 2px solid #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.warning-icon {
+    background-image: url("../images/important.png");
+    background-size: 34px 34px;
+    background-repeat: no-repeat;
+    background-position: 0 4px;
+    min-height: 40px;
+    padding-left: 40px;
+    font-weight: bold;
+    width: 30em;
+}
+
+.display-table {
+    display:table;
+    height: 100px;
+    width: 100%;
+    text-align: center;
+}
+.display-table-cell {
+    display:table-cell;
+    vertical-align:middle;
+}
+
+.unobvious-link {
+    font-weight: bold;
+    color: #000;
+}
+
+.unobvious-link a,
+.unobvious-link a:visited,
+.unobvious-link a:active,
+.unobvious-link a:hover {
+    font-weight: bold;
+    color: #000;
+    text-decoration: none;
+}
+
+.unobvious-link a:hover {
+    text-decoration: underline;
+}
+
+
+.form-label {
+    display: block;
+}
+.form-hint {
+    color: #6f777b;
+    margin: 0;
+}
+
+.quail-result {
+    outline: 4px solid grey;
+}
+
+.quail-result.severe {
+    outline: 4px solid red;
+}
+
+.quail-result.suggestion {
+    outline: 4px solid blue;
+}

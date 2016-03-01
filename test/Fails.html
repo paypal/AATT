@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Accessibility Fails</title>
+    <link rel="stylesheet" href="Accessibility%20Fails_files/normalize.css">
+    <link rel="stylesheet" href="Accessibility%20Fails_files/main.css">
+    <script src="Accessibility%20Fails_files/jquery-1.js"></script>
+    <script src="Accessibility%20Fails_files/main.js"></script>
+</head>
+<body>
+<div class="container" id="main">
+    <h1>Accessibility Fails  (http://aduggin.github.io/accessibility-fails/)</h1>
+
+    <p>Last updated: 18 February 2016 by <a href="https://twitter.com/dugboticus">@dugboticus</a></p>
+
+    <p>The aim of this page is to run autmated tools against it to see which fails are identified.</p>
+
+    <p>There are 109 fails grouped into 18 categories. This is a work in progress, I'll be adding many more fails.</p>
+
+    <nav>
+    <ul>
+        <li><a href="#content">Content</a> 5</li>
+        <li><a href="#pagelayout">Page Layout</a> 1</li>
+        <li><a href="#colourandcontrast">Colour and Contrast</a> 5</li>
+        <li><a href="#typography">Typography</a> 8</li>
+        <li><a href="#languageofcontent">Language of content</a> 8</li>
+        <li><a href="#pagetitle">Page Title</a> 3</li>
+        <li><a href="#headings">Headings</a> 4</li>
+        <li><a href="#lists">Lists</a> 6</li>
+        <li><a href="#tables">Tables</a> 8</li>
+        <li><a href="#images">Images</a> 9</li>
+        <li><a href="#links">Links</a> 18 </li>
+        <li><a href="#buttons">Buttons</a> 5</li>
+        <li><a href="#forms">Forms</a> 9</li>
+        <li><a href="#navigation">Navigation</a> 2</li>
+        <li><a href="#keyboardaccess">Keyboard Access</a> 6</li>
+        <li><a href="#frames">Frames</a> 2</li>
+        <li><a href="#html">HTML</a> 9</li>
+        <li><a href="#css">CSS</a> 5</li>
+    </ul>
+    </nav>
+
+    <h2 id="content">Content</h2>
+
+    <h3>Plain Language is not used</h3>
+    <div class="example">
+        Title I of the CARE Act creates a program of formula and supplemental competitive grants to help metropolitan areas
+        with 2,000 or more reported AIDS cases meet emergency care needs of low-income HIV patients. Title II of the Ryan
+        White Act provides formula grants to States and territories for operation of HIV service consortia in the localities
+        most affected bu the epidemic, provision of home and community -based care, continuation of insurance coverage for
+        persons with HIV infection, and treatments that prolong life and prevent serious deterioration of health.
+        Up to 10 percent of the funds for this program can be used to support Special Projects of National Significance.
+    </div>
+
+    <h3>Content is not organised into into well-defined groups or chunks, using headings, lists, and other visual mechanisms</h3>
+    <div class="example">
+        insert_example
+    </div>
+
+    <h3>First instance of abbreviation not expanded</h3>
+    <div class="example">
+        <abbr>GDS</abbr> is part of the Cabinet Office. Our job is digital transformation of government.
+    </div>
+
+    <h3>Content identified by location </h3>
+    <div class="example example--contain">
+        <p>The artist on the right won the Album of the year</p>
+
+        <a href="http://aduggin.github.io/accessibility-fails/swift.html" style="float:right">Taylor Swift</a>
+
+        <a href="http://aduggin.github.io/accessibility-fails/sheeran.html" style="float:left">Ed Sheeran</a>
+    </div>
+
+    <h3>Content is not in correct reading order in source code</h3>
+    <div class="example example--contain">
+
+        <h4>3-Step Skin Care</h4>
+
+        <div style="float:right; width:33%">Moisturise</div>
+
+        <div style="float:right; width:33%">Exfoliate</div>
+
+        <div style="float:right; width:33%">Cleanse</div>
+    </div>
+
+    <h2 id="pagelayout">Page Layout</h2>
+    <h3>Wide page forces users to scroll horizontally</h3>
+    <div class="example example--wide">
+        <p class="constrained">When sites are constructed to require 
+horizontal scrolling in order to navigate or read content at a normal 
+size of 100% using standard screen sizes, additional problems can arise 
+for users with low vision or mobility impairments.</p>
+        <p style="float:right;">This is some text you have to horizontally scroll to read.</p>
+    </div>
+
+    <h2 id="colourandcontrast">Colour and Contrast</h2>
+    <h3>Color alone is used to convey content</h3>
+    <div class="example">
+        <p>The green mushrooms listed here are OK to eat. The red mushrooms will kill you.</p>
+        <ul>
+            <li class="poisonous">Amanita</li>
+            <li class="safe">Chanterelle</li>
+            <li class="safe">Porcini</li>
+            <li class="safe">Shitake</li>
+            <li class="poisonous">Tylopilus</li>
+        </ul>
+    </div>
+
+    <h3>Small text does not have a contrast ratio of at least 4.5:1 so does not meet AA</h3>
+    <div class="example">
+        <p class="low-contrast-small-aa">This small text does not have enough contrast with it's background</p>
+    </div>
+
+    <h3>Large text does not have a contrast ratio of at least 3:1 so does not meet AA</h3>
+    <div class="example">
+        <p class="low-contrast-large-aa">This small text does not have enough contrast with it's background</p>
+    </div>
+
+    <h3>Small text does not have a contrast ratio of at least 7:1 so does not meet AAA</h3>
+    <div class="example">
+        <p class="low-contrast-small-aaa">This small text does not have enough contrast with it's background</p>
+    </div>
+
+    <h3>Large text does not have a contrast ratio of at least 4.5:1 so does not meet AAA</h3>
+    <div class="example">
+        <p class="low-contrast-large-aa">This small text does not have enough contrast with it's background</p>
+    </div>
+
+    <h2 id="typography">Typography</h2>
+    <h3>Very small text found</h3>
+    <div class="example">
+        <p class="small-text">This is some tiny text, much too small for some people to read</p>
+    </div>
+
+    <h3>Italics used on long sections of text</h3>
+    <div class="example">
+        <p class="italic">Italics are sometimes used to highlight text. 
+But you shouldn't use italicized text because they make letters hard to 
+read. The letters have a jagged line compared to non-italic fonts. The 
+letters also lean over making it hard for dyslexic users to make out the
+ words. When the text size is small, the text is even more illegible.</p>
+    </div>
+
+    <h3>All caps text found</h3>
+    <div class="example">
+        <p class="all-caps">Typing sentences or phrases IN ALL CAPITALS 
+is rarely a good idea. It may make sense under some circumstances, but 
+only rarely. Lengthy segments of capitalized content are more difficult 
+to read. In some cases, a screen reader may interpret ALL CAPITAL text 
+as being an acronym and may read it as letters rather than words. For 
+example, a screen reader may read the uppercase text CONTACT US as 
+"Contact U. S." because it interprets the uppercase "US" as being an 
+acronym for "United States".</p>
+    </div>
+
+    <h3>Justified text found</h3>
+    <div class="example">
+        <p class="justify">When text is justified to both margins it may
+ add additional spaces between words which may be difficult for users 
+with visual or cognitive impairments to read. Full text justification 
+can also cause words to be spaced closely together thus making it 
+difficult to determine where a word starts and ends.</p>
+    </div>
+
+    <h3>Inadequate line height used</h3>
+    <div class="example">
+        <p class="line-height">Many people with cognitive disabilities 
+have trouble tracking lines of text when a block of text is single 
+spaced. Providing spacing between 1.5 to 2 allows them to start a new 
+line more easily once they have finished the previous one.</p>
+    </div>
+
+    <h3>Long lines of text</h3>
+    <div class="example example--wide">
+        <p>For people with some reading or vision disabilities, long 
+lines of text can become a significant barrier. They have trouble 
+keeping their place and following the flow of text. Having a narrow 
+block of text makes it easier for them to continue on to the next line 
+in a block. Lines should not exceed 80 characters</p>
+    </div>
+
+    <h3>Blink element found</h3>
+    <div class="example">
+        <blink>Blinking text and moving text (such as a marquee) can 
+distract the reader's attention. This is especially relevant to people 
+with attention deficits or cognitive disabilities. Neither is likely to 
+cause a seizure, but they are likely to decrease the readability of the 
+document as a whole and increase the time it takes for users to finish 
+reading it.</blink>
+    </div>
+
+    <h3>Marquee element found</h3>
+    <div class="example">
+        <marquee>The BLINK and MARQUEE element animates content in a way that cannot be overridden or disabled by the user.</marquee>
+    </div>
+
+    <h2 id="languageofcontent">Language of content</h2>
+    <h3>html element is missing a lang attribute</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/missing.html">Example page with a missing lang attribute</a>
+    </div>
+
+    <h3>html element has an empty lang attribute</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/empty.html">Example page with an empty lang attribute</a>
+    </div>
+
+    <h3>html element has an invalid value in the lang attribute</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/invalid.html">Example page with a lang attribute set to an invalid</a>
+    </div>
+
+    <h3>html element has lang attribute set to wrong language</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/inappropriate.html">Example page with a lang attribute set to the wrong language</a>
+    </div>
+
+    <h3>lang attribute not used to identify change of language</h3>
+    <div class="example">
+        <p>Mother, he's asking you to go. He's saying, "Allons, Madame plaisante!"</p>
+    </div>
+
+    <h3>lang attribute used to identify change of language, but with invalid value</h3>
+    <div class="example">
+        <p>Mother, he's asking you to go. He's saying, <span lang="frrr">"Allons, Madame plaisante!"</span></p>
+    </div>
+
+    <h3>lang attribute used to identify change of language, but with wrong language</h3>
+    <div class="example">
+        <p>Mother, he's asking you to go. He's saying, <span lang="es">"Allons, Madame plaisante!"</span></p>
+    </div>
+
+    <h3>Text language changed without required change in direction</h3>
+    <div class="example">
+        <p lang="am">placeholder text</p>
+    </div>
+
+    <h3>Missing page title</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/missing.html">Example page with a missing page title</a>
+    </div>
+
+    <h2 id="pagetitle">Page Title</h2>
+    <h3>Empty page title</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/empty.html">Example page with a empty page title</a>
+    </div>
+
+    <h3>Inappropriate page title</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/inappropriate.html">Example page with a inappropriate page title</a>
+    </div>
+
+    <h2 id="headings">Headings</h2>
+    <h3>Missing H1</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/missing.html">Example page with no H1</a>
+    </div>
+
+    <h3>Headings not structured in a hierarchical manner</h3>
+    <div class="example">
+        <h3>Heading 3</h3>
+        <p>Pages should be structured in a hierarchical manner, generally with one 1st degree headings (h1) being the
+        most important (usually page titles or main content heading), then 2nd degree headings (h2 - usually major
+            section headings), down to 3rd degree headings (sub-sections of the h2), and so on. </p>
+
+        <h5>Heading 5</h5>
+        <p>Technically, lower degree headings should be contained within headings of the next highest degree
+            (i.e., one should not skip heading levels, such as from an h2 to an h4, going down the document).</p>
+
+        <h4>Heading 4</h4>
+        <p>This is an example where heading levels have been skipped and are not in a logical order, which makes the page
+            difficult to understand and navigate for people using assitive technologies such as screen reader.</p>
+    </div>
+
+    <h3>Empty heading</h3>
+    <div class="example">
+        <h4></h4>
+        <p>This paragraph is preceded by an empty H4</p>
+    </div>
+
+    <h3>Text formatting  used instead of an actual heading</h3>
+    <div class="example">
+        <div class="fake-heading">Fake Heading</div>
+        <p>This paragraph is preceded by a div that is styled to look like a heading</p>
+    </div>
+
+    <h2 id="lists">Lists</h2>
+    <h3>List not marked up as a list</h3>
+    <div class="example">
+        * apple <br>
+        * orange <br>
+        * banana <br>
+        * pear
+    </div>
+
+    <h3>Improperly nested lists</h3>
+    <div class="example">
+        <ul>
+            <ul>
+                <li>improperly nested</li>
+            </ul>
+        </ul>
+    </div>
+
+    <h3>LI element with no parent</h3>
+    <div class="example">
+        <li>
+            no parent
+        </li>
+    </div>
+
+    <h3> DT or DD elements that are not contained within a DL element</h3>
+    <div class="example">
+        <dt>html</dt>
+        <dd>a markup language for describing web documents</dd>
+    </div>
+
+    <h2 id="tables">Tables</h2>
+    <h3>Table is missing a caption</h3>
+    <div class="example">
+        <table>
+            <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Age</th>
+                <th scope="col">Birthday</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <th scope="row">Jackie</th>
+                <td>5</td>
+                <td>April 5</td>
+            </tr>
+
+            <tr>
+                <th scope="row">Beth</th>
+                <td>8</td>
+                <td>January 14</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>Table has an empty table header</h3>
+    <div class="example">
+        <table>
+            <caption>Shelly's Daughters</caption>
+            <thead>
+            <tr>
+                <th></th>
+                <th scope="col">Age</th>
+                <th scope="col">Birthday</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <th scope="row">Jackie</th>
+                <td>5</td>
+                <td>April 5</td>
+            </tr>
+
+            <tr>
+                <th scope="row">Beth</th>
+                <td>8</td>
+                <td>January 14</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>Table has no scope attributes</h3>
+    <div class="example">
+        <table>
+            <caption>Shelly's Daughters</caption>
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Birthday</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <th>Jackie</th>
+                <td>5</td>
+                <td>April 5</td>
+            </tr>
+
+            <tr>
+                <th>Beth</th>
+                <td>8</td>
+                <td>January 14</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>Table has no table headings</h3>
+    <div class="example">
+        <table>
+            <caption>Shelly's Daughters</caption>
+            <thead>
+            <tr>
+                <td>Name</td>
+                <td>Age</td>
+                <td>Birthday</td>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>Jackie</td>
+                <td>5</td>
+                <td>April 5</td>
+            </tr>
+
+            <tr>
+                <td>Beth</td>
+                <td>8</td>
+                <td>January 14</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>Table that only has TH elements in it</h3>
+    <div class="example">
+        <table>
+            <thead>
+            <tr>
+                <th>Foo</th>
+                <th>Bar</th>
+                <th>Bat</th>
+                <th>Baz</th>
+            </tr>
+            </thead>
+        </table>
+    </div>
+
+    <h3>Table nested within table header</h3>
+    <div class="example">
+        <table>
+            <tbody><tr>
+                <th>
+                    <table>
+                        <tbody><tr>
+                            <th>b.a</th>
+                        </tr>
+                        <tr>
+                            <td>b.b</td>
+                        </tr>
+                    </tbody></table>
+                </th>
+            </tr>
+            <tr>
+                <td>a.b</td>
+            </tr>
+        </tbody></table>
+    </div>
+
+    <h3>Table nested within table</h3>
+    <div class="example">
+        <table>
+            <tbody><tr>
+                <th>1.1</th>
+            </tr>
+            <tr>
+                <td>
+                    <table>
+                        <tbody><tr>
+                            <th>2.1</th>
+                        </tr>
+                        <tr>
+                            <td>2.2</td>
+                        </tr>
+                    </tbody></table>
+                </td>
+            </tr>
+        </tbody></table>
+    </div>
+
+    <h3>Table used for layout</h3>
+    <div class="example">
+        <table>
+            <tbody><tr>
+                <td>navigation</td>
+                <td>main content</td>
+            </tr>
+        </tbody></table>
+    </div>
+
+    <h2 id="images">Images</h2>
+    <h3>Image with no alt attribute</h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/bbc-blocks-dark.png">
+    </div>
+
+    <h3>Image that conveys information has an empty alt attribute </h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/bbc-blocks-dark.png" alt="">
+    </div>
+
+    <h3>Image that conveys information has inappropriate alt text </h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/bbc-blocks-dark.png" alt="Twitter">
+    </div>
+
+    <h3>Image alt attribute contains image file name </h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/bbc-blocks-dark.png" alt="bbc-blocks-dark.png">
+    </div>
+
+    <h3>Image with presentation role has non-empty alt</h3>
+    <div class="example">
+        <img role="presentation" src="Accessibility%20Fails_files/decoration.png" alt="Decorative line clipart" height="118" width="368">
+    </div>
+
+    <h3>Image has empty alt and non-empty title</h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/bbc-blocks-dark.png" alt="" title="BBC">
+    </div>
+
+    <h3>Image has alt and title that are different</h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/bbc-blocks-dark.png" alt="BBC" title="BBC homepage">
+    </div>
+
+    <h3>Background image that conveys information does not have a text alternative</h3>
+    <div class="example">
+        <div class="warning-icon">
+            Taking too much of your pension money in early retirement could mean you don't have enough for later.
+        </div>
+    </div>
+
+    <h3>A distraction is present, an animated gif</h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/animated-tree.gif" alt="Animated gif of a Christmas tree with a toy train round and round the base of the tree" height="193" width="157">
+    </div>
+
+    <h2 id="links">Links</h2>
+    <h3>Uninformative link text</h3>
+    <div class="example">
+        <h4>Polar bear</h4>
+        <p>The polar bear is a carnivorous bear whose native range lies largely within the Arctic Circle,
+            encompassing the Arctic Ocean, its surrounding seas and surrounding land masses.</p>
+        <a href="https://en.wikipedia.org/wiki/Polar_bear">Read more</a>
+    </div>
+
+    <h3>Non-specific link text</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/rockies.html">Click here</a> for more information on the Rocky Mountains.
+    </div>
+
+    <h3>Link text does not make sense out of context</h3>
+    <div class="example">
+        <p>To know more about me, visit my <a href="http://aduggin.github.io/accessibility-fails/page.html">page</a>.</p>
+    </div>
+
+    <h3>Adjacent links going to the same destination</h3>
+    <div class="example">
+        <a href="https://en.wikipedia.org/wiki/Red_panda"><img src="Accessibility%20Fails_files/red_panda.jpg" alt="Red Panda" height="165" width="220"></a>
+        <a href="https://en.wikipedia.org/wiki/Red_panda">Red Panda</a>
+    </div>
+
+    <h3>Image link alt text repeats text in the link</h3>
+    <div class="example">
+        <a href="https://en.wikipedia.org/wiki/Red_panda">
+            <img src="Accessibility%20Fails_files/red_panda.jpg" alt="Red Panda" height="165" width="220">
+            Red Panda
+        </a>
+    </div>
+
+    <h3>Image link with no alternative text</h3>
+    <div class="example">
+        <a href="http://www.bbc.co.uk/"><img src="Accessibility%20Fails_files/bbc-blocks-dark.png" alt=""></a>
+    </div>
+
+    <h3>Blank link text</h3>
+    <div class="example">
+        <a href="http://www.google.com/"></a>
+    </div>
+
+    <h3>Link contains only a full stop</h3>
+    <div class="example">
+        Visit the GOV.UK website <a href="https://www.gov.uk/">.</a>
+    </div>
+
+    <h3>Link with the same text go to different pages</h3>
+    <div class="example">
+        <a href="https://en.wikipedia.org/wiki/Lion">Lions</a> are the only truly social cats, with related females
+        living together in prides overseen by male coalitio that compete for possession in fierce and often fatal battles.
+        <a href="http://animals.nationalgeographic.com/animals/mammals/african-lion/">Lions</a> are predatory carnivores and it's the females that perform most of the hunting at night; the majority
+        of the prey being antelope, zebra and wildebeest.
+    </div>
+
+    <h3>Link text with identical title</h3>
+    <div class="example">
+        <a href="http://www.google.com/" title="Google">Google</a>
+    </div>
+
+    <h3>Link launches new window with no warning</h3>
+    <div class="example">
+        <a href="https://twitter.com/" target="_blank">Twitter</a>
+    </div>
+
+    <h3>Link not clearly identifiable and distinguishable from surrounding text</h3>
+    <div class="example">
+        <p class="unobvious-link">Find out more about <a href="http://www.bbc.co.uk/programmes/b006q2x0">Doctor Who</a></p>
+    </div>
+
+    <h3>Link to pdf does not include information on file format and file size</h3>
+    <div class="example">
+        <a href="http://www.bdadyslexia.org.uk/common/ckeditor/filemanager/userfiles/About_Us/policies/Dyslexia_Style_Guide.pdf">Dyslexia style guide</a>
+    </div>
+
+    <h3>Link to an image, no text alternative</h3>
+    <div class="example">
+        My favourite <a href="http://aduggin.github.io/accessibility-fails/images/bat.jpg">bat</a>
+    </div>
+
+    <h3>Link to a multimedia file, no transcript</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/interview.mov">Watch the interview</a>
+    </div>
+
+    <h3>Links to a sound file, no transcript</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/interview.mp3">Listen to the interview</a>
+    </div>
+
+    <h3>Links not seperated by printable characters</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/a.html">Page A</a> <a href="http://aduggin.github.io/accessibility-fails/b.html">Page B</a> <a href="http://aduggin.github.io/accessibility-fails/c.html">Page C</a>
+    </div>
+
+    <h3>Link to #, invalid hypertext reference</h3>
+    <div class="example">
+        <a href="#">Do something</a>
+    </div>
+
+    <h3>Link to javascript, invalid hypertext reference</h3>
+    <div class="example">
+        <a href="javascript:alert('Hello%20world!')">Press me!</a>
+    </div>
+
+    <h2 id="buttons">Buttons</h2>
+    <h3>Empty button</h3>
+    <div class="example">
+        <button></button>
+    </div>
+
+    <h3>Image button has no alt attribute</h3>
+    <div class="example">
+        <input src="Accessibility%20Fails_files/submit.png" type="image">
+    </div>
+
+    <h3>Empty alt attribute on image button</h3>
+    <div class="example">
+        <input src="Accessibility%20Fails_files/submit.png" alt="" type="image">
+    </div>
+
+    <h3>Uninformative alt attribute value on image button</h3>
+    <div class="example">
+        <input src="Accessibility%20Fails_files/submit.png" alt="click" type="image">
+    </div>
+
+    <h2 id="forms">Forms</h2>
+    <h3>Fieldset without a legend</h3>
+    <div class="example">
+        <fieldset>
+            I am a fieldset without a legend
+        </fieldset>
+    </div>
+
+    <h3>Empty legend</h3>
+    <div class="example">
+        <fieldset>
+            <legend></legend>
+        </fieldset>
+    </div>
+
+    <h3>Form element has no label</h3>
+    <div class="example">
+        <input type="text">
+    </div>
+
+    <h3>Empty label found</h3>
+    <div class="example">
+        <label for="empty"></label>
+        <input id="empty" type="text">
+    </div>
+
+    <h3>Placeholder no label</h3>
+    <div class="example">
+        <input name="q" id="search-main" placeholder="Search" type="search">
+        <input class="submit" value="Search" type="submit">
+    </div>
+
+    <h3>Non-unique field label found</h3>
+    <div class="example">
+        <label for="x_3">Name
+            <input name="x_3" id="x_3" type="text">
+        </label><br>
+
+        <label for="x_4">Name
+            <input name="x_4" id="x_4" type="text">
+        </label>
+    </div>
+
+    <h3>Field hint not associated with input</h3>
+    <div class="example">
+        <label class="form-label" for="ni-number">
+            National Insurance number
+        </label>
+        <p class="form-hint">It'll be on your last payslip. For example, JH 21 90 0A.</p>
+        <input class="form-control" id="ni-number" type="text">
+    </div>
+
+    <h3>Group of radio buttons not enclosed in a fieldset</h3>
+    <div class="example">
+        <h4>Do you already have a personal user account?</h4>
+
+        <label class="block-label" for="radio-inline-1">
+            <input id="radio-inline-1" name="radio-inline-group" value="Yes" type="radio">
+            Yes
+        </label><br>
+        <label class="block-label" for="radio-inline-2">
+            <input id="radio-inline-2" name="radio-inline-group" value="No" type="radio">
+            No
+        </label>
+    </div>
+
+    <h3>Group of check boxes not enclosed in a fieldset</h3>
+    <div class="example">
+        <h4>Which types of waste do you transport regularly?</h4>
+        <label class="block-label" for="waste-type-1">
+            <input id="waste-type-1" name="waste-types" value="waste-animal" type="checkbox">
+            Waste from animal carcasses
+        </label><br>
+        <label class="block-label" for="waste-type-2">
+            <input id="waste-type-2" name="waste-types" value="waste-mines" type="checkbox">
+            Waste from mines or quarries
+        </label><br>
+        <label class="block-label" for="waste-type-3">
+            <input id="waste-type-3" name="waste-types" value="waste-farm-agricultural" type="checkbox">
+            Farm or agricultural waste
+        </label>
+    </div>
+
+    <h2 id="navigation">Navigation</h2>
+    <h3>Navigation placement, display, or functionality changes from from page to page</h3>
+    <div class="example">
+        insert_example
+    </div>
+
+    <h3>Inadequately-sized clickable targets found</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/a.html">a</a>
+        <a href="http://aduggin.github.io/accessibility-fails/b.html">b</a>
+        <a href="http://aduggin.github.io/accessibility-fails/c.html">c</a>
+        <a href="http://aduggin.github.io/accessibility-fails/d.html">d</a>
+        <a href="http://aduggin.github.io/accessibility-fails/e.html">e</a>
+        <a href="http://aduggin.github.io/accessibility-fails/f.html">f</a>
+        <a href="http://aduggin.github.io/accessibility-fails/g.html">g</a>
+        <a href="http://aduggin.github.io/accessibility-fails/h.html">h</a>
+        <a href="http://aduggin.github.io/accessibility-fails/i.html">i</a>
+        <a href="http://aduggin.github.io/accessibility-fails/j.html">j</a>
+        <a href="http://aduggin.github.io/accessibility-fails/k.html">k</a>
+        <a href="http://aduggin.github.io/accessibility-fails/l.html">l</a>
+        <a href="http://aduggin.github.io/accessibility-fails/m.html">m</a>
+        <a href="http://aduggin.github.io/accessibility-fails/n.html">n</a>
+        <a href="http://aduggin.github.io/accessibility-fails/o.html">o</a>
+        <a href="http://aduggin.github.io/accessibility-fails/p.html">p</a>
+        <a href="http://aduggin.github.io/accessibility-fails/q.html">q</a>
+        <a href="http://aduggin.github.io/accessibility-fails/r.html">r</a>
+        <a href="http://aduggin.github.io/accessibility-fails/s.html">s</a>
+        <a href="http://aduggin.github.io/accessibility-fails/t.html">t</a>
+        <a href="http://aduggin.github.io/accessibility-fails/u.html">u</a>
+        <a href="http://aduggin.github.io/accessibility-fails/v.html">v</a>
+        <a href="http://aduggin.github.io/accessibility-fails/w.html">w</a>
+        <a href="http://aduggin.github.io/accessibility-fails/x.html">x</a>
+        <a href="http://aduggin.github.io/accessibility-fails/y.html">y</a>
+        <a href="http://aduggin.github.io/accessibility-fails/z.html">z</a>
+    </div>
+
+    <h2 id="keyboardaccess">Keyboard Access</h2>
+    <h3>Keyboard focus is not indicated visually</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/link.html" class="no-outine">Link with no focus style</a>
+    </div>
+
+    <h3>Don't use the accesskey attribute</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/page.html" accesskey="A">A link with an accesskey attribute</a>
+    </div>
+
+    <h3>Tabindex greater than 0</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/page.html" tabindex="5">A link with a tabindex greater than 0</a>
+    </div>
+
+    <h3>Fake button is not keyboard accessible</h3>
+    <div class="example">
+        <div id="webchat" class="button">launch webchat</div>
+    </div>
+
+    <h3>Link with a role=button does not work with space bar</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/next.html" class="button" role="button">Continue</a>
+    </div>
+
+    <h3>Keyboard focus assigned to a non focusable element using tabindex=0</h3>
+    <div class="example">
+        <p tabindex="0">My favourite car</p>
+    </div>
+
+    <h3>Keyboard trap</h3>
+    <div class="example">
+        <p><a href="http://aduggin.github.io/accessibility-fails/keyboardtrap.html">Example page that contains a keyboard trap</a></p>
+    </div>
+
+    <h2 id="frames">Frames</h2>
+    <h3>iframe is missing a title attribute</h3>
+    <div class="example">
+        <iframe src="Accessibility%20Fails_files/demo_002.html" height="100" width="300"></iframe>
+    </div>
+
+    <h3>iframe title attribute does not describes the content or purpose in the iframe</h3>
+    <div class="example">
+        <iframe src="Accessibility%20Fails_files/demo_002.html" title="Facebook" height="100" width="300"></iframe>
+    </div>
+
+    <h2 id="html">HTML</h2>
+    <h3>Duplicate id</h3>
+    <div class="example">
+        <div id="nav">global nav</div>
+        <div id="nav">page nav</div>
+    </div>
+
+    <h3>Start and close tags don't match</h3>
+    <div class="example">
+        <div>strings of pearls</div>
+    </div>
+
+    <h3>Empty paragraph</h3>
+    <div class="example">
+        <p></p>
+    </div>
+
+    <h3>Deprecated color definition</h3>
+    <div class="example">
+        <p><font color="blue">The colour of this text is set using the font element and the color attribute</font></p>
+    </div>
+
+    <h3>Deprecated font element</h3>
+    <div class="example">
+        <p><font face="aria" size="5">The size and face of this text is set using the font element and the size and face attributes</font></p>
+    </div>
+
+    <h3>Deprecated center element</h3>
+    <div class="example">
+        <center>This text is centred using the center element</center>
+    </div>
+
+    <h3>Spacer image found</h3>
+    <div class="example">
+        <img src="Accessibility%20Fails_files/spacer.gif" alt="" height="1" width="100">
+    </div>
+
+    <h3>PRE element without CODE element inside it</h3>
+    <div class="example">
+        <pre>Your
+
+  /\ (`/`|| _     +
+ /--\,)\,||   (||`|
+
+        goes here
+</pre>
+    </div>
+
+    <h3>Object not embedded accessibly - wmode parameter not set to window</h3>
+    <div class="example">
+        <object data="Accessibility%20Fails_files/foo.html" type="bar"></object>
+    </div>
+
+    <h2 id="css">CSS</h2>
+    <h3>display:none used to visually hide content when it should be available to screenreader</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/football.html">Read more <span style="display:none"> about football</span></a>
+    </div>
+
+    <h3>visibility:hidden used to visually hide content when it should be available to screenreader</h3>
+    <div class="example">
+        <a href="http://aduggin.github.io/accessibility-fails/rugby.html">Read more <span style="visibility:hidden"> about rugby</span></a>
+    </div>
+
+    <h3>Content is not readable and functional when text is increased</h3>
+    <div class="example">
+        <p class="resize">This text becomes unreadable when you increase the text-size  (Zoom text only) in
+            <a href="https://www.mozilla.org/en-GB/firefox/desktop/">Firefox</a></p>
+    </div>
+
+    <h3>Non-decorative content inserted using CSS</h3>
+    <div class="example">
+        <p id="css-generated-text">My favourite food is </p>
+    </div>
+
+    <h3>display:table being used for layout</h3>
+    <div class="example">
+        <div class="display-table">
+            <div class="display-table-cell">
+                Vertically and horzontally aligned text
+            </div>
+        </div>
+    </div>
+</div></body></html>

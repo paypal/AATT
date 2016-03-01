@@ -152,7 +152,7 @@ Optionally, you can configure the tool to save a screensnap of the html page you
 
 ## Copyright and License
 
-Copyright 2015, PayPal under [the BSD license](LICENSE.md).
+Copyright 2016, PayPal under [the BSD license](LICENSE.md).
 
 [1]: https://yourhostname/evaluate "AATT api"
 
