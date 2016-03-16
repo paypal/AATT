@@ -91,8 +91,8 @@ if (fs.existsSync(ssl_path)) {
 
     	//Default to Error
 		if(typeof msgErr === 'undefined' &&  typeof msgWarn === 'undefined' && typeof msgNotice === 'undefined') eLevel.push(1);
-
-		fs.mkdirSync(dirName);		//Create SCREEN SHOT DIRECTORY
+		log('screenshot: -> ', scrshot)
+		if(typeof scrshot !== 'undefined' && scrshot === 'true')  fs.mkdirSync(dirName);		//Create SCREEN SHOT DIRECTORY
 
 		// console.log(req.body);
 
