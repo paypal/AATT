@@ -65,10 +65,15 @@ var page = require('webpage').create(),
                 } else{
                     page.injectJs('runner_html.js');
                 }    
+
+                //Commenting as no need to create full page screenshots for each API request
+                /*
                 if(address.indexOf("file:") === -1){
                     screenshot_url=  'screenshots/' +  Math.floor((Math.random()*1000)+1) +'.png';
                     page.render(screenshot_url);
                 }
+                */
+
                 var data = {
                     standard : standard,
                     screenshot_url : screenshot_url,
