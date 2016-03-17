@@ -58,26 +58,7 @@ var page = require('webpage').create(),
                     , techniques = msgParts[4].split(',')
                     , outerHTML = ''
                     , priority
-                    , screenshot_url =''
-
-                switch(principles[principle]){
-                    case "Robust":
-                        priority = "P4";
-                        break;
-                    case "Understandable":
-                        priority = "P3";
-                        break;
-                    case "Operable":
-                        priority = "P2";
-                        break;
-                    case "Perceivable":
-                        priority = "P1";
-                        break;
-                }
-
-                if(techniques.indexOf('G18')!='-1')  priority='P2';         //Issue #25 drop color contrast issue priority to P2
-                                                                            // With current logic all Perceivable are P1 and color contrast is perceivable can't change guideline
-                if(techniques.indexOf('H91')!='-1')  priority='P4';                                                                     
+                    , screenshot_url =''                                                                
                                                                           
                 content += '<tr class="error">';                
                 content += '<td  class="number"><span class="flag">' + typeName[msg.type] + '</span></td>';

@@ -4,9 +4,8 @@ var page = require('webpage').create(),
 	
     address  = system.args[1],
     standard = system.args[2],
-    priority = system.args[3],
+    errLevel = system.args[3],       
     output   = system.args[4],
-
     screenshot_url ;
 
 	phantom.silent = true;
@@ -59,6 +58,7 @@ var page = require('webpage').create(),
                 page.injectJs('./src/htmlcs/HTMLCS.js');
 
                 // console.log('O U T P U T ' , output);
+                // console.log('errLevel' , errLevel);
 
                 if(output==='json'){
                     page.injectJs('runner_json.js');
@@ -71,8 +71,8 @@ var page = require('webpage').create(),
                 }
                 var data = {
                     standard : standard,
-                    priority: priority,
-                    screenshot_url : screenshot_url
+                    screenshot_url : screenshot_url,
+                    errLevel:  errLevel
                 };
 
                 switch (standard) {
@@ -83,9 +83,9 @@ var page = require('webpage').create(),
                         page.evaluate(function(data) {
                             var screenshot_url = data.screenshot_url;
                             var standard = data.standard;
-                            var prty = data.priority;
+                            var errLevel = data.errLevel;
                             
-                            HTMLCS_RUNNER.run(standard, screenshot_url, prty);
+                            HTMLCS_RUNNER.run(standard, screenshot_url, errLevel);
                         }, data);
                     break;
                     default:

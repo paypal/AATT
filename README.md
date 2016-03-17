@@ -45,9 +45,10 @@ AATT provides an API for evaluating HTML Source code from other servers. The API
 
 * Accepts the following parameters:
   1. "source" to send the HTML source of the page. Can be a whole page or partial page source 
-  2. "priority" to fetch results based on issue priorities like P1, P2, Pr or P4. It is a comma-separated value. Eg P1,P2,P3,P4
+  2. "engine" E.g. engine=htmlcs. This is the engine which will scan the code. It accepts a single value of "axe", chrome" or "htmlcs". 
   3. "ouput" to get the jsonified string. E.g. output=json.  If this parameter is not set or left empty, it will return a string with table data that can be parsed or appended directly into your page.
-  4. "engine" E.g. engine=htmlcs. This is the engine which will scan the code. It accepts a single value of "axe", chrome" or "htmlcs". Default to "htmlcs"
+  Default to "htmlcs"
+  4. "errLevel" Error level like Error, Warning or Notices .  Mapped to 1, 2 and 3 respectively. E.g. "1,2,3"
   5. "level" This option applies only for the default htmlcs evaluation engine. Options can be either of the following WCAG2AA, WCAG2A, WCAG2AAA, Section508  . Defaults to "WCAG2A"
 
     
@@ -82,11 +83,12 @@ Once `nemo-accessibility` plugin is registered, you should now have `nemo.access
 
 ```javascript
   var options = {
-    'priority': 'P1' or ['P1','P2','P3'], //expects either a string or an array; default is ['P1','P2','P3','P4']
     'element': driver.findElement(wd.tagName('iframe')), //default is entire page
+    'engine': 'axe', 'htmlcs' or 'chrome', //default is htmlcs    
     'output': 'html' or 'json', //default is html,
-    'engine': 'axe', 'htmlcs' or 'chrome', //default is htmlcs
     'level': 'WCAG2AA' or 'WCAG2A' or  'WCAG2AAA' //option applies to htmlcs only and default to WCAG2AA
+    'errLevel' : '1,2,3'   // for htmlcs only, 1 means Error, 2 means Warning, 3 means Notice  default:1,2,3
+
  }
 ```
 
@@ -109,9 +111,10 @@ Here is a  [example](https://github.com/paypal/nemo-accessibility/blob/master/ex
   it('will run scan on an element', function (done) {
         nemo.driver.get('http://www.paypal.com');
         var options = {
-            'priority': ['P1', 'P2'],
             'source': 'btnDonate',
-            'engine' : 'htmlcs'
+            'engine' : 'htmlcs',
+            'errLevel': '1,2,3'
+
         };        
         nemo.accessibility.scan(options).then(function (result) {
             fs.writeFile('report/entirePage.html',result,function (err) {
@@ -122,9 +125,9 @@ Here is a  [example](https://github.com/paypal/nemo-accessibility/blob/master/ex
         welcomePage.buttonThatOpensAPopup().click();
         var element = welcomePage.popup(),
             options = {
-                'priority': ['P1', 'P2'],
                 'element': element,
-                'engine' : 'axe'
+                'engine' : 'axe',
+                'errLevel': '1,2,3'
             };
         nemo.accessibility.scan(options).then(function (result) {
             fs.writeFile('report/scanAnElement.html', result, function (err) {

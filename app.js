@@ -91,10 +91,8 @@ if (fs.existsSync(ssl_path)) {
 
     	//Default to Error
 		if(typeof msgErr === 'undefined' &&  typeof msgWarn === 'undefined' && typeof msgNotice === 'undefined') eLevel.push(1);
-		log('screenshot: -> ', scrshot)
-		if(typeof scrshot !== 'undefined' && scrshot === 'true')  fs.mkdirSync(dirName);		//Create SCREEN SHOT DIRECTORY
 
-		// console.log(req.body);
+		if(typeof scrshot !== 'undefined' && scrshot === 'true')  fs.mkdirSync(dirName);		//Create SCREEN SHOT DIRECTORY
 
 		if (typeof req.session.userName !== 'undefined') {
 			userName = req.session.userName;
@@ -171,19 +169,20 @@ if (fs.existsSync(ssl_path)) {
 	app.post('/evaluate', function(req, res) {
 		var tempFilename = 'tmp/'+ new Date().getTime() + '.html';
 
-		var priority = req.body.priority;	// Piority Eg P1,P2,P3,P4  	default:all
-		var output = req.body.output;		// Eg. json, string  		default: string
 		var engine	= req.body.engine;		//Eg htmlcs, chrome, axe 		default:htmlcs
-		var level = req.body.level;		//E.g. WCAG2AA, WCAG2A, WCAG2AAA, Section508 	default:WCAG2AA
+		var output = req.body.output;		// Eg. json, string  		default: string
 
-		// console.log('P R I O R I T Y app.js ' , priority);
+		var level = req.body.level;			//E.g. WCAG2AA, WCAG2A, WCAG2AAA, Section508 	default:WCAG2AA
+		var errLevel = req.body.errLevel;	// Eg. 1,2,3   1 means Error, 2 means Warning, 3 means Notice 	default:1,2,3
+
 		// console.log('O U T P U T ' , output);
 
 		if(typeof priority === 'undefined' || priority ==='') priority = 'P1,P2,P3,P4';
 		if(typeof output === 'undefined' || output ==='') output = 'string';
 		if(typeof level === 'undefined' || level ==='') level = 'WCAG2AA';
+		if(typeof errLevel === 'undefined' || errLevel ==='') errLevel = '1,2,3';
 
-		var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, level, priority, output];
+		var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, level, errLevel, output];
 
 		switch(engine){
 			case "chrome":
@@ -210,5 +209,4 @@ if (fs.existsSync(ssl_path)) {
 			  
 			});
 		});
-	});	 	
-
+	});
