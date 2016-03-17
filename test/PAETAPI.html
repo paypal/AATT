@@ -9,13 +9,10 @@
 
  <div id="test-area">
 	<div class="max-width">
-	<h3>Run your code through the Sniffer</h3>
-	<p>Run HTML_CodeSniffer over your own code to see how it works. The sniffer below will test your source code against your selected guideline.<br>
-	Test results will be shown underneath the code block.</p>
 		<div id="code-input">
 			<form id="runHTMLCS" method="post" action="http://localhost/evaluate">
 				<div id="code-overlay" onclick="hideDiv()">
-				<div id="test-area-graphic"></div>Paste your code here
+				<div id="test-area-graphic"></div>Paste your code here and test results will be shown underneath the code block:
 				</div>
 				<textarea id="source" name="source" title="Enter the source code to be sniffed" rows="20" cols="100">
 					<!DOCTYPE html>
@@ -40,18 +37,28 @@
 					</html>
 				</textarea>
 				<div id="test-options">
-				<label for="priority">Priority &nbsp;&nbsp; </label> 
-					<input type="text" id="priority" name="priority" value="P1"> 
-				
-				<!--fieldset>
-				<legend>Standard:</legend>
+
+				<br><br>
+				<label for="engine">Engine &nbsp;&nbsp; </label> 
+					<input type="text" id="engine" name="engine" value="htmlcs"> 	E.g. htmlcs, chrome, axe 		default:htmlcs
+
+				<br><br>
+				<label for="output">Output (currently for htmlcs only)&nbsp;&nbsp; </label> 
+					<input type="text" id="output" name="output" value="string">		Eg. json, string
+
+				<br><br>
+				<label for="errLevel">Error Level (htmlcs) &nbsp;&nbsp; </label> 
+					<input type="text" id="errLevel" name="errLevel" value="1,2,3">  &nbsp; Eg. 1,2,3   1 means Error, 2 means Warning, 3 means Notice 	default:1,2,3
+
+				<fieldset>
+				<legend>Standard (htmlcs):</legend>
 				<ul>
 				<li><input type="radio" value="WCAG2A" name="level" id="WCAG2A" class="radio-input"><span class="radio-gen"></span><label for="WCAG2A"> WCAG 2.0 Level A</label></li>
 				<li><input type="radio" value="WCAG2AA" name="level" id="WCAG2AA" class="radio-input"><span class="radio-gen"></span><label for="WCAG2AA"> WCAG 2.0 Level AA</label></li>
 				<li><input type="radio" value="WCAG2AAA" name="level" id="WCAG2AAA" class="radio-input" checked><span class="radio-gen radio-on"></span><label for="WCAG2AAA"> WCAG 2.0 Level AAA</label></li>
 				<li><input type="radio" value="Section508" name="level" id="Section508" class="radio-input"><span class="radio-gen"></span><label for="Section508"> Section 508</label></li>
 				</ul>
-				</fieldset-->
+				</fieldset>
 				<br><br><button type="submit" id="run-button">Run HTML_CodeSniffer</button>
 				</div>
 			</form>
