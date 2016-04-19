@@ -75,7 +75,7 @@
                 </div>
                 <div id="myTabContent" class="tab-content">
                         <div class="tab-pane fade in active" id="home" role="tabpanel" tabIndex="0" aria-labelledby="hometab" aria-hidden="false">
-                                <div id="code-input">
+                                <div class="code-input">
                                     <form id="requestURL" method="post" action="/sniffURL">
                                      <div class="row">
                                         <div class="col-xs-6 col-md-12">
@@ -86,6 +86,28 @@
                                           </div>
                                         </div>                                   
                                       </div> <!-- row1-->
+                                      <div  class="row">
+                                        <div class="col-xs-6 col-md-12">
+                                          <div class="right">
+                                            <ul>
+                                                <li>
+                                                    <input type="radio" id="axe"  name="engine" value="axe">
+                                                    <label for="axe">Axe</label>
+                                                </li>
+                                                <li>
+                                                    <input type="radio" id="chrome" name="engine" value="chrome">
+                                                    <label for="chrome">Chrome</label>
+                                                </li>
+                                                <li>
+                                                    <input type="radio" id="htmlcs" name="engine" value="htmlcs">
+                                                    <label for="htmlcs">Html Code Sniffer</label>
+                                                </li>
+                                            </ul>    
+                                          </div>                                   
+                                        </div>                                   
+                                      </div>  <!-- row2-->
+
+                                      <div id="htmlcsopts" class="hide">
                                       <div class="row">
                                         <div class="col-xs-6 col-md-12">
                                           <div class="form-group form-inline">
@@ -109,7 +131,8 @@
                                           </div>                                   
                                         </div>                                   
                                       </div>   <!-- row3-->
-  
+                                      </div>
+
                                         <div class="row"> 
                                         <div class="col-xs-6 col-md-12">
                                           <button type="submit" id="submitButton" class="btn btn-primary btn-medium" style="margin-left:10px;">Test Page</button>
@@ -121,9 +144,41 @@
                         </div>  <!--tab-pane -->
                         <div class="tab-pane fade" id="sniffHTMLTabPanel" role="tabpanel" tabIndex="-1" aria-labelledby="sniffHTMLTab" aria-hidden="true">
                                 <form id="sniff" method="post" action="/sniffHTML">
-                                    <textarea name="source" id="source" cols="100" rows="20" title="Enter the source code to be sniffed" id="source"></textarea>
+                                     <div class="code-input">
+                                      <div  class="row">
+                                        <div class="col-xs-6 col-md-12">
+                                          <div class="right">
+                                            <textarea name="source" id="source" cols="100" rows="20" title="Enter the source code to be sniffed" id="source"></textarea>
+                                          </div>                                   
+                                        </div>                                   
+                                      </div>  <!-- row1-->
+                                      <br>
+                                      <div  class="row">
+                                        <div class="col-xs-6 col-md-12">
+                                          <div class="right">
+                                            <ul>
+                                                <li>
+                                                    <input type="radio" id="SHaxe"  name="SHengine" value="axe">
+                                                    <label for="SHaxe">Axe</label>
+                                                </li>
+                                                <li>
+                                                    <input type="radio" id="SHchrome" name="SHengine" value="chrome">
+                                                    <label for="SHchrome">Chrome</label>
+                                                </li>
+                                                <li>
+                                                    <input type="radio" id="SHhtmlcs" name="SHengine" value="htmlcs">
+                                                    <label for="SHhtmlcs">Html Code Sniffer</label>
+                                                </li>
+                                            </ul>    
+                                          </div>                                   
+                                        </div>                                   
+                                      </div>  <!-- row2-->
+
+
                                     <br/>
                                     <button type="submit" class="btn btn-primary btn-medium">Test Content</button>
+                                </div>
+
                                 </form> 
                         </div>
                 </div> <!-- close my TabContent -->
@@ -278,8 +333,10 @@
 
                             var $form = $( this ),
                                 source = document.getElementById('source').value,
-                                url = $form.attr( "action" );
-                            var posting = $.post( url, { source: source } );
+                                url = $form.attr( "action" ),
+                                SHengine = $('input[name="SHengine"]:checked').val();
+
+                            var posting = $.post( url, { source: source, engine: SHengine } );
 
                             posting.done(function( data ) {
                                 $scrmodal.modal('hide');
@@ -297,6 +354,12 @@
 
                         })
 
+                        $('input[name="engine"]').change(function(){ 
+                            var engine = $('input[name="engine"]:checked').val();
+                            var opts = '#' + engine+ 'opts';
+                            $(opts).addClass('show');
+                        })
+
                         $( "#requestURL" ).submit(function( event ) {
                             event.preventDefault();
                             $( "#test-results" ).attr('aria-busy', 'true');
@@ -309,32 +372,47 @@
                                 scrshot =  $("#scrshot").is(":checked"),
                                 msgErr =  $("#msgErr").is(":checked"),
                                 msgWarn =  $("#msgWarn").is(":checked"),
-                                msgNotice =  $("#msgNotice").is(":checked");
+                                msgNotice =  $("#msgNotice").is(":checked"),
+                                engine = $('input[name="engine"]:checked').val();
 
-                                // console.log(scrshot, msgErr, msgWarn, msgNotice)
+                                if(engine === 'chrome'){
+                                    var params = { 
+                                                            textURL: textURL, 
+                                                            engine: engine
+                                        }                                    
+                                }
+                                else if(engine === 'axe') {
+                                    var params = { 
+                                                            textURL: textURL, 
+                                                            engine: engine
+                                        }
+                                }
+                                else {
+                                    var params = { 
+                                                            textURL: textURL, 
+                                                            engine: engine,
+                                                            scrshot: scrshot,
+                                                            msgErr: msgErr,
+                                                            msgWarn: msgWarn,
+                                                            msgNotice: msgNotice
+                                        }
+                                }                                
+                                var posting = $.post( url, params);
 
-                            var posting = $.post( url, { 
-                                                        textURL: textURL, 
-                                                        scrshot: scrshot,
-                                                        msgErr: msgErr,
-                                                        msgWarn: msgWarn,
-                                                        msgNotice: msgNotice
-                                                        });
-                            // console.log(textURL);
-                            posting.done(function( data ) {
-                                // console.log(data)
-                                $scrmodal.modal('hide');
-                                $( "#test-results" ).empty().append( data.data ).attr('aria-busy', 'false');
+                                posting.done(function( data ) {
+                                    // console.log(data)
+                                    $scrmodal.modal('hide');
+                                    $( "#test-results" ).empty().append( data.data ).attr('aria-busy', 'false');
 
-                                setTimeout(function(){
-                                    $("#export").on('click', function (event) {
-                                        $('#test-results-table').table2CSV({delivery:'download'}, event);
-                                    });
-                                    $(function() {      
-                                        $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}, 5:{sorter: false} }});
-                                    });                                    
-                                },100)
-                            })
+                                    setTimeout(function(){
+                                        $("#export").on('click', function (event) {
+                                            $('#test-results-table').table2CSV({delivery:'download'}, event);
+                                        });
+                                        $(function() {      
+                                            $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}, 5:{sorter: false} }});
+                                        });                                    
+                                    },100)
+                                })
 
                         })
 

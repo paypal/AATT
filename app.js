@@ -84,28 +84,45 @@ if (fs.existsSync(ssl_path)) {
         , msgWarn = req.body.msgWarn
         , msgNotice = req.body.msgNotice
     	, eLevel=[]
+    	, engine = req.body.engine
 
-    	if(typeof msgErr !== 'undefined' && msgErr=='true') eLevel.push(1);
-    	if(typeof msgWarn !== 'undefined' && msgWarn=='true') eLevel.push(2);
-    	if(typeof msgNotice !== 'undefined' && msgNotice=='true') eLevel.push(3);
-
-    	//Default to Error
-		if(typeof msgErr === 'undefined' &&  typeof msgWarn === 'undefined' && typeof msgNotice === 'undefined') eLevel.push(1);
-
-		if(typeof scrshot !== 'undefined' && scrshot === 'true')  fs.mkdirSync(dirName);		//Create SCREEN SHOT DIRECTORY
+    	log('E N G I N E ', engine);
 
 		if (typeof req.session.userName !== 'undefined') {
 			userName = req.session.userName;
 			log('Testing logged in session: -> ', userName)
 		}
-		childArgs = ['--config=config/config.json', path.join(__dirname, 'src/PAET.js')
-						, req.body.textURL
-						, 'WCAG2AA'
-						, userName
-						, dirName
-						, scrshot
-						, eLevel
-					];
+    	if(engine === 'htmlcs'){
+	    	if(typeof msgErr !== 'undefined' && msgErr=='true') eLevel.push(1);
+	    	if(typeof msgWarn !== 'undefined' && msgWarn=='true') eLevel.push(2);
+	    	if(typeof msgNotice !== 'undefined' && msgNotice=='true') eLevel.push(3);
+
+	    	//Default to Error
+			if(typeof msgErr === 'undefined' &&  typeof msgWarn === 'undefined' && typeof msgNotice === 'undefined') eLevel.push(1);
+
+			if(typeof scrshot !== 'undefined' && scrshot === 'true')  fs.mkdirSync(dirName);		//Create SCREEN SHOT DIRECTORY
+
+			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/PAET.js')
+							, req.body.textURL
+							, 'WCAG2AA'
+							, userName
+							, dirName
+							, scrshot
+							, eLevel
+						];
+		}
+		if(engine === 'axe'){
+			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js')
+							, req.body.textURL
+							, userName
+						];
+		}	
+		if(engine === 'chrome'){
+			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js')
+							, req.body.textURL
+							, userName
+						];
+		}	
 		childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 			res.json({ userName: userName, data: stdout });
 			log(stdout);
@@ -117,25 +134,35 @@ if (fs.existsSync(ssl_path)) {
  		, userName = ''
  		, d = new Date()
 		, tempFilename = 'tmp/'+ new Date().getTime() + '.html'
+		, engine = req.body.engine
 
-			// console.log('source HTML --> ', req.body.source);
+		log('sniffHTML, E N G I N E ', engine);
 
 			var source = '<!DOCTYPE html><html lang="en"><meta charset="utf-8"><head><title>Home - PayPal Accessibility Tool</title></head><body>'
 						+ 	req.body.source
 						+ '</body></html>';
 
-			fs.writeFile(tempFilename, source , function (err,data) {
-			  if (err) {
-			   return error(err);
-			  }
+		fs.writeFile(tempFilename, source , function (err,data) {
+			if (err) {
+				return error(err);
+			}
 
-			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', 'P1,P2,P3,P4']
-			 	childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
+	    	if(engine === 'htmlcs'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', 'P1,P2,P3,P4']
+			}
+			if(engine === 'axe'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename]			
+			}	 	
+			if(engine === 'chrome'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), tempFilename]			
+			}	 	
+		
+			childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 				res.json(stdout);
 				log(stdout);
+				fs.unlink(tempFilename);
 			});
-
-		});
+		});	//fs.writeFile
 	});
 
 	app.post('/login', function(req, res) {

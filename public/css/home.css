@@ -3,9 +3,11 @@ html {
  margin:0;
 }
 
+/*
 label{ 
 	display: block;
 }
+*/
 .modal-body input, .modal-body select{
     margin-bottom: 10px;
     width: 250px;
@@ -641,7 +643,7 @@ background-color: #8dbdd8;
  text-align:center;
 }
 
-#code-input, #code-input-upload{
+.code-input, #code-input-upload{
  position:relative;
  width:968px;
  padding-bottom:12px;
@@ -1237,7 +1239,7 @@ form {
     border-radius: 0.1em;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) inset, 0 1px 0 rgba(255, 255, 255, 0.15);
 }
-#code-input, #code-input-upload {
+.code-input, #code-input-upload {
 	min-height: 50px;
 	margin-top:0px;
 	width:98%;
@@ -1352,3 +1354,60 @@ only screen and (min-resolution: 2dppx)
     }
 }
 
+.code-input li {
+    display: inline;
+}
+input[type="radio"], input[type="checkbox"] {
+    line-height: normal;
+    margin: 4px 7px 0;
+}
+
+[type="radio"]:checked + label, [type="checkbox"]:checked + label {
+	color:green;
+}
+[type="radio"]:hover + label, [type="checkbox"]:hover + label {
+	color:#837200;
+}
+a {
+    color: #0070BA; # 
+  }
+.text-primary {
+    color: #0070BA;
+}
+.bg-primary {
+    background-color: #0070BA;
+}
+.btn-primary {
+    background-color: #0070BA;
+    color: #ffffff;
+ }
+ .btn-primary.active[disabled], fieldset[disabled] .btn-primary.active {
+    background-color: #0070BA;
+ }
+.dropdown-menu > .active > a, .dropdown-menu > .active > a:hover, .dropdown-menu > .active > a:focus {
+    background-color: #0070BA;
+ }
+ .nav-pills > li.active > a, .nav-pills > li.active > a:hover, .nav-pills > li.active > a:focus {
+    background-color: #0070BA;
+ }
+ .pagination > li > a, .pagination > li > span {
+    color: #0070BA;
+ }
+ .pagination > .active > a, .pagination > .active > span, .pagination > .active > a:hover, .pagination > .active > span:hover, .pagination > .active > a:focus, .pagination > .active > span:focus {
+    background-color: #0070BA;
+ }
+ .label-primary {
+    background-color: #0070BA;
+}
+a.list-group-item.active > .badge, .nav-pills > .active > a > .badge {
+    color: #0070BA;
+}
+.progress-bar {
+    background-color: #0070BA;
+}
+.list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
+    background-color: #0070BA;
+}
+.panel-primary > .panel-heading {
+    background-color: #0070BA;
+}
