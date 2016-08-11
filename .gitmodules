@@ -1,6 +1,3 @@
-[submodule "src/htmlcs"]
-	path = src/htmlcs
-	url = https://github.com/squizlabs/HTML_CodeSniffer.git
 [submodule "src/chrome"]
 	path = src/chrome
 	url = https://github.com/GoogleChrome/accessibility-developer-tools.git
