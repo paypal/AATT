@@ -1,25 +1,35 @@
-var PATH_TO_AXE = './src/axe/axe.min.js';
-var fs = require('fs');
-var args = require('system').args;
-var page = require('webpage').create();
+    var PATH_TO_AXE = './src/axe/axe.min.js';
+    var args = require('system').args;
+    var page = require('webpage').create();
 
-//source from  https://github.com/dequelabs/axe-core/blob/master/doc/examples/phantomjs/axe-phantom.js 
+    var contentType= args[1];
+    var url='';
 
-page.open(args[1], function (status) {
-    if (status !== 'success') {
-        console.log('Unable to access network');
-        return;
+    if( contentType == 'url') {
+        url = args[2];
+    }else{
+        page.content = args[2];
     }
+    var output   = args[3];
+    
+    phantom.silent = true;
+    page.settings.webSecurityEnabled = false;
 
-    page.injectJs(PATH_TO_AXE);
-    page.framesName.forEach(function (name) {
-        page.switchToFrame(name);
-        page.injectJs(PATH_TO_AXE);
-    });
-    page.switchToMainFrame();
-    page.evaluateAsync(function () {
-        axe.a11yCheck(document.body, null, function (results) {
-            window.callPhantom(results);
+    page.open(url, function (status) {
+        if (status !== 'success') {
+            console.log('Unable to access network');
+            return;
+        }
+        page.injectJs(PATH_TO_AXE);         //source from  https://github.com/dequelabs/axe-core/blob/master/doc/examples/phantomjs/axe-phantom.js
+        page.framesName.forEach(function (name) {
+            page.switchToFrame(name);
+            page.injectJs(PATH_TO_AXE);
+        });
+        page.switchToMainFrame();
+        page.evaluateAsync(function () {
+            axe.a11yCheck(document.body, null, function (results) {
+                window.callPhantom(results);
+            });
         });
     });
 
@@ -35,7 +45,7 @@ page.open(args[1], function (status) {
         console.log(htmlStr);        
         phantom.exit();
     };
-});
+
 
 
 /***************** H E L P E R   F U N C T I O N S *******************/

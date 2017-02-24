@@ -2,7 +2,6 @@
 html {
  margin:0;
 }
-
 /*
 label{ 
 	display: block;
@@ -52,15 +51,19 @@ hr {
 	height:10px;
 	border:none;
 	color:#333;
-	background-color:#009CDE;
+	background-color:#0070BA;
 	margin-top: 5px;
 }	
+
+.nav-tabs {
+    border-bottom: 1px solid #0070BA;
+}
 
 #hometab, #sniffHTMLTab {font-weight:bold;} 
 
 
 .nav-tabs > li.active {
-	 border-bottom-color:#009CDE;     
+	 border-bottom-color:#0070BA;     
 }
 
 .nav-tabs > li a {
@@ -98,8 +101,9 @@ hr {
 
 footer{display: block;}
 footer a{ 
-	color:#000000
+	color:#005EA6
 }
+footer ul li {display:inline}
 
 .navSection{float: right; position: relative; top: -180px; left:-60px ;margin-top: 25px;}
 .help{top: -130px;}
@@ -1357,17 +1361,7 @@ only screen and (min-resolution: 2dppx)
 .code-input li {
     display: inline;
 }
-input[type="radio"], input[type="checkbox"] {
-    line-height: normal;
-    margin: 4px 7px 0;
-}
 
-[type="radio"]:checked + label, [type="checkbox"]:checked + label {
-	color:green;
-}
-[type="radio"]:hover + label, [type="checkbox"]:hover + label {
-	color:#837200;
-}
 a {
     color: #0070BA; # 
   }
@@ -1410,4 +1404,52 @@ a.list-group-item.active > .badge, .nav-pills > .active > a > .badge {
 }
 .panel-primary > .panel-heading {
     background-color: #0070BA;
+}
+a {text-decoration: underline;}
+a:hover, a:focus {
+    color: #005EA6
+    text-decoration: underline;
+}
+/* Styling checkbox */
+input[type="radio"], input[type="checkbox"] {
+  opacity: 0;
+  -moz-opacity: 0;
+  -webkit-opacity: 0;
+  -o-opacity: 0;
+}
+
+input[type="radio"] + label, input[type="checkbox"] + label{
+  position: relative;
+  padding: 0 0 0 25px;
+  font-size: 16px;
+  line-height: 25px;
+  margin:0 0 10px 0;
+}
+
+input[type="radio"] + label:before, input[type="checkbox"] + label:before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  height: 18px;
+  width: 18px;
+  background: white;
+  border: 1px solid gray;
+  box-shadow: inset 0px 0px 0px 2px white;
+  -webkit-box-shadow: inset 0px 0px 0px 2px white;
+  -moz-box-shadow: inset 0px 0px 0px 2px white;
+  -o-box-shadow: inset 0px 0px 0px 2px white;
+}
+
+input[type="radio"] + label:before{
+	border-radius: 100%;  
+}	
+
+ input[type="radio"]:checked + label:before,input[type="checkbox"]:checked + label:before {
+  background: #0070BA;
+}
+
+.code-input ul li:hover label{
+	color: #0070BA;
 }
