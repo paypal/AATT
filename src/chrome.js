@@ -4,6 +4,7 @@
     
     var contentType= args[1];
     var url='';
+	var jsonOp = [];
 
     if( contentType == 'url') {
         url = args[2];        
@@ -74,7 +75,11 @@
             }
             return  audit;
         }, data);
-        var htmlStr = buildHtmlTable( evalData ,'Chrome Accessibility Plugin');
+        if(output==='string'){
+            var htmlStr = buildHtmlTable(evalData ,'Chrome Accessibility Plugin');
+        }else {
+            var htmlStr = buildJsonObj(evalData ,'Chrome Accessibility Plugin' );
+        }            
         console.log(htmlStr);
         phantom.exit();
     })
@@ -105,4 +110,20 @@
             content += '</body></html>';
             return content;
         }
+        function buildJsonObj(arr){
+            if (arr.length === 0) {
+                jsonOp.push({'message':'No violations found'});
+                return;
+            }           
+            for (var key in arr) {
+                msg = arr[key];
+                var temp_obj = {};
+                temp_obj["heading"] = msg.heading;
+                temp_obj["result"] = msg.result;
+                temp_obj["severity"] = msg.severity;
+                temp_obj["elements"] = msg.elements;
+                jsonOp.push(temp_obj);                
+            }
+            return JSON.stringify(jsonOp);  
+        }        
     /***************** E N D   H E L P E R   F U N C T I O N S *******************/

@@ -21,7 +21,7 @@ nconf.env().argv();
 // B A S I C 	C O N F I G
 var http_port = nconf.get('http_port') || 80;		// Start with Sudo for starting in  port 80 or 443
 var https_port = nconf.get('https_port') || 443;
-var ssl_path= 'crt/ssl.key';
+var ssl_path= 'cert/ssl.key';
 var cert_file = 'cert/abc.cer';
 
 

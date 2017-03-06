@@ -4,6 +4,7 @@
 
     var contentType= args[1];
     var url='';
+    var jsonOp = [];
 
     if( contentType == 'url') {
         url = args[2];
@@ -41,7 +42,12 @@
             delete violations[i].nodes;
         } 
         // console.log(JSON.stringify(msg, null, '  '));
-        var htmlStr = buildHtmlTable( violations ,'Axe Accessibility Plugin' );
+        if(output==='string'){
+            var htmlStr = buildHtmlTable( violations ,'Axe Accessibility Plugin' );
+        }else {
+            var htmlStr = buildJsonObj( violations ,'Axe Accessibility Plugin' );
+        }            
+        
         console.log(htmlStr);        
         phantom.exit();
     };
@@ -74,4 +80,21 @@
         content += '</body></html>';
         return content;
     }
+
+    function buildJsonObj(arr){
+        if (arr.length === 0) {
+            jsonOp.push({'message':'No violations found'});
+            return;
+        }           
+        for (var key in arr) {
+            msg = arr[key];
+            var temp_obj = {};
+            temp_obj["id"] = msg.id;
+            temp_obj["description"] = msg.description;
+            temp_obj["help"] = msg.help;
+            temp_obj["impact"] = msg.impact;
+            jsonOp.push(temp_obj);
+        }
+        return JSON.stringify(jsonOp);  
+    }    
 /***************** E N D   H E L P E R   F U N C T I O N S *******************/
