@@ -10,7 +10,7 @@ AATT includes [HTML CodeSniffer](http://squizlabs.github.io/HTML_CodeSniffer/), 
 
 For example, it can be used to test Java web applications using [SeLion](https://github.com/paypal/selion/) automation test frameworks. 
 
-For node applications, it can be integrated into [NemoJS testing framework](https://github.com/paypal/nemo)  to run accessibility testing during automated unit testing .For Nemo framework use [Nemo-Accessibility] plugin(https://github.com/paypal/nemo-accessibility)
+For node applications, it can be integrated into [NemoJS testing framework](https://github.com/paypal/nemo)  to run accessibility testing during automated unit testing .For Nemo framework use [Nemo-Accessibility plugin] (https://github.com/paypal/nemo-accessibility)
 
 
 
