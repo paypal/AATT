@@ -3,7 +3,7 @@
 Browser-based accessibility testing tools and plugins require manually testing each page, one at a time. Tools that can crawl a website can only scan pages that do not require login credentials, and that are not behind a firewall. Instead of developing, testing, and using a separate accessibility test suite, you can now integrate accessibility testing into your existing automation test suite using AATT.
  
 AATT tests web applications regarding conformance to the Web Content Accessibility Guidelines (WCAG) 2.0. 
-Find a list of the WCAG 2.0 rules checked on the [HTML CodeSniffer WCAG Standard Summary](http://squizlabs.github.io/HTML_CodeSniffer/Standards/WCAG2/) page.
+Find a list of the WCAG 2.0 rules checked by HTMLCS Engine on the [HTML CodeSniffer WCAG Standard Summary](http://squizlabs.github.io/HTML_CodeSniffer/Standards/WCAG2/) page and Chrome Engine on the [Google Chrome Developer Audit rules](https://github.com/GoogleChrome/accessibility-developer-tools/wiki/Audit-Rules).
 AATT provides an accessibility API and custom web application for [HTML CodeSniffer](http://squizlabs.github.io/HTML_CodeSniffer/), [Axe](https://github.com/dequelabs/axe-core) and [Chrome developer tool](https://github.com/GoogleChrome/accessibility-developer-tools).  Using the AATT web application, you can configure test server configurations inside the firewall, and test individual pages.
 
 AATT includes [HTML CodeSniffer](http://squizlabs.github.io/HTML_CodeSniffer/), [Axe](https://github.com/dequelabs/axe-core) and [Chrome developer tool](https://github.com/GoogleChrome/accessibility-developer-tools) with Express and PhantomJS, which runs on Node. 
