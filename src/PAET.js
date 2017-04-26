@@ -177,24 +177,7 @@ var page = require('webpage').create(),
                     console.log(msg);
                 };
 
-                // Include all sniff files.
                 var fs = require('fs');
-                var injectAllStandards = function(dir) {
-                    var files = fs.list(dir),
-                        filesLen = files.length,
-                        absPath = '';
-                    for (var i = 0; i < filesLen; i++) {
-                        if (files[i] === '.' || files[i] === '..') continue;
-                        absPath = fs.absolute(dir + '/' + files[i]);
-                        if (fs.isDirectory(absPath) === true) {
-                            injectAllStandards(absPath);
-                        } else if (fs.isFile(absPath) === true) {
-                            page.injectJs(absPath);
-                        }
-                    }
-                };
-
-                injectAllStandards('./src/htmlcs/Standards');
                 page.injectJs('./src/htmlcs/HTMLCS.js');
 
                 var data = {

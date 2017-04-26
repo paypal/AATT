@@ -22,24 +22,6 @@
         console.log(msg);
     };
 
-    // Include all sniff files.
-    var fs = require('fs');
-    var injectAllStandards = function(dir) {
-        var files = fs.list(dir),
-            filesLen = files.length,
-            absPath = '';
-        for (var i = 0; i < filesLen; i++) {
-            if (files[i] === '.' || files[i] === '..') continue;
-            absPath = fs.absolute(dir + '/' + files[i]);
-            if (fs.isDirectory(absPath) === true) {
-                injectAllStandards(absPath);
-            } else if (fs.isFile(absPath) === true) {
-                page.injectJs(absPath);
-            }
-        }
-    };
-
-    injectAllStandards('./src/htmlcs/Standards');                
     page.injectJs('./src/htmlcs/HTMLCS.js');
 
     // console.log('O U T P U T ' , output);
@@ -73,8 +55,7 @@
             page.evaluate(function(data) {
                 var screenshot_url = data.screenshot_url;
                 var standard = data.standard;
-                var errLevel = data.errLevel;
-                
+                var errLevel = data.errLevel;                
                 HTMLCS_RUNNER.run(standard, screenshot_url, errLevel);
             }, data);
         break;

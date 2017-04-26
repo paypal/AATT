@@ -189,7 +189,7 @@ if (fs.existsSync(ssl_path)) {
 		if(typeof engine === 'undefined' || engine ==='') engine = 'htmlcs';
 		if(typeof output === 'undefined' || output ==='') output = 'string';
 		if(typeof level === 'undefined' || level ==='') level = 'WCAG2AA';
-		if(typeof errLevel === 'undefined' || errLevel ==='') errLevel = '1,2,3';
+		if(typeof errLevel === 'undefined' || errLevel ==='') errLevel = '1';
 
 		var source = req.body.source;
 		source = source.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,'');	//replaces script tags
