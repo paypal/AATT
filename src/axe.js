@@ -1,36 +1,26 @@
     var PATH_TO_AXE = './src/axe/axe.min.js';
     var args = require('system').args;
     var page = require('webpage').create();
+    page.content = args[2];
 
     var contentType= args[1];
     var url='';
     var jsonOp = [];
 
-    if( contentType == 'url') {
-        url = args[2];
-    }else{
-        page.content = args[2];
-    }
     var output   = args[3];
     
     phantom.silent = true;
     page.settings.webSecurityEnabled = false;
 
-    page.open(url, function (status) {
-        if (status !== 'success') {
-            console.log('Unable to access network');
-            return;
-        }
-        page.injectJs(PATH_TO_AXE);         //source from  https://github.com/dequelabs/axe-core/blob/master/doc/examples/phantomjs/axe-phantom.js
-        page.framesName.forEach(function (name) {
-            page.switchToFrame(name);
-            page.injectJs(PATH_TO_AXE);
-        });
-        page.switchToMainFrame();
-        page.evaluateAsync(function () {
-            axe.a11yCheck(document.body, null, function (results) {
-                window.callPhantom(results);
-            });
+    page.injectJs(PATH_TO_AXE);         //source from  https://github.com/dequelabs/axe-core/blob/master/doc/examples/phantomjs/axe-phantom.js
+    page.framesName.forEach(function (name) {
+        page.switchToFrame(name);
+        page.injectJs(PATH_TO_AXE);
+    });
+    page.switchToMainFrame();
+    page.evaluateAsync(function () {
+        axe.a11yCheck(document.body, null, function (results) {
+            window.callPhantom(results);
         });
     });
 

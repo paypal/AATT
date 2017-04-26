@@ -6,83 +6,73 @@
     var url='';
 	var jsonOp = [];
 
-    if( contentType == 'url') {
-        url = args[2];        
-    } else {        //contentType=source
-        page.content = args[2];
-    }
+    page.content = args[2];
     var output   = args[3];
 
     phantom.silent = true;
     page.settings.webSecurityEnabled = false;
+    page.injectJs(PATH_TO_CHROME);
 
-    page.open(args[2], function (status) {
-        if (status !== 'success') {
-            console.log('Unable to load the address!');
-            phantom.exit();
-        }
-        page.injectJs(PATH_TO_CHROME);
+    // console.log('O U T P U T ' , output);
 
-        // console.log('O U T P U T ' , output);
+    var screenshot_url=  'screenshots/' +  Math.floor((Math.random()*1000)+1) +'.png';
+    // page.render(screenshot_url);
 
-        var screenshot_url=  'screenshots/' +  Math.floor((Math.random()*1000)+1) +'.png';
-        // page.render(screenshot_url);
+    var data = {
+        screenshot_url : screenshot_url
+    };
+    
+    var evalData = page.evaluate(function(data) {
+        var screenshot_url = data.screenshot_url;
 
-        var data = {
-            screenshot_url : screenshot_url
-        };
-        
-        var evalData = page.evaluate(function(data) {
-            var screenshot_url = data.screenshot_url;
+        var configuration = new axs.AuditConfiguration();
+        configuration.showUnsupportedRulesWarning = false;
+        configuration.scope = document.body;
+        var results = axs.Audit.run(configuration);
 
-            var configuration = new axs.AuditConfiguration();
-            configuration.showUnsupportedRulesWarning = false;
-            configuration.scope = document.body;
-            var results = axs.Audit.run(configuration);
+        // console.log(JSON.stringify(document.body));
 
-            // console.log(JSON.stringify(document.body));
+        var audit = results.map(function(result) {
+            var DOMElements = result.elements;
+            var message = '';
+            if(result.result ==='FAIL'){
+                if (DOMElements !== undefined) {
+                    var maxElements = Math.min(DOMElements.length, 5);
 
-            var audit = results.map(function(result) {
-                var DOMElements = result.elements;
-                var message = '';
-                if(result.result ==='FAIL'){
-                    if (DOMElements !== undefined) {
-                        var maxElements = Math.min(DOMElements.length, 5);
-
-                        for (var i = 0; i < maxElements; i++) {
-                            var el = DOMElements[i];
-                            message += '\n';
-                            try {
-                                message += axs.utils.getQuerySelectorText(el);
-                            } catch (err) {
-                                message += ' tagName:' + el.tagName;
-                                message += ' id:' + el.id;
-                            }
+                    for (var i = 0; i < maxElements; i++) {
+                        var el = DOMElements[i];
+                        message += '\n';
+                        try {
+                            message += axs.utils.getQuerySelectorText(el);
+                        } catch (err) {
+                            message += ' tagName:' + el.tagName;
+                            message += ' id:' + el.id;
                         }
                     }
-                    return {
-                        heading: result.rule.heading,
-                        result: result.result,
-                        severity: result.rule.severity,
-                        elements: message
-                    };
-                }   //Return Failures only
-            });
+                }
+                return {
+                    heading: result.rule.heading,
+                    result: result.result,
+                    severity: result.rule.severity,
+                    elements: message
+                };
+            }   //Return Failures only
+        });
 
-            // var report =  axs.Audit.createReport(results);
-            for (var i=audit.length;i--;){
-              if (audit[i] == null) audit.splice(i,1);
-            }
-            return  audit;
-        }, data);
-        if(output==='string'){
-            var htmlStr = buildHtmlTable(evalData ,'Chrome Accessibility Plugin');
-        }else {
-            var htmlStr = buildJsonObj(evalData ,'Chrome Accessibility Plugin' );
-        }            
-        console.log(htmlStr);
-        phantom.exit();
-    })
+        // var report =  axs.Audit.createReport(results);
+        for (var i=audit.length;i--;){
+            if (audit[i] == null) audit.splice(i,1);
+        }
+        return  audit;
+    }, data);
+    if(output==='string'){
+        var htmlStr = buildHtmlTable(evalData ,'Chrome Accessibility Plugin');
+    }else {
+        var htmlStr = buildJsonObj(evalData ,'Chrome Accessibility Plugin' );
+    }            
+    console.log(htmlStr);
+    phantom.exit();
+
 
     /***************** H E L P E R   F U N C T I O N S *******************/
        // Builds the HTML Table out of myList json data from Ivy restful service.

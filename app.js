@@ -191,15 +191,18 @@ if (fs.existsSync(ssl_path)) {
 		if(typeof level === 'undefined' || level ==='') level = 'WCAG2AA';
 		if(typeof errLevel === 'undefined' || errLevel ==='') errLevel = '1,2,3';
 
+		var source = req.body.source;
+		source = source.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,'');	//replaces script tags
+
 		switch(engine){
 			case "chrome":
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), 'source', req.body.source, output];
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), 'source', source, output];
 				break;
 			case "htmlcs":
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), req.body.source, level, errLevel, output];
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), source, level, errLevel, output];
 				break;				
 			case "axe":
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), 'source', req.body.source, output];
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), 'source', source, output];
 				break;
 		}
 		console.log('E N G I N E ' , engine, childArgs);
