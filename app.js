@@ -85,6 +85,10 @@ if (fs.existsSync(ssl_path)) {
         , msgNotice = req.body.msgNotice
     	, eLevel=[]
     	, engine = req.body.engine
+		, output ='string'
+
+		if(typeof engine === 'undefined' || engine ==='') engine = 'htmlcs';
+		if(typeof output === 'undefined' || output ==='') output = 'string';
 
     	log('E N G I N E ', engine);
 
@@ -112,10 +116,10 @@ if (fs.existsSync(ssl_path)) {
 						];
 		}
 		if(engine === 'axe'){
-			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), 'url', req.body.textURL, userName];
+			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'), 'url', req.body.textURL, output];
 		}	
 		if(engine === 'chrome'){
-			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), 'url', req.body.textURL, userName];
+			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), 'url', req.body.textURL, output];
 		}	
 		childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 			res.json({ userName: userName, data: stdout });
@@ -130,26 +134,32 @@ if (fs.existsSync(ssl_path)) {
 		, engine = req.body.engine
 		, output ='string'
 
+		if(typeof engine === 'undefined' || engine ==='') engine = 'htmlcs';
+		if(typeof output === 'undefined' || output ==='') output = 'string';
+
+		var source = req.body.source;
+		source = source.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,'');	//replaces script tags
+
 		log('sniffHTML, E N G I N E ', engine);
 
-			var source = '<!DOCTYPE html><html lang="en"><meta charset="utf-8"><head><title>Home - PayPal Accessibility Tool</title></head><body>'
-						+ 	req.body.source
-						+ '</body></html>';
+		var source = '<!DOCTYPE html><html lang="en"><meta charset="utf-8"><head><title>Home - PayPal Accessibility Tool</title></head><body>'
+					+ 	req.body.source
+					+ '</body></html>';
 
-	    	if(engine === 'htmlcs'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), req.body.source, 'WCAG2AA', '1,2,3', output];
-			}
-			if(engine === 'axe'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), 'source', req.body.source, output];
-			}	 	
-			if(engine === 'chrome'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), 'source', req.body.source, output]			
-			}	 	
-		
-			childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
-				res.json(stdout);
-				log(stdout);
-			});
+    	if(engine === 'htmlcs'){
+			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), req.body.source, 'WCAG2AA', '1,2,3', output];
+		}
+		if(engine === 'axe'){
+			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), 'source', req.body.source, output];
+		}	 	
+		if(engine === 'chrome'){
+			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), 'source', req.body.source, output]			
+		}	 	
+	
+		childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
+			res.json(stdout);
+			log(stdout);
+		});
 	});
 
 	app.post('/login', function(req, res) {

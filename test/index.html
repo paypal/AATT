@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+       <title>Quickly Check for Accessibility errors</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <link rel="stylesheet" type="text/css" href="css/home.css"> 
+</head>
+<body>
+    <div id="container">
+           <h2> Run your code through Chrome Developer Tool, Axe Engine and HTML Code Sniffer </h2>
+        <p>   
+            Test results will be shown underneath the code block.
+        </p>
+        <div id="code-input">
+                <textarea cols="100" rows="20" title="Enter the source code to be sniffed" id="source"></textarea>
+                <div id="test-options">
+                    <fieldset>
+                        <legend>Engines</legend>
+                        <div class="row">
+                            <div class="left">
+                                <label for="chromeopt" checked="" class="options">Chrome</label>
+                            </div>    
+                            <div class="right">    
+                                <input id="chromeopt" type="checkbox">
+                            </div>
+                        </div>
+                        <div class="row">                        
+                            <div class="left">
+                                <label for="axeopt" class="options">Axe</label>
+                            </div>    
+                            <div class="right">                                
+                                <input id="axeopt" type="checkbox">
+                            </div>
+                        </div>    
+                        <div class="row">
+                            <div>
+                                <label for="htmlcsopt" class="options">HTMLCodeSniffer</label>
+                            </div>    
+                            <div class="middle">                            
+                                <input id="htmlcsopt" type="checkbox">
+                            </div>
+                            <div class="right">
+                                <ul>
+                                    <li><input type="radio" class="radio-input" id="WCAG2A" name="level" value="WCAG2A"><span class="radio-gen"></span><label for="WCAG2A"> WCAG 2.0 Level A</label></li>
+
+                                    <li><input type="radio" checked="" class="radio-input" id="WCAG2AA" name="level" value="WCAG2AA"><span class="radio-gen"></span><label for="WCAG2AA"> WCAG 2.0 Level AA</label></li>
+
+                                    <li><input type="radio" class="radio-input" id="WCAG2AAA" name="level" value="WCAG2AAA"><span class="radio-gen radio-on"></span><label for="WCAG2AAA"> WCAG 2.0 Level AAA</label></li>
+
+                                    <li><input type="radio" class="radio-input" id="Section508" name="level" value="Section508"><span class="radio-gen"></span><label for="Section508"> Section 508</label></li>
+                                </ul>
+                            </div>
+                        </div>
+                                
+                     </fieldset>
+                    <button id="run-button" class="button green bigrounded" type="button" onClick="run()">Run Evaluator</button>
+                </div>
+        </div>
+
+        <iframe id="evalCode" style="height:0;width:0;opacity:0" aria-hidden="true"></iframe>
+
+        <div id="chrome" class="results"> <div id="chromeres"></div></div>
+        <div id="axis" class="results"> <div id="axeres"></div></div>
+        <div id="htmlcs" class="results"><div id="htmlcsres"></div></div>
+    </div>
+
+    <script src="js/sorttable.js" ></script>
+    
+    <script src="../src/axe/axe.min.js" ></script>
+    <script src="../src/chrome/dist/js/axs_testing.js" ></script>
+    <script src="../src/htmlcs/HTMLCS.js" ></script>
+    <script src="js/util.js" ></script>
+    <script src="js/main.js" ></script>
+
+
+    <script type="text/javascript">
+
+      function run(){
+        var source = document.getElementById('source').value;
+        var SCRIPT_REGEX = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
+        while (SCRIPT_REGEX.test(source)) {
+            source = source.replace(SCRIPT_REGEX, "");
+        }
+
+        
+
+/**/       
+        var elementFrame = document.getElementById('evalCode'), element='';
+
+        if (elementFrame.contentDocument) {
+            element = elementFrame.contentDocument;
+        } else if (element.contentWindow) {
+            element = elementFrame.contentWindow.document;
+        }
+
+        element.body.innerHTML = "";
+        // console.log('index', source)
+        //element.write('<div id="__HTMLCS-source-wrap">' + source + '</div>');
+         element.body.innerHTML ='<div id="__HTMLCS-source-wrap">' + source + '</div>';
+
+
+        if(document.getElementById('chromeopt').checked) chromeDevTool(element);
+        if(document.getElementById('axeopt').checked) axeTool(element);
+        
+        if(document.getElementById('htmlcsopt').checked) {
+            var standard = document.querySelector('input[name = "level"]:checked').value;
+            var options ={
+                standard :standard
+            }
+            // console.log(options.standard)
+            htmlcsTool(element, options);
+        }
+/**/   
+      }
+    </script>
+
+</body>
+
+
+</html>
