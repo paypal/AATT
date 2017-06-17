@@ -19,7 +19,6 @@ var HTMLCS_RUNNER = new function() {
 
 				if (msgs.length === 0) {
 					content.push({'message':'No violations found'});
-					return;
 				}
 
 				var errors   = 0;
@@ -89,7 +88,6 @@ var HTMLCS_RUNNER = new function() {
 
 				if (errors === 0) {
 					content.push({'message':'----  No Errors ---'});
-					return;
 				}
 
 				var address = document.location.href;
