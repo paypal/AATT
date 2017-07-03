@@ -116,10 +116,10 @@ if (fs.existsSync(ssl_path)) {
 						];
 		}
 		if(engine === 'axe'){
-			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'), 'url', req.body.textURL, output];
+			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'), req.body.textURL, output];
 		}	
 		if(engine === 'chrome'){
-			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), 'url', req.body.textURL, output];
+			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), req.body.textURL, output];
 		}	
 		childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 			res.json({ userName: userName, data: stdout });
@@ -131,6 +131,7 @@ if (fs.existsSync(ssl_path)) {
  		var childArgs
  		, userName = ''
  		, d = new Date()
+		, tempFilename = 'tmp/'+ new Date().getTime() + '.html'
 		, engine = req.body.engine
 		, output ='string'
 
@@ -146,20 +147,30 @@ if (fs.existsSync(ssl_path)) {
 					+ 	req.body.source
 					+ '</body></html>';
 
-    	if(engine === 'htmlcs'){
-			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), req.body.source, 'WCAG2AA', '1,2,3', output];
-		}
-		if(engine === 'axe'){
-			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), 'source', req.body.source, output];
-		}	 	
-		if(engine === 'chrome'){
-			var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), 'source', req.body.source, output]			
-		}	 	
+		fs.writeFile(tempFilename, source , function (err,data) {
+			if (err) throw err;
+			if(engine === 'htmlcs'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', '1,2,3', output];
+			}
+			if(engine === 'axe'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'),  tempFilename, output];
+			}	 	
+			if(engine === 'chrome'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), tempFilename, output]
+			}	 	
 	
-		childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
-			res.json(stdout);
-			log(stdout);
-		});
+			childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
+				res.json(stdout);
+				log(stdout);
+				fs.unlink(tempFilename, (err) => {
+					if (err) {
+						console.log("failed to delete : "+ err);
+					} else {
+						console.log('successfully deleted ' + tempFilename);                                
+					}
+				});				
+			});
+		});		//fs.writeFile
 	});
 
 	app.post('/login', function(req, res) {

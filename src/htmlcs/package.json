@@ -1,0 +1,27 @@
+{
+  "name": "HTML_CodeSniffer",
+  "version": "2.0.7",
+  "description": "HTML_CodeSniffer is a client-side JavaScript that checks a HTML document or source code, and detects violations of a defined coding standard.",
+  "main": "HTMLCS.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/squizlabs/HTML_CodeSniffer.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/squizlabs/HTML_CodeSniffer/issues"
+  },
+  "homepage": "http://squizlabs.github.io/HTML_CodeSniffer/",
+  "dependencies": {
+    "grunt": "^1.0.0",
+    "load-grunt-tasks": "~3.5.x",
+    "grunt-contrib-copy": "^1.0.0",
+    "grunt-contrib-jshint": "^1.0.0",
+    "grunt-contrib-uglify": "^2.0.0",
+    "grunt-contrib-watch": "^1.0.0"
+  }
+}

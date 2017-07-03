@@ -1,13 +1,9 @@
     var PATH_TO_AXE = './src/axe/axe.min.js';
     var args = require('system').args;
     var page = require('webpage').create();
-
-
-    var contentType= args[1];
-    var url= args[2];
+    var url= args[1];
     var jsonOp = [];
-
-    var output   = args[3];
+    var output   = args[2];
     
     phantom.silent = true;
     page.settings.webSecurityEnabled = false;

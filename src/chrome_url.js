@@ -1,17 +1,14 @@
     var page = require('webpage').create();
     var args = require('system').args;
-    var PATH_TO_CHROME = './src/chrome/dist/js/axs_testing.js';
-    
-    var contentType= args[1];
-    var url= args[2];
+    var PATH_TO_CHROME = './src/chrome/dist/js/axs_testing.js';    
+    var url= args[1];
 	var jsonOp = [];
-
-    var output   = args[3];
+    var output   = args[2];
 
     phantom.silent = true;
     page.settings.webSecurityEnabled = false;
 
-    // page.open(url, function (status) {
+    page.open(url, function (status) {
         if (status !== 'success') {
             console.log('Unable to access network');
             return;
