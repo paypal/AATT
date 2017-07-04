@@ -18,8 +18,9 @@ var page = require('webpage').create(),
         // console.log(msg);
     };
     page.onError = function (msg) {
-        // console.log(msg);   
-   };
+        // console.log(msg);
+        phantom.exit();        
+    }; 
 
 /***************** H E L P E R   F U N C T I O N S *******************/
     function restoreCookies(cookieFile) {
@@ -178,7 +179,7 @@ var page = require('webpage').create(),
                 };
 
                 var fs = require('fs');
-                page.injectJs('./src/htmlcs/HTMLCS.js');
+                page.injectJs('./src/htmlcs/build/HTMLCS.js');
 
                 var data = {
                     standard : standard
