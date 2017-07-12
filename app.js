@@ -206,6 +206,7 @@ if (fs.existsSync(ssl_path)) {
 		var output = req.body.output;		// Eg. json, string  		default: string
 		var level = req.body.level;			//E.g. WCAG2AA, WCAG2A, WCAG2AAA, Section508 	default:WCAG2AA
 		var errLevel = req.body.errLevel;	// Eg. 1,2,3   1 means Error, 2 means Warning, 3 means Notice 	default:1,2,3
+		var tempFilename = 'tmp/'+ new Date().getTime() + '.html';
 
 		if(typeof engine === 'undefined' || engine ==='') engine = 'htmlcs';
 		if(typeof output === 'undefined' || output ==='') output = 'string';
@@ -215,24 +216,25 @@ if (fs.existsSync(ssl_path)) {
 		var source = req.body.source;
 		source = source.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,'');	//replaces script tags
 
-		switch(engine){
-			case "chrome":
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome.js'), 'source', source, output];
-				break;
-			case "htmlcs":
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), source, level, errLevel, output];
-				break;				
-			case "axe":
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe.js'), 'source', source, output];
-				break;
-		}
-		console.log('E N G I N E ' , engine, childArgs);
+		fs.writeFile(tempFilename, source , function (err,data) {
+			if (err) throw err;
+			if(engine === 'htmlcs'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', '1,2,3', output];
+			}
+			if(engine === 'axe'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'),  tempFilename, output];
+			}	 	
+			if(engine === 'chrome'){
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), tempFilename, output]
+			}
+			console.log('E N G I N E ' , engine, childArgs);
 
-	 	childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
-		 	stdout = stdout.replace('done','');
-	    	res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
-	    	res.write(stdout);
-	    	res.end();
-	    	log(stdout);
-		});
-	});
+			childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
+				stdout = stdout.replace('done','');
+				res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
+				res.write(stdout);
+				res.end();
+				log(stdout);
+			})
+		})		
+	})
