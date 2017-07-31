@@ -219,7 +219,7 @@ if (fs.existsSync(ssl_path)) {
 		fs.writeFile(tempFilename, source , function (err,data) {
 			if (err) throw err;
 			if(engine === 'htmlcs'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', '1,2,3', output];
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', errLevel, output];
 			}
 			if(engine === 'axe'){
 				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'),  tempFilename, output];
@@ -235,6 +235,13 @@ if (fs.existsSync(ssl_path)) {
 				res.write(stdout);
 				res.end();
 				log(stdout);
+				fs.unlink(tempFilename, (err) => {
+					if (err) {
+						console.log("failed to delete : "+ err);
+					} else {
+						console.log('successfully deleted ' + tempFilename);                                
+					}
+				});
 			})
 		})		
 	})
