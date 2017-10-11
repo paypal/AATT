@@ -80,6 +80,10 @@ _global.HTMLCS_Section508_Sniffs_L = {
                 nameFound = true;
             } else if (/^\s*$/.test(content) === false) {
                 nameFound = true;
+            } else if (element.hasAttribute('aria-label') === true && HTMLCS.util.hasValidAriaLabel(element) === true ) {
+                nameFound = true;
+            } else if (element.hasAttribute('aria-labelledby') === true && HTMLCS.util.hasValidAriaLabel(element) === false) {
+                nameFound = true;
             }
 
             if ((element.hasAttribute('href') === true) && (/^\s*$/.test(element.getAttribute('href')) === false)) {
