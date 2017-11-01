@@ -219,7 +219,7 @@ if (fs.existsSync(ssl_path)) {
 		fs.writeFile(tempFilename, source , function (err,data) {
 			if (err) throw err;
 			if(engine === 'htmlcs'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, 'WCAG2AA', errLevel, output];
+				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, level, errLevel, output];
 			}
 			if(engine === 'axe'){
 				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'),  tempFilename, output];
