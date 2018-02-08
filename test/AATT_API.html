@@ -11,6 +11,9 @@
 	<div class="max-width">
 		<div id="code-input">
 			<form id="runHTMLCS" method="post" action="http://localhost:3000/evaluate">
+			<!-- <form id="runHTMLCS" method="post" action="http://aatt.pp-devcos-pkhan.us-central1.gcp.dev.paypalinc.com/evaluate"> -->
+			<!-- <form id="runHTMLCS" method="post" action="http://aatt-1.pp-devcos-pkhan.us-central1.gcp.dev.paypalinc.com/evaluate"> -->
+				
 				<div id="code-overlay" onclick="hideDiv()">
 				<div id="test-area-graphic"></div>Paste your code here and test results will be shown underneath the code block:
 				</div>
@@ -48,18 +51,33 @@
 
 				<br><br>
 				<label for="errLevel">Error Level (htmlcs) &nbsp;&nbsp; </label> 
-					<input type="text" id="errLevel" name="errLevel" value="1,2,3">  &nbsp; Eg. 1,2,3   1 means Error, 2 means Warning, 3 means Notice 	default:1,2,3
+					<input type="text" id="errLevel" name="errLevel" value="1">  &nbsp; Eg. 1,2,3   1 means Error, 2 means Warning, 3 means Notice 	default:1,2,3
 
 				<fieldset>
 				<legend>Standard (htmlcs):</legend>
 				<ul>
 				<li><input type="radio" value="WCAG2A" name="level" id="WCAG2A" class="radio-input"><span class="radio-gen"></span><label for="WCAG2A"> WCAG 2.0 Level A</label></li>
-				<li><input type="radio" value="WCAG2AA" name="level" id="WCAG2AA" class="radio-input"><span class="radio-gen"></span><label for="WCAG2AA"> WCAG 2.0 Level AA</label></li>
-				<li><input type="radio" value="WCAG2AAA" name="level" id="WCAG2AAA" class="radio-input" checked><span class="radio-gen radio-on"></span><label for="WCAG2AAA"> WCAG 2.0 Level AAA</label></li>
+				<li><input type="radio" value="WCAG2AA" name="level" id="WCAG2AA" class="radio-input" checked><span class="radio-gen"></span><label for="WCAG2AA"> WCAG 2.0 Level AA</label></li>
+				<li><input type="radio" value="WCAG2AAA" name="level" id="WCAG2AAA" class="radio-input"><span class="radio-gen radio-on"></span><label for="WCAG2AAA"> WCAG 2.0 Level AAA</label></li>
 				<li><input type="radio" value="Section508" name="level" id="Section508" class="radio-input"><span class="radio-gen"></span><label for="Section508"> Section 508</label></li>
 				</ul>
 				</fieldset>
-				<br><br><button type="submit" id="run-button">Run HTML_CodeSniffer</button>
+				<br><br>
+				
+				<!---->
+				<label for="project">Project Name</label> <input type="text" id="project" name="project" value="test">
+				<br><br>
+			
+				<label for="page">Page name</label> <input type="text" id="page" name="page" value="test">
+				
+
+				<br><br>
+
+				
+				<button type="submit" id="run-button"><b>Run HTML_CodeSniffer</b></button>
+				<br><br>
+
+
 				</div>
 			</form>
 		</div> <!-- close code-input -->
@@ -67,6 +85,28 @@
 	</div> <!-- close .max-width -->
 </div> <!-- close #text-area --> 
 
+<script type="text/javascript">
+/* 		
+	var params = 'engine=chrome&output=json&source=<input><select><input>';
+	var r = new XMLHttpRequest(); 
+	r.open("POST", "http://localhost/evaluate", true);
+	r.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+	r.setRequestHeader("Content-length", params.length);
+	r.setRequestHeader("Connection", "close");
+
+	r.send(params);
+
+	r.onreadystatechange = function () { 
+		if (r.readyState == 4 || r.status == 200){
+			var response = r.responseText;
+			console.dir(response);
+			// var obj = JSON.parse(r.responseText);
+			// console.log("Success: " + JSON.stringify(obj) ); 			
+		}	
+	}
+*/
+
+</script>
 
 </body>
 </html>
