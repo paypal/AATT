@@ -23,6 +23,11 @@ HTML\_CodeSniffer can be called in multiple ways:
   letting you browse through messages emitted from one of the defined standards. 
   Where possible, the auditor also points you to the HTML element causing the problem.
 * It can also be run on the command line with the assistance of a headless browser app.
+* Using npm:
+```
+$ npm i -g npm
+$ npm i --save html_codesniffer
+```
 
 ### Licence
 
@@ -64,43 +69,60 @@ debugging purposes, follow the above steps, but run <code>grunt build-debug</cod
   
 ### Command-Line processing
 
+**Note:** These examples assume a built version of HTMLCS exported to `./build/HTMLCS.js`
+
 #### PhantomJS
 
-If you are using command-line processing, you don't need to build the auditor as above.
-You will, however, need [PhantomJS](http://www.phantomjs.org/) installed if you wish to
+You will need [PhantomJS](http://www.phantomjs.org/) installed if you wish to
 use the contributed command-line script. PhantomJS provides a headless Webkit-based
 browser to run the scripts in, so it should provide results that are similar to 
 recent (or slightly less than recent) versions of Safari.
 
 See the <code>Contrib/PhantomJS/HTMLCS_Run.js</code> file for more information.
 
-#### Node & JSDom.
+#### Node & JSDom
 
 HTML_CodeSniffer requires a dom to run, however, it is possible to run it entirely
 server side without a headless browser using Node on arbitrary fragments of HTML using
-an environment wrapper like [JSDom](https://github.com/tmpvar/jsdom).
+an environment wrapper like [JSDom](https://github.com/jsdom/jsdom).
 
 An example node script:
 ```javascript
-var jsdom  = require('jsdom');
-var fs     = require('fs');
+var jsdom = require('jsdom');
+var { JSDOM } = jsdom;
+var fs = require('fs');
 
-var vConsole = jsdom.createVirtualConsole();
+var HTMLCS = fs.readFileSync('./build/HTMLCS.js', 'utf-8');
+var vConsole = new jsdom.VirtualConsole();
 
 // Forward messages to the console.
 vConsole.on('log', function(message) {
-    console.log(message);
-})
+    console.log(message)
+});
 
-jsdom.env({
-    html: '<img src="test.png" />',
-    src: [fs.readFileSync('./build/HTMLCS.js')],
-    virtualConsole: vConsole,
-    done: function (err, window) {
-        window.HTMLCS_RUNNER.run('WCAG2AA');
-    }
+var dom = new JSDOM('<img src="test.png" />', {
+    runScripts: "dangerously",
+    virtualConsole: vConsole
+});
+
+dom.window.eval(HTMLCS);
+dom.window.HTMLCS_RUNNER.run('WCAG2AA');
+```
+
+### Translations
+
+HTML_CodeSniffer supports _very_ basic string translations. The auditor will use the current language of the document it is being run in (e.g. `<html lang="en">`). A language code can be supplied if you need to tell HTML_CodeSniffer which language you want to use.
+
+Example usage:
+```javascript
+HTMLCSAuditor.run('WCAG2AA', null, {
+  lang: 'pl'
 });
 ```
+
+**Note:** HTML_CodeSniffer only has english (default) and polish language.
+
+If other language support is required a custom version can be built by adding more translations in `Translations/<code>.js` and using the grunt build process described above.
 
 ### Contributing and reporting issues
 
@@ -121,3 +143,11 @@ More information on HTML_CodeSniffer can be found on its GitHub site,
 - Information on the tests performed (and messages emitted) by HTML_CodeSniffer's standards, organised by conformance level and Success Criterion;
 - A source test area that allows you to try out HTML_CodeSniffer with your own HTML source code; and
 - A link to the HTML_CodeSniffer bookmarklet, letting you check other pages using the pop-up auditor interface.
+
+
+## Translation Contributors
+
+Special thanks to:
+
+* [nsulzycki](https://github.com/nsulzycki) (Polish Translation)
+* [dmassiani](https://github.com/dmassiani) (French Translation)

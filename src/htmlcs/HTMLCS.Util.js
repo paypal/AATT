@@ -191,14 +191,15 @@ _global.HTMLCS.util = function() {
      *
      * @returns {Object}
      */
-    self.style = function(element) {
+    self.style = function(element, pseudo) {
         var computedStyle = null;
         var window        = self.getElementWindow(element);
+        var pseudo        = pseudo || null;
 
         if (element.currentStyle) {
             computedStyle = element.currentStyle;
         } else if (window.getComputedStyle) {
-            computedStyle = window.getComputedStyle(element, null);
+            computedStyle = window.getComputedStyle(element, pseudo);
         }
 
         return computedStyle;
@@ -234,6 +235,26 @@ _global.HTMLCS.util = function() {
         }
 
         return hidden;
+    };
+
+    /**
+     * Returns true if the element is deliberately hidden from Accessibility APIs using ARIA hidden.
+     *
+     * Not: This is separate to isAccessibilityHidden() due to a need to check specifically for aria hidden.
+     *
+     * @param {Node} element The element to check.
+     *
+     * @return {Boolean}
+     */
+    self.isAriaHidden = function(element) {
+        do {
+            // WAI-ARIA hidden attribute.
+            if (element.hasAttribute('aria-hidden') && element.getAttribute('aria-hidden') === 'true') {
+                return true;
+            }
+        } while (element = element.parentElement);
+
+        return false;
     };
 
 
@@ -377,7 +398,7 @@ _global.HTMLCS.util = function() {
      * Returns all elements that are visible to the accessibility API.
      *
      * @param {Node}   element  The parent element to search.
-     * @param {String} selector Optional selector to pass to 
+     * @param {String} selector Optional selector to pass to
      *
      * @return {Array}
      */
@@ -513,10 +534,9 @@ _global.HTMLCS.util = function() {
     }
 
     /**
-     * Convert a colour string to a structure with red/green/blue elements.
+     * Convert a colour string to a structure with red/green/blue/alpha elements.
      *
-     * Supports rgb() and hex colours (3 or 6 hex digits, optional "#").
-     * rgba() also supported but the alpha channel is currently ignored.
+     * Supports rgb() and hex colours (3, 4, 6 or 8 hex digits, optional "#").
      * Each red/green/blue element is in the range [0.0, 1.0].
      *
      * @param {String} colour The colour to convert.
@@ -532,7 +552,11 @@ _global.HTMLCS.util = function() {
             colour = {
                 red: (matches[1] / 255),
                 green: (matches[2] / 255),
-                blue: (matches[3] / 255)
+                blue: (matches[3] / 255),
+                alpha: 1.0
+            };
+            if (matches[4]) {
+                colour.alpha = parseFloat(/^,\s*(.*)$/.exec(matches[4])[1]);
             }
         } else {
             // Hex digit format.
@@ -544,10 +568,20 @@ _global.HTMLCS.util = function() {
                 colour = colour.replace(/^(.)(.)(.)$/, '$1$1$2$2$3$3');
             }
 
+            if (colour.length === 4) {
+                colour = colour.replace(/^(.)(.)(.)(.)$/, '$1$1$2$2$3$3$4$4');
+            }
+
+            var alpha = 1; // Default if alpha is not specified
+            if (colour.length === 8) {
+                alpha = parseInt(colour.substr(6, 2), 16) / 255;
+            }
+
             colour = {
                 red: (parseInt(colour.substr(0, 2), 16) / 255),
                 green: (parseInt(colour.substr(2, 2), 16) / 255),
-                blue: (parseInt(colour.substr(4, 2), 16) / 255)
+                blue: (parseInt(colour.substr(4, 2), 16) / 255),
+                alpha: alpha,
             };
         }
 
@@ -768,6 +802,86 @@ _global.HTMLCS.util = function() {
         return text;
     };
 
+
+    /**
+     * Find a parent node matching a selector.
+     *
+     * @param {DOMNode} node     Node to search from.
+     * @param {String}  selector The selector to search.
+     *
+     * @return DOMNode|null
+     */
+    self.findParentNode = function(node, selector) {
+        if (node && node.matches && node.matches(selector)) {
+            return node;
+        }
+
+        while (node && node.parentNode) {
+            node = node.parentNode;
+
+            if (node && node.matches && node.matches(selector)) {
+                return node;
+            }
+        }
+
+        return null;
+    };
+
+
+    /**
+     * Iterate parent nodes of an element.
+     *
+     * @param {DOMNode}  node Node to search from.
+     * @param {Function} cb    Callback function providing each parent node.
+     *
+     * @return void
+     */
+    self.eachParentNode = function(node, cb) {
+        while (node && node.parentNode) {
+            cb(node);
+            node = node.parentNode;
+        };
+    };
+
+
+    /**
+     * Returns TRUE if the provided node name is not a valid phrasing node.
+     *
+     * @param {String} nodeName The node name to test.
+     *
+     * @return {Boolean}
+     */
+    self.isPhrasingNode = function(nodeName) {
+        var nodeNames = [ 'abbr', 'audio', 'b', 'bdo', 'br', 'button', 'canvas', 'cite', 'code', 'command', 'data',
+            'datalist', 'dfn', 'em', 'embed', 'i', 'iframe', 'img', 'input', 'kbd', 'keygen', 'label', 'mark', 'math',
+            'meter', 'noscript', 'object', 'output', 'progress', 'q', 'ruby', 'samp', 'script', 'select', 'small',
+            'span', 'strong', 'sub', 'sup', 'svg', 'textarea', 'time', 'var', 'video', 'wbr'];
+
+        return nodeNames.indexOf(nodeName.toLowerCase()) !== -1;
+    };
+
+
+    self.getChildrenForTable = function(table, childNodeName)
+    {
+        if (table.nodeName.toLowerCase() !== 'table') {
+            return null;
+        }
+
+        var rows    = [];
+        var allRows = table.getElementsByTagName(childNodeName);
+
+        // Filter out rows that don't belong to this table.
+        for (var i = 0, l = allRows.length; i<l; i++) {
+            if (self.findParentNode(allRows[i], 'table') === table) {
+                rows.push(allRows[i]);
+            }
+        }
+
+        return rows;
+
+    };
+
+
     /**
      * Test for the correct headers attributes on table cell elements.
      *
@@ -800,7 +914,7 @@ _global.HTMLCS.util = function() {
             wrongHeaders: []
         }
 
-        var rows      = element.getElementsByTagName('tr');
+        var rows      = self.getChildrenForTable(element, 'tr');
         var tdCells   = {};
         var skipCells = [];
 
@@ -971,7 +1085,7 @@ _global.HTMLCS.util = function() {
         }
 
 
-        var rows       = table.getElementsByTagName('tr');
+        var rows       = self.getChildrenForTable(table, 'tr');
         var skipCells  = [];
         var headingIds = {
             rows: {},
@@ -997,8 +1111,7 @@ _global.HTMLCS.util = function() {
                     if (thisCell.nodeType === 1) {
                         // Skip columns that are skipped due to rowspan.
                         if (skipCells[rownum]) {
-                            while (skipCells[rownum][0] === colnum) {
-                                skipCells[rownum].shift();
+                            while (skipCells[rownum][colnum]) {
                                 colnum++;
                             }
                         }
@@ -1016,7 +1129,7 @@ _global.HTMLCS.util = function() {
                                 }
 
                                 for (var j = colnum; j < colnum + colspan; j++) {
-                                    skipCells[i].push(j);
+                                    skipCells[i][j] = true;
                                 }
                             }
                         }
@@ -1057,7 +1170,11 @@ _global.HTMLCS.util = function() {
                                 }//end for
 
                                 if (exp.length > 0) {
-                                    exp = ' ' + exp.sort().join(' ') + ' ';
+                                    // Sort and filter expected ids by unique value.
+                                    var filteredExp = exp.sort().filter(function(value, index, self) {
+                                        return self.indexOf(value) === index;
+                                    });
+                                    exp = ' ' + filteredExp.join(' ') + ' ';
                                     exp = exp.replace(/\s+/g, ' ').replace(/(\w+\s)\1+/g, '$1').replace(/^\s*(.*?)\s*$/g, '$1');
                                     cells.push({
                                         cell: thisCell,

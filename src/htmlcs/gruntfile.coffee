@@ -22,6 +22,7 @@ module.exports = (grunt)->
           footer: grunt.file.read('Contrib/Build/umd-footer.js')
         files:
           'build/HTMLCS.js': [
+            'Translations/*.js'
             'Standards/**/*.js'
             'HTMLCS.js'
             'HTMLCS.Util.js'
@@ -34,11 +35,25 @@ module.exports = (grunt)->
           footer: grunt.file.read('Contrib/Build/umd-footer.js')
         files:
           'build/HTMLCS.js': [
+            'Translations/*.js'
             'Standards/**/*.js'
             'HTMLCS.js'
             'HTMLCS.Util.js'
             'Contrib/PhantomJS/runner.js'
             'Auditor/HTMLCSAuditor.js'
+          ],
+      bookmarklet:
+        options:
+          banner: '/*! <%= pkg.name %> - v<%= pkg.version %> - <%= grunt.template.today("yyyy-mm-dd") %> */\n' + grunt.file.read('Contrib/Build/header-bookmarklet.js')
+          footer: grunt.file.read('Contrib/Build/umd-footer.js')
+        files:
+          'build/HTMLCS.js': [
+            'Translations/*.js'
+            'Standards/**/*.js'
+            'HTMLCS.js'
+            'HTMLCS.Util.js'
+            'Contrib/PhantomJS/runner.js'
+            'Auditor/Auditor_with_beacon.js'
           ],
 
     copy:
@@ -77,4 +92,5 @@ module.exports = (grunt)->
 
   grunt.registerTask 'default', ['jshint']
   grunt.registerTask 'build',   ['uglify:dist', 'copy:dist']
+  grunt.registerTask 'build-bookmarklet', ['uglify:bookmarklet', 'copy:dist']
   grunt.registerTask 'build-debug', ['uglify:debug', 'copy:dist']
