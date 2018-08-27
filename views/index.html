@@ -49,7 +49,7 @@
                               &nbsp;&nbsp;&nbsp;&nbsp;
                       <a id="logoutButton"  href="./logout" style="text-decoration:underline;font-size: 16px;">Log Out</a>
                       <a  href="./help" style="text-decoration:underline;font-size: 16px; ">Help</a>
-                </div>
+                </div>      
             </div>
             <hr>
           <div class="test-area-body">
@@ -82,9 +82,9 @@
                                           <div class="form-group form-inline">
                                             <label for="textURL" class="textURL" style="display:inline;padding-left:10px;">Page URL</label>
                                            <input id="textURL" type="text" class="form-control" name="textURL" placeholder="EG, http://example.com/mypage.html" size="100"/>
-                                          <input type="hidden" id="user" name="userName" value="{{{userName}}}"/>
+                                          <input type="hidden" id="user" name="userName" value="{{{userName}}}"/>                      
                                           </div>
-                                        </div>
+                                        </div>                                   
                                       </div> <!-- row1-->
                                       <div  class="row">
                                         <div class="col-xs-6 col-md-12">
@@ -102,9 +102,9 @@
                                                     <input type="radio" id="htmlcs" name="engine" value="htmlcs">
                                                     <label for="htmlcs">Html Code Sniffer</label>
                                                 </li>
-                                            </ul>
-                                          </div>
-                                        </div>
+                                            </ul>    
+                                          </div>                                   
+                                        </div>                                   
                                       </div>  <!-- row2-->
 
                                       <div id="htmlcsopts" class="hide">
@@ -113,29 +113,29 @@
                                           <div class="form-group form-inline">
                                             <input type="checkbox" style="font-size: 50px;" class="chkbox" id="scrshot" name="scrshot">
                                             <label for="scrshot" class="inline">Screenshot </label>
-                                          </div>
-                                        </div>
+                                          </div>                                   
+                                        </div>                                   
                                       </div>  <!-- row2-->
                                       <div class="row">
                                         <div class="col-xs-6 col-md-12">
                                           <div class="form-group form-inline" style="padding-left:10px;">
                                               <strong> Show </strong> &nbsp;&nbsp;
-
+                                              
                                             <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgErr" name="msgErr" checked="true">
-                                            <label for="msgErr" class="inline">Errors </label>
+                                            <label for="msgErr" class="inline">Errors </label>   
 
                                             <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgWarn" name="msgWarn">
-                                            <label for="msgWarn" class="inline">Warnings</label>
+                                            <label for="msgWarn" class="inline">Warnings</label>   
 
                                             <input type="checkbox" style="font-size: 50px;" class="chkbox" id="msgNotice" name="msgNotice">
-                                            <label for="msgNotice" class="inline">Notices </label>
+                                            <label for="msgNotice" class="inline">Notices </label>   
 
-                                          </div>
-                                        </div>
+                                          </div>                                   
+                                        </div>                                   
                                       </div>   <!-- row3-->
                                       </div>
 
-                                        <div class="row">
+                                        <div class="row"> 
                                         <div class="col-xs-6 col-md-12">
                                           <button type="submit" id="submitButton" class="btn btn-primary btn-medium" style="margin-left:10px;">Test Page</button>
                                         </div>
@@ -151,8 +151,8 @@
                                         <div class="col-xs-6 col-md-12">
                                           <div class="right">
                                             <textarea name="source" id="source" cols="100" rows="20" title="Enter the source code to be sniffed" id="source"></textarea>
-                                          </div>
-                                        </div>
+                                          </div>                                   
+                                        </div>                                   
                                       </div>  <!-- row1-->
                                       <br>
                                       <div  class="row">
@@ -171,9 +171,9 @@
                                                     <input type="radio" id="SHhtmlcs" name="SHengine" value="htmlcs">
                                                     <label for="SHhtmlcs">Html Code Sniffer</label>
                                                 </li>
-                                            </ul>
-                                          </div>
-                                        </div>
+                                            </ul>    
+                                          </div>                                   
+                                        </div>                                   
                                       </div>  <!-- row2-->
 
 
@@ -181,7 +181,7 @@
                                     <button type="submit" class="btn btn-primary btn-medium">Test Content</button>
                                 </div>
 
-                                </form>
+                                </form> 
                         </div>
                 </div> <!-- close my TabContent -->
 
@@ -197,16 +197,16 @@
                 <div id="test-results">
                     {{data}}
                 </div>
-
+                
                <!-- example modal  -->
-                <div id="myModal" class="modal fade " tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div id="myModal" class="modal fade " tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">                                
                     <div  class="modal-dialog" role="document">
                         <div class="modal-content">
                             <form id="loginForm" method="post" action="/login">
                                 <div class="modal-header">
                                     <h3 id="myModalLabel">Stage Login Details</h3>
                                 </div>
-                                <div class="modal-body">
+                                <div class="modal-body">                                        
                                             <label for="userName">User Name</label>
                                             <input id="userName" type="text" name="userName" placeholder="stage user name" title="Enter the user name" />
                                             <label for="password">Password</label>
@@ -229,13 +229,13 @@
                                             <div id="merchantDiv" class="hide" style="">
                                                 <label for="merchant">Merchant Login</label>
                                                 <input id="merchant" type="text" name="merchant" placeholder="Merchant Login / Vendor Name"/>
-                                            </div>
+                                            </div>                                          
                                 </div>
                                 <div class="modal-footer">
                                       <button class="btn" data-dismiss="modal">Close</button>
                                       <input class="btn btn-primary" type="submit" id="saveSubmit" value="Login"/>
                                 </div>
-                            </form>
+                            </form>                         
                         </div><!-- /.modal-content -->
                     </div><!-- /.modal-dialog -->
                 </div><!-- /.modal -->
@@ -264,13 +264,13 @@
                 <script type="text/javascript" src="/js/lib/__jquery.tablesorter.js"></script>
                 <script src="/js/lib/table2CSV.js"></script>
                 <script type="text/javascript">
-
+                
 
                             var string = "" + unescape(location.search)
                                 , string = string.substring(string.indexOf("?")+1,string.length)
 
                             if(string!='')
-                            {
+                            {   
                                 var tab = string.split('&'), nameVal = new Array();
                                 // console.log($('#' + tab[0]))
                                 $('#' + tab[0]).tab('show')
@@ -280,8 +280,8 @@
                                 var constructOrig = $.fn.tablesorter;
                                     $.fn.extend({
                                         tablesorter: function(options) {
-                                            var $headers =$($.find('th'));
-                                            if ( $headers.length>0 ){
+                                            var $headers =$($.find('th'));                                          
+                                            if ( $headers.length>0 ){                                           
                                                 $headers[0].setAttribute('tabIndex','0');
                                                 $headers[0].setAttribute('aria-sort','ascending')
 
@@ -310,22 +310,22 @@
                                                             if($this.hasClass('headerSortUp'))  $this.attr('aria-sort','descending')
                                                             if($this.hasClass('headerSortDown')) $this.attr('aria-sort','ascending')
                                                         } , 200)
-                                                    }
-                                                });
-                                            }
+                                                    }                                                       
+                                                });     
+                                            }                               
                                             constructOrig.apply(this, arguments);
-                                        }
+                                        }   
                                     })
                             })(jQuery);
 
-                        $(function() {
+                        $(function() {      
                             $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}}});
-                        });
+                        }); 
                         $("#export").on('click', function (event) {
                             $('#test-results-table').table2CSV({delivery:'download'}, event);
                         });
 
-                        var $scrmodal= $('#screenshot');        //get a common instance
+                        var $scrmodal= $('#screenshot');        //get a common instance 
 
                         $( "#sniff" ).submit(function( event ) {
                             event.preventDefault();
@@ -348,7 +348,7 @@
                                     $("#export").on('click', function (event) {
                                         $('#test-results-table').table2CSV({delivery:'download'}, event);
                                     });
-                                    $(function() {
+                                    $(function() {      
                                         $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}, 5:{sorter: false} }});
                                     });
                                 },100)
@@ -356,7 +356,7 @@
 
                         })
 
-                        $('input[name="engine"]').change(function(){
+                        $('input[name="engine"]').change(function(){ 
                             var engine = $('input[name="engine"]:checked').val();
                             var opts = '#' + engine+ 'opts';
                             $(opts).addClass('show');
@@ -368,7 +368,7 @@
                             document.getElementById('shot').innerHTML = document.getElementById('progress').innerHTML;
                             $scrmodal.modal('show');
 
-                            var
+                            var 
                                 textURL = document.getElementById('textURL').value,
                                 url = $(this).attr( "action" ),
                                 scrshot =  $("#scrshot").is(":checked"),
@@ -378,48 +378,41 @@
                                 engine = $('input[name="engine"]:checked').val();
 
                                 if(engine === 'chrome'){
-                                    var params = {
-                                                            textURL: textURL,
+                                    var params = { 
+                                                            textURL: textURL, 
                                                             engine: engine
-                                        }
+                                        }                                    
                                 }
                                 else if(engine === 'axe') {
-                                    var params = {
-                                                            textURL: textURL,
+                                    var params = { 
+                                                            textURL: textURL, 
                                                             engine: engine
                                         }
                                 }
                                 else {
-                                    var params = {
-                                                            textURL: textURL,
+                                    var params = { 
+                                                            textURL: textURL, 
                                                             engine: engine,
                                                             scrshot: scrshot,
                                                             msgErr: msgErr,
                                                             msgWarn: msgWarn,
                                                             msgNotice: msgNotice
                                         }
-                                }
+                                }                                
                                 var posting = $.post( url, params);
 
                                 posting.done(function( data ) {
                                     // console.log(data)
                                     $scrmodal.modal('hide');
-
-                                    if ( engine === "axe" ) {
-                                      data.data = data.data.replace(/(<td.+?>)(.+?)(<\/td>)/g, function() {
-                                        return arguments[1] + arguments[2].replace(/</g,'&lt;').replace(/>/g,'&gt;') + arguments[3];
-                                      });
-                                    }
-
                                     $( "#test-results" ).empty().append( data.data ).attr('aria-busy', 'false');
 
                                     setTimeout(function(){
                                         $("#export").on('click', function (event) {
                                             $('#test-results-table').table2CSV({delivery:'download'}, event);
                                         });
-                                        $(function() {
+                                        $(function() {      
                                             $("#test-results-table").tablesorter({sortList: [[0,0]], headers: {2:{sorter: false}, 3:{sorter: false}, 4:{sorter: false}, 5:{sorter: false} }});
-                                        });
+                                        });                                    
                                     },100)
                                 })
 
@@ -429,7 +422,7 @@
                              var server= this.value;
                              if(this.value === 'paypalmerchant') {
                                 $('#partnerDiv').removeClass('hide')
-                                $('#merchantDiv').removeClass('hide')
+                                $('#merchantDiv').removeClass('hide')                               
                              }else if(this.value ==='paypalpartner'){
                                 $('#partnerDiv').removeClass('hide')
                                 $('#merchantDiv').addClass('hide')
@@ -437,7 +430,7 @@
                              else {
                                 $('#partnerDiv').addClass('hide')
                                 $('#merchantDiv').addClass('hide')
-                            }
+                            }                                   
                         })
 
                         $( "#loginForm" ).submit(function( event ) {
@@ -447,7 +440,7 @@
 
                             $scrmodal.modal('show');
 
-                            var
+                            var 
                                 userName = document.getElementById('userName').value,
                                 password = document.getElementById('password').value,
                                 stageName = document.getElementById('stageName').value,
@@ -460,18 +453,18 @@
                                 // console.log('partner', partner, 'merchant', merchant)
 
                             if( server === 'paypalmerchant' || server === 'paypalpartner') {
-                                var posting = $.post( url, {
+                                var posting = $.post( url, { 
                                                                 userName: userName,
                                                                 password: password,
                                                                 stageName:stageName,
                                                                 server:server,
                                                                 partner:partner,
                                                                 merchant:merchant
-                                                            }
+                                                            } 
                                                     );
                             }else{
-                                var posting = $.post( url, { userName: userName , password: password, stageName:stageName, server:server } );
-                            }
+                                var posting = $.post( url, { userName: userName , password: password, stageName:stageName, server:server } );                           
+                            }   
 
                             // console.log(textURL);
                             posting.done(function( data ) {
@@ -481,15 +474,16 @@
 
                                 setTimeout(function(){
                                     $scrmodal.modal('hide');
-                                    $('#myModal').modal('hide');
-
+                                    $('#myModal').modal('hide');                                    
+                                    
                                     $("#loginButton").addClass("hideLoginButton");
                                     $("#logoutButton").addClass("showLogoutButton").focus();
                                 },3000)
                             })
 
-                        })
+                        })                      
 
                             </script>
                         </body>
-                    </html>
+                    </html>  
+
