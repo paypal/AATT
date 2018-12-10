@@ -65,14 +65,18 @@ var HTMLCS_RUNNER = new function() {
 							var sc         = msgParts[3].split('_').slice(0, 3).join('_');
 							var techniques = msgParts[4];
 							techniques     = techniques.split(',');
-							
+
+							var code = '';
+							if (outerHTML !== undefined) {
+								code = outerHTML.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+							}
 							msgParts.shift();
 							msgParts.unshift('[Standard]');
 							var noStdMsgParts = msgParts.join('.');
 						
 							temp_obj["type"] = type.toLowerCase();
 							temp_obj["msg"] = msg.msg;
-							temp_obj["code"] = splitLine(outerHTML.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'), 30);
+							temp_obj["code"] = splitLine(code, 30);
 							temp_obj["principle"] = '<a href="http://www.w3.org/TR/WCAG20/#' + principles[principle].toLowerCase() + '" target="_blank">' + principles[principle] + '</a>';
 							var technique='';
 							for (var j = 0; j < techniques.length; j++) {
