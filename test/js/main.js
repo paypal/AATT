@@ -44,7 +44,7 @@ function chromeDevTool(ifrDoc){
 
 //Axe-core  https://github.com/dequelabs/axe-core
 function axeTool(ifrDoc){
-    axe.a11yCheck(ifrDoc.body, function (results) {
+    axe.run(ifrDoc.body,  function (err, results) {
     // console.log(ifrDoc.body, results);
         var violations = results.violations
         for (var i=violations.length;i--;){

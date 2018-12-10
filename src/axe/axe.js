@@ -1,5 +1,5 @@
-/*! aXe v2.0.5
- * Copyright (c) 2016 Deque Systems, Inc.
+/*! aXe v3.0.3
+ * Copyright (c) 2018 Deque Systems, Inc.
  *
  * Your use of this Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,128 +10,240 @@
  * code.
  */
 (function axeFunction(window) {
-  // A window reference is required to access the axe object in a "global".
   var global = window;
   var document = window.document;
-  "use strict";
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
     return typeof obj;
   } : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
   };
-  /*exported axe, commons */
-  /*global axeFunction, module, define */
-  // exported namespace for aXe
   var axe = axe || {};
-  axe.version = "2.0.5";
-  if (typeof define === "function" && define.amd) {
-    define([], function() {
-      "use strict";
+  axe.version = '3.0.3';
+  if (typeof define === 'function' && define.amd) {
+    define('axe-core', [], function() {
+      'use strict';
       return axe;
     });
   }
-  if ((typeof module === "undefined" ? "undefined" : _typeof(module)) === "object" && module.exports && typeof axeFunction.toString === "function") {
-    axe.source = "(" + axeFunction.toString() + ")(this, this.document);";
+  if ((typeof module === 'undefined' ? 'undefined' : _typeof(module)) === 'object' && module.exports && typeof axeFunction.toString === 'function') {
+    axe.source = '(' + axeFunction.toString() + ')(typeof window === "object" ? window : this);';
     module.exports = axe;
   }
-  if (typeof window.getComputedStyle === "function") {
+  if (typeof window.getComputedStyle === 'function') {
     window.axe = axe;
   }
-  // local namespace for common functions
   var commons;
-  "use strict";
-  /*exported utils */
+  function SupportError(error) {
+    this.name = 'SupportError';
+    this.cause = error.cause;
+    this.message = '`' + error.cause + '` - feature unsupported in your environment.';
+    if (error.ruleId) {
+      this.ruleId = error.ruleId;
+      this.message += ' Skipping ' + this.ruleId + ' rule.';
+    }
+    this.stack = new Error().stack;
+  }
+  SupportError.prototype = Object.create(Error.prototype);
+  SupportError.prototype.constructor = SupportError;
+  'use strict';
+  axe.imports = {};
+  'use strict';
   var utils = axe.utils = {};
-  "use strict";
-  /*exported helpers */
+  'use strict';
   var helpers = {};
-  "use strict";
-  /*global Rule, Check, commons: true */
-  function setDefaultConfiguration(audit) {
-    "use strict";
-    var config = audit || {};
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
+  var _extends = Object.assign || function(target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i];
+      for (var key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+    return target;
+  };
+  function getDefaultConfiguration(audit) {
+    'use strict';
+    var config;
+    if (audit) {
+      config = axe.utils.clone(audit);
+      config.commons = audit.commons;
+    } else {
+      config = {};
+    }
+    config.reporter = config.reporter || null;
     config.rules = config.rules || [];
     config.checks = config.checks || [];
-    config.data = config.data || {
+    config.data = _extends({
       checks: {},
       rules: {}
-    };
+    }, config.data);
     return config;
   }
   function unpackToObject(collection, audit, method) {
-    "use strict";
+    'use strict';
     var i, l;
     for (i = 0, l = collection.length; i < l; i++) {
       audit[method](collection[i]);
     }
   }
-  /**
- * Constructor which holds configured rules and information about the document under test
- */
   function Audit(audit) {
-    /*jshint maxstatements:16 */
-    "use strict";
-    // defaults
-    this.brand = "axe";
-    this.application = "axeAPI";
+    this.brand = 'axe';
+    this.application = 'axeAPI';
+    this.tagExclude = [ 'experimental' ];
     this.defaultConfig = audit;
     this._init();
+    this._defaultLocale = null;
   }
-  /**
- * Initializes the rules and checks
- */
+  Audit.prototype._setDefaultLocale = function() {
+    if (this._defaultLocale) {
+      return;
+    }
+    var locale = {
+      checks: {},
+      rules: {}
+    };
+    var checkIDs = Object.keys(this.data.checks);
+    for (var i = 0; i < checkIDs.length; i++) {
+      var id = checkIDs[i];
+      var check = this.data.checks[id];
+      var _check$messages = check.messages, pass = _check$messages.pass, fail = _check$messages.fail, incomplete = _check$messages.incomplete;
+      locale.checks[id] = {
+        pass: pass,
+        fail: fail,
+        incomplete: incomplete
+      };
+    }
+    var ruleIDs = Object.keys(this.data.rules);
+    for (var _i = 0; _i < ruleIDs.length; _i++) {
+      var _id = ruleIDs[_i];
+      var rule = this.data.rules[_id];
+      var description = rule.description, help = rule.help;
+      locale.rules[_id] = {
+        description: description,
+        help: help
+      };
+    }
+    this._defaultLocale = locale;
+  };
+  Audit.prototype._resetLocale = function() {
+    var defaultLocale = this._defaultLocale;
+    if (!defaultLocale) {
+      return;
+    }
+    this.applyLocale(defaultLocale);
+  };
+  var mergeCheckLocale = function mergeCheckLocale(a, b) {
+    var pass = b.pass, fail = b.fail;
+    if (typeof pass === 'string') {
+      pass = axe.imports.doT.compile(pass);
+    }
+    if (typeof fail === 'string') {
+      fail = axe.imports.doT.compile(fail);
+    }
+    return _extends({}, a, {
+      messages: {
+        pass: pass || a.messages.pass,
+        fail: fail || a.messages.fail,
+        incomplete: _typeof(a.messages.incomplete) === 'object' ? _extends({}, a.messages.incomplete, b.incomplete) : b.incomplete
+      }
+    });
+  };
+  var mergeRuleLocale = function mergeRuleLocale(a, b) {
+    var help = b.help, description = b.description;
+    if (typeof help === 'string') {
+      help = axe.imports.doT.compile(help);
+    }
+    if (typeof description === 'string') {
+      description = axe.imports.doT.compile(description);
+    }
+    return _extends({}, a, {
+      help: help || a.help,
+      description: description || a.description
+    });
+  };
+  Audit.prototype._applyCheckLocale = function(checks) {
+    var keys = Object.keys(checks);
+    for (var i = 0; i < keys.length; i++) {
+      var id = keys[i];
+      if (!this.data.checks[id]) {
+        throw new Error('Locale provided for unknown check: "' + id + '"');
+      }
+      this.data.checks[id] = mergeCheckLocale(this.data.checks[id], checks[id]);
+    }
+  };
+  Audit.prototype._applyRuleLocale = function(rules) {
+    var keys = Object.keys(rules);
+    for (var i = 0; i < keys.length; i++) {
+      var id = keys[i];
+      if (!this.data.rules[id]) {
+        throw new Error('Locale provided for unknown rule: "' + id + '"');
+      }
+      this.data.rules[id] = mergeRuleLocale(this.data.rules[id], rules[id]);
+    }
+  };
+  Audit.prototype.applyLocale = function(locale) {
+    this._setDefaultLocale();
+    if (locale.checks) {
+      this._applyCheckLocale(locale.checks);
+    }
+    if (locale.rules) {
+      this._applyRuleLocale(locale.rules);
+    }
+  };
   Audit.prototype._init = function() {
-    "use strict";
-    var audit = setDefaultConfiguration(this.defaultConfig);
+    var audit = getDefaultConfiguration(this.defaultConfig);
     axe.commons = commons = audit.commons;
     this.reporter = audit.reporter;
     this.commands = {};
     this.rules = [];
     this.checks = {};
-    unpackToObject(audit.rules, this, "addRule");
-    unpackToObject(audit.checks, this, "addCheck");
+    unpackToObject(audit.rules, this, 'addRule');
+    unpackToObject(audit.checks, this, 'addCheck');
     this.data = {};
     this.data.checks = audit.data && audit.data.checks || {};
     this.data.rules = audit.data && audit.data.rules || {};
     this.data.failureSummaries = audit.data && audit.data.failureSummaries || {};
+    this.data.incompleteFallbackMessage = audit.data && audit.data.incompleteFallbackMessage || '';
     this._constructHelpUrls();
   };
-  /**
- * Adds a new command to the audit
- */
   Audit.prototype.registerCommand = function(command) {
-    "use strict";
+    'use strict';
     this.commands[command.id] = command.callback;
   };
-  /**
- * Adds a new rule to the Audit.  If a rule with specified ID already exists, it will be overridden
- * @param {Object} spec Rule specification object
- */
   Audit.prototype.addRule = function(spec) {
-    "use strict";
+    'use strict';
     if (spec.metadata) {
       this.data.rules[spec.id] = spec.metadata;
     }
-    var candidate;
-    for (var i = 0, l = this.rules.length; i < l; i++) {
-      candidate = this.rules[i];
-      if (candidate.id === spec.id) {
-        candidate.configure(spec);
-        return;
-      }
+    var rule = this.getRule(spec.id);
+    if (rule) {
+      rule.configure(spec);
+    } else {
+      this.rules.push(new Rule(spec, this));
     }
-    this.rules.push(new Rule(spec, this));
   };
-  /**
- * Adds a new check to the Audit.  If a Check with specified ID already exists, it will be
- * reconfigured
- *
- * @param {Object} spec Check specification object
- */
   Audit.prototype.addCheck = function(spec) {
-    "use strict";
-    if (spec.metadata) {
-      this.data.checks[spec.id] = spec.metadata;
+    'use strict';
+    var metadata = spec.metadata;
+    if ((typeof metadata === 'undefined' ? 'undefined' : _typeof(metadata)) === 'object') {
+      this.data.checks[spec.id] = metadata;
+      if (_typeof(metadata.messages) === 'object') {
+        Object.keys(metadata.messages).filter(function(prop) {
+          return metadata.messages.hasOwnProperty(prop) && typeof metadata.messages[prop] === 'string';
+        }).forEach(function(prop) {
+          if (metadata.messages[prop].indexOf('function') === 0) {
+            metadata.messages[prop] = new Function('return ' + metadata.messages[prop] + ';')();
+          }
+        });
+      }
     }
     if (this.checks[spec.id]) {
       this.checks[spec.id].configure(spec);
@@ -139,196 +251,245 @@
       this.checks[spec.id] = new Check(spec);
     }
   };
-  /**
- * Runs the Audit; which in turn should call `run` on each rule.
- * @async
- * @param  {Context}   context The scope definition/context for analysis (include/exclude)
- * @param  {Object}    options Options object to pass into rules and/or disable rules or checks
- * @param  {Function} fn       Callback function to fire when audit is complete
- */
-  Audit.prototype.run = function(context, options, resolve, reject) {
-    "use strict";
-    var q = axe.utils.queue();
-    this.rules.forEach(function(rule) {
-      if (axe.utils.ruleShouldRun(rule, context, options)) {
-        q.defer(function(res, rej) {
-          rule.run(context, options, res, function(err) {
-            if (!options.debug) {
-              axe.log(err);
-              res(null);
-            } else {
-              rej(err);
-            }
-          });
-        });
+  function getRulesToRun(rules, context, options) {
+    var base = {
+      now: [],
+      later: []
+    };
+    var splitRules = rules.reduce(function(out, rule) {
+      if (!axe.utils.ruleShouldRun(rule, context, options)) {
+        return out;
       }
+      if (rule.preload) {
+        out.later.push(rule);
+        return out;
+      }
+      out.now.push(rule);
+      return out;
+    }, base);
+    return splitRules;
+  }
+  function getDefferedRule(rule, context, options) {
+    var markStart = void 0;
+    var markEnd = void 0;
+    if (options.performanceTimer) {
+      markStart = 'mark_rule_start_' + rule.id;
+      markEnd = 'mark_rule_end_' + rule.id;
+      axe.utils.performanceTimer.mark(markStart);
+    }
+    return function(resolve, reject) {
+      rule.run(context, options, function(ruleResult) {
+        if (options.performanceTimer) {
+          axe.utils.performanceTimer.mark(markEnd);
+          axe.utils.performanceTimer.measure('rule_' + rule.id, markStart, markEnd);
+        }
+        resolve(ruleResult);
+      }, function(err) {
+        if (!options.debug) {
+          var errResult = Object.assign(new RuleResult(rule), {
+            result: axe.constants.CANTTELL,
+            description: 'An error occured while running this rule',
+            message: err.message,
+            stack: err.stack,
+            error: err
+          });
+          resolve(errResult);
+        } else {
+          reject(err);
+        }
+      });
+    };
+  }
+  Audit.prototype.run = function(context, options, resolve, reject) {
+    'use strict';
+    this.normalizeOptions(options);
+    axe._selectCache = [];
+    var allRulesToRun = getRulesToRun(this.rules, context, options);
+    var runNowRules = allRulesToRun.now;
+    var runLaterRules = allRulesToRun.later;
+    var nowRulesQueue = axe.utils.queue();
+    runNowRules.forEach(function(rule) {
+      nowRulesQueue.defer(getDefferedRule(rule, context, options));
     });
-    q.then(function(results) {
-      resolve(results.filter(function(result) {
-        return !!result;
-      }));
+    var preloaderQueue = axe.utils.queue();
+    if (runLaterRules.length) {
+      preloaderQueue.defer(function(res, rej) {
+        axe.utils.preload(options).then(function(preloadResults) {
+          var assets = preloadResults[0];
+          res(assets);
+        }).catch(function(err) {
+          console.warn('Couldn\'t load preload assets: ', err);
+          var assets = undefined;
+          res(assets);
+        });
+      });
+    }
+    var queueForNowRulesAndPreloader = axe.utils.queue();
+    queueForNowRulesAndPreloader.defer(nowRulesQueue);
+    queueForNowRulesAndPreloader.defer(preloaderQueue);
+    queueForNowRulesAndPreloader.then(function(nowRulesAndPreloaderResults) {
+      var assetsFromQueue = nowRulesAndPreloaderResults.pop();
+      if (assetsFromQueue && assetsFromQueue.length) {
+        var assets = assetsFromQueue[0];
+        if (assets) {
+          context = _extends({}, context, assets);
+        }
+      }
+      var nowRulesResults = nowRulesAndPreloaderResults[0];
+      if (!runLaterRules.length) {
+        axe._selectCache = undefined;
+        resolve(nowRulesResults.filter(function(result) {
+          return !!result;
+        }));
+        return;
+      }
+      var laterRulesQueue = axe.utils.queue();
+      runLaterRules.forEach(function(rule) {
+        var deferredRule = getDefferedRule(rule, context, options);
+        laterRulesQueue.defer(deferredRule);
+      });
+      laterRulesQueue.then(function(laterRuleResults) {
+        axe._selectCache = undefined;
+        resolve(nowRulesResults.concat(laterRuleResults).filter(function(result) {
+          return !!result;
+        }));
+      }).catch(reject);
     }).catch(reject);
   };
-  /**
- * Runs Rule `after` post processing functions
- * @param  {Array} results  Array of RuleResults to postprocess
- * @param  {Mixed} options  Options object to pass into rules and/or disable rules or checks
- */
   Audit.prototype.after = function(results, options) {
-    "use strict";
+    'use strict';
     var rules = this.rules;
     return results.map(function(ruleResult) {
-      var rule = axe.utils.findBy(rules, "id", ruleResult.id);
+      var rule = axe.utils.findBy(rules, 'id', ruleResult.id);
+      if (!rule) {
+        throw new Error('Result for unknown rule. You may be running mismatch aXe-core versions');
+      }
       return rule.after(ruleResult, options);
     });
   };
-  /**
- * Updates the default options and then applies them
- * @param  {Mixed} options  Options object
- */
-  Audit.prototype.setBranding = function(branding) {
-    "use strict";
-    if (branding && branding.hasOwnProperty("brand") && branding.brand && typeof branding.brand === "string") {
-      this.brand = branding.brand;
-    }
-    if (branding && branding.hasOwnProperty("application") && branding.application && typeof branding.application === "string") {
-      this.application = branding.application;
-    }
-    this._constructHelpUrls();
-  };
-  /**
- * For all the rules, create the helpUrl and add it to the data for that rule
- */
-  Audit.prototype._constructHelpUrls = function() {
-    "use strict";
-    var that = this;
-    var version = axe.version.substring(0, axe.version.lastIndexOf("."));
-    this.rules.forEach(function(rule) {
-      that.data.rules[rule.id] = that.data.rules[rule.id] || {};
-      that.data.rules[rule.id].helpUrl = "https://dequeuniversity.com/rules/" + that.brand + "/" + version + "/" + rule.id + "?" + "application=" + that.application;
+  Audit.prototype.getRule = function(ruleId) {
+    return this.rules.find(function(rule) {
+      return rule.id === ruleId;
     });
   };
-  /**
- * Reset the default rules, checks and meta data
- */
-  Audit.prototype.resetRulesAndChecks = function() {
-    "use strict";
-    this._init();
+  Audit.prototype.normalizeOptions = function(options) {
+    'use strict';
+    var audit = this;
+    if (_typeof(options.runOnly) === 'object') {
+      if (Array.isArray(options.runOnly)) {
+        options.runOnly = {
+          type: 'tag',
+          values: options.runOnly
+        };
+      }
+      var only = options.runOnly;
+      if (only.value && !only.values) {
+        only.values = only.value;
+        delete only.value;
+      }
+      if (!Array.isArray(only.values) || only.values.length === 0) {
+        throw new Error('runOnly.values must be a non-empty array');
+      }
+      if ([ 'rule', 'rules' ].includes(only.type)) {
+        only.type = 'rule';
+        only.values.forEach(function(ruleId) {
+          if (!audit.getRule(ruleId)) {
+            throw new Error('unknown rule `' + ruleId + '` in options.runOnly');
+          }
+        });
+      } else if ([ 'tag', 'tags', undefined ].includes(only.type)) {
+        only.type = 'tag';
+        var unmatchedTags = audit.rules.reduce(function(unmatchedTags, rule) {
+          return unmatchedTags.length ? unmatchedTags.filter(function(tag) {
+            return !rule.tags.includes(tag);
+          }) : unmatchedTags;
+        }, only.values);
+        if (unmatchedTags.length !== 0) {
+          throw new Error('Could not find tags `' + unmatchedTags.join('`, `') + '`');
+        }
+      } else {
+        throw new Error('Unknown runOnly type \'' + only.type + '\'');
+      }
+    }
+    if (_typeof(options.rules) === 'object') {
+      Object.keys(options.rules).forEach(function(ruleId) {
+        if (!audit.getRule(ruleId)) {
+          throw new Error('unknown rule `' + ruleId + '` in options.rules');
+        }
+      });
+    }
+    return options;
   };
-  "use strict";
-  /*exported CheckResult */
-  /**
- * Constructor for the result of checks
- * @param {Check} check
- */
+  Audit.prototype.setBranding = function(branding) {
+    'use strict';
+    var previous = {
+      brand: this.brand,
+      application: this.application
+    };
+    if (branding && branding.hasOwnProperty('brand') && branding.brand && typeof branding.brand === 'string') {
+      this.brand = branding.brand;
+    }
+    if (branding && branding.hasOwnProperty('application') && branding.application && typeof branding.application === 'string') {
+      this.application = branding.application;
+    }
+    this._constructHelpUrls(previous);
+  };
+  function getHelpUrl(_ref, ruleId, version) {
+    var brand = _ref.brand, application = _ref.application;
+    return axe.constants.helpUrlBase + brand + '/' + (version || axe.version.substring(0, axe.version.lastIndexOf('.'))) + '/' + ruleId + '?application=' + application;
+  }
+  Audit.prototype._constructHelpUrls = function() {
+    var _this = this;
+    var previous = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+    var version = (axe.version.match(/^[1-9][0-9]*\.[0-9]+/) || [ 'x.y' ])[0];
+    this.rules.forEach(function(rule) {
+      if (!_this.data.rules[rule.id]) {
+        _this.data.rules[rule.id] = {};
+      }
+      var metaData = _this.data.rules[rule.id];
+      if (typeof metaData.helpUrl !== 'string' || previous && metaData.helpUrl === getHelpUrl(previous, rule.id, version)) {
+        metaData.helpUrl = getHelpUrl(_this, rule.id, version);
+      }
+    });
+  };
+  Audit.prototype.resetRulesAndChecks = function() {
+    'use strict';
+    this._init();
+    this._resetLocale();
+  };
+  'use strict';
   function CheckResult(check) {
-    "use strict";
-    /**
-  * ID of the check.  Unique in the context of a rule.
-  * @type {String}
-  */
+    'use strict';
     this.id = check.id;
-    /**
-  * Any data passed by Check (by calling `this.data()`)
-  * @type {Mixed}
-  */
     this.data = null;
-    /**
-  * Any node that is related to the Check, specified by calling `this.relatedNodes([HTMLElement...])` inside the Check
-  * @type {Array}
-  */
     this.relatedNodes = [];
-    /**
-  * The return value of the Check's evaluate function
-  * @type {Mixed}
-  */
     this.result = null;
   }
-  "use strict";
-  /*global CheckResult */
+  'use strict';
   function createExecutionContext(spec) {
-    /*jshint evil:true */
-    "use strict";
-    if (typeof spec === "string") {
-      return new Function("return " + spec + ";")();
+    'use strict';
+    if (typeof spec === 'string') {
+      return new Function('return ' + spec + ';')();
     }
     return spec;
   }
   function Check(spec) {
-    "use strict";
-    /**
-  * Unique ID for the check.  Checks may be re-used, so there may be additional instances of checks
-  * with the same ID.
-  * @type {String}
-  */
-    this.id = spec.id;
-    /**
-  * Free-form options that are passed as the second parameter to the `evaluate`
-  * @type {Mixed}
-  */
-    this.options = spec.options;
-    /**
-  * Optional. If specified, only nodes that match this CSS selector are tested
-  * @type {String}
-  */
-    this.selector = spec.selector;
-    /**
-  * The actual code, accepts 2 parameters: node (the node under test), options (see this.options).
-  * This function is run in the context of a checkHelper, which has the following methods
-  * - `async()` - if called, the check is considered to be asynchronous; returns a callback function
-  * - `data()` - free-form data object, associated to the `CheckResult` which is specific to each node
-  * @type {Function}
-  */
-    this.evaluate = createExecutionContext(spec.evaluate);
-    /**
-  * Optional. Filter and/or modify checks for all nodes
-  * @type {Function}
-  */
-    if (spec.after) {
-      this.after = createExecutionContext(spec.after);
+    if (spec) {
+      this.id = spec.id;
+      this.configure(spec);
     }
-    if (spec.matches) {
-      /**
-   * Optional function to test if check should be run against a node, overrides Check#matches
-   * @type {Function}
-   */
-      this.matches = createExecutionContext(spec.matches);
-    }
-    /**
-  * enabled by default, if false, this check will not be included in the rule's evaluation
-  * @type {Boolean}
-  */
-    this.enabled = spec.hasOwnProperty("enabled") ? spec.enabled : true;
   }
-  /**
- * Determines whether the check should be run against a node
- * @param  {HTMLElement} node The node to test
- * @return {Boolean}      Whether the check should be run
- */
-  Check.prototype.matches = function(node) {
-    "use strict";
-    if (!this.selector || axe.utils.matchesSelector(node, this.selector)) {
-      return true;
-    }
-    return false;
-  };
-  /**
- * Run the check's evaluate function (call `this.evaluate(node, options)`)
- * @param  {HTMLElement} node  The node to test
- * @param  {Object} options    The options that override the defaults and provide additional
- *                             information for the check
- * @param  {Function} callback Function to fire when check is complete
- */
-  Check.prototype.run = function(node, options, resolve, reject) {
-    "use strict";
+  Check.prototype.enabled = true;
+  Check.prototype.run = function(node, options, context, resolve, reject) {
+    'use strict';
     options = options || {};
-    var enabled = options.hasOwnProperty("enabled") ? options.enabled : this.enabled, checkOptions = options.options || this.options;
-    if (enabled && this.matches(node)) {
+    var enabled = options.hasOwnProperty('enabled') ? options.enabled : this.enabled, checkOptions = options.options || this.options;
+    if (enabled) {
       var checkResult = new CheckResult(this);
-      var checkHelper = axe.utils.checkHelper(checkResult, resolve, reject);
+      var checkHelper = axe.utils.checkHelper(checkResult, options, resolve, reject);
       var result;
       try {
-        result = this.evaluate.call(checkHelper, node, checkOptions);
+        result = this.evaluate.call(checkHelper, node.actualNode, checkOptions, node, context);
       } catch (e) {
         reject(e);
         return;
@@ -343,67 +504,31 @@
       resolve(null);
     }
   };
-  /**
- * Override a check's settings after construction to allow for changing options
- * without having to implement the entire check
- *
- * @param {Object} spec - the specification of the attributes to be changed
- */
   Check.prototype.configure = function(spec) {
-    /*jshint maxstatements:18 */
-    /*jshint evil:true */
-    "use strict";
-    if (spec.hasOwnProperty("options")) {
-      this.options = spec.options;
-    }
-    if (spec.hasOwnProperty("selector")) {
-      this.selector = spec.selector;
-    }
-    if (spec.hasOwnProperty("evaluate")) {
-      if (typeof spec.evaluate === "string") {
-        this.evaluate = new Function("return " + spec.evaluate + ";")();
-      } else {
-        this.evaluate = spec.evaluate;
-      }
-    }
-    if (spec.hasOwnProperty("after")) {
-      if (typeof spec.after === "string") {
-        this.after = new Function("return " + spec.after + ";")();
-      } else {
-        this.after = spec.after;
-      }
-    }
-    if (spec.hasOwnProperty("matches")) {
-      if (typeof spec.matches === "string") {
-        this.matches = new Function("return " + spec.matches + ";")();
-      } else {
-        this.matches = spec.matches;
-      }
-    }
-    if (spec.hasOwnProperty("enabled")) {
-      this.enabled = spec.enabled;
-    }
+    var _this = this;
+    [ 'options', 'enabled' ].filter(function(prop) {
+      return spec.hasOwnProperty(prop);
+    }).forEach(function(prop) {
+      return _this[prop] = spec[prop];
+    });
+    [ 'evaluate', 'after' ].filter(function(prop) {
+      return spec.hasOwnProperty(prop);
+    }).forEach(function(prop) {
+      return _this[prop] = createExecutionContext(spec[prop]);
+    });
   };
-  "use strict";
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
     return typeof obj;
   } : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
   };
-  /*exported Context */
-  /*global isNodeInContext */
-  /**
- * Pushes a unique frame onto `frames` array, filtering any hidden iframes
- * @private
- * @param  {Array} collection The array of unique frames that is being operated on
- * @param  {HTMLElement} frame   The frame to push onto Context
- */
   function pushUniqueFrame(collection, frame) {
-    "use strict";
+    'use strict';
     if (axe.utils.isHidden(frame)) {
       return;
     }
-    var fr = axe.utils.findBy(collection, "node", frame);
+    var fr = axe.utils.findBy(collection, 'node', frame);
     if (!fr) {
       collection.push({
         node: frame,
@@ -412,16 +537,8 @@
       });
     }
   }
-  /**
- * Unshift selectors of matching iframes
- * @private
- * @param  {Context} context The context object to operate on and assign to
- * @param  {String} type          The "type" of context, 'include' or 'exclude'
- * @param  {Array} selectorArray  Array of CSS selectors, each element represents a frame;
- * where the last element is the actual node
- */
   function pushUniqueFrameSelector(context, type, selectorArray) {
-    "use strict";
+    'use strict';
     context.frames = context.frames || [];
     var result, frame;
     var frames = document.querySelectorAll(selectorArray.shift());
@@ -444,25 +561,18 @@
       context.frames.push(result);
     }
   }
-  /**
- * Normalize the input of "context" so that many different methods of input are accepted
- * @private
- * @param  {Mixed} context  The configuration object passed to `Context`
- * @return {Object}         Normalized context spec to include both `include` and `exclude` arrays
- */
   function normalizeContext(context) {
-    "use strict";
-    // typeof NodeList.length in PhantomJS === function
-    if (context && (typeof context === "undefined" ? "undefined" : _typeof(context)) === "object" || context instanceof NodeList) {
+    'use strict';
+    if (context && (typeof context === 'undefined' ? 'undefined' : _typeof(context)) === 'object' || context instanceof NodeList) {
       if (context instanceof Node) {
         return {
           include: [ context ],
           exclude: []
         };
       }
-      if (context.hasOwnProperty("include") || context.hasOwnProperty("exclude")) {
+      if (context.hasOwnProperty('include') || context.hasOwnProperty('exclude')) {
         return {
-          include: context.include || [ document ],
+          include: context.include && +context.include.length ? context.include : [ document ],
           exclude: context.exclude || []
         };
       }
@@ -473,7 +583,7 @@
         };
       }
     }
-    if (typeof context === "string") {
+    if (typeof context === 'string') {
       return {
         include: [ context ],
         exclude: []
@@ -484,206 +594,145 @@
       exclude: []
     };
   }
-  /**
- * Finds frames in context, converts selectors to Element references and pushes unique frames
- * @private
- * @param  {Context} context The instance of Context to operate on
- * @param  {String} type     The "type" of thing to parse, "include" or "exclude"
- * @return {Array}           Parsed array of matching elements
- */
   function parseSelectorArray(context, type) {
-    "use strict";
-    var item, result = [];
+    'use strict';
+    var item, result = [], nodeList;
     for (var i = 0, l = context[type].length; i < l; i++) {
       item = context[type][i];
-      // selector
-      if (typeof item === "string") {
-        result = result.concat(axe.utils.toArray(document.querySelectorAll(item)));
+      if (typeof item === 'string') {
+        nodeList = Array.from(document.querySelectorAll(item));
+        result = result.concat(nodeList.map(function(node) {
+          return axe.utils.getNodeFromTree(context.flatTree[0], node);
+        }));
         break;
-      } else {
-        if (item && item.length && !(item instanceof Node)) {
-          if (item.length > 1) {
-            pushUniqueFrameSelector(context, type, item);
-          } else {
-            result = result.concat(axe.utils.toArray(document.querySelectorAll(item[0])));
-          }
+      } else if (item && item.length && !(item instanceof Node)) {
+        if (item.length > 1) {
+          pushUniqueFrameSelector(context, type, item);
         } else {
-          result.push(item);
+          nodeList = Array.from(document.querySelectorAll(item[0]));
+          result = result.concat(nodeList.map(function(node) {
+            return axe.utils.getNodeFromTree(context.flatTree[0], node);
+          }));
+        }
+      } else if (item instanceof Node) {
+        if (item.documentElement instanceof Node) {
+          result.push(context.flatTree[0]);
+        } else {
+          result.push(axe.utils.getNodeFromTree(context.flatTree[0], item));
         }
       }
     }
-    // filter nulls
     return result.filter(function(r) {
       return r;
     });
   }
-  /**
- * Holds context of includes, excludes and frames for analysis.
- *
- * @todo  clarify and sync changes to design doc
- * Context : {IncludeStrings} || {
- *   // defaults to document/all
- *   include: {IncludeStrings},
- *   exclude : {ExcludeStrings}
- * }
- *
- * IncludeStrings : [{CSSSelectorArray}] || Node
- * ExcludeStrings : [{CSSSelectorArray}]
- * `CSSSelectorArray` an Array of selector strings that addresses a Node in a multi-frame document. All addresses
- * are in this form regardless of whether the document contains any frames.To evaluate the selectors to
- * find the node referenced by the array, evaluate the selectors in-order, starting in window.top. If N
- * is the length of the array, then the first N-1 selectors should result in an iframe and the last
- * selector should result in the specific node.
- *
- * @param {Object} spec Configuration or "specification" object
- */
-  function Context(spec) {
-    "use strict";
-    var self = this;
-    this.frames = [];
-    this.initiator = spec && typeof spec.initiator === "boolean" ? spec.initiator : true;
-    this.page = false;
-    spec = normalizeContext(spec);
-    this.exclude = spec.exclude;
-    this.include = spec.include;
-    this.include = parseSelectorArray(this, "include");
-    this.exclude = parseSelectorArray(this, "exclude");
-    axe.utils.select("frame, iframe", this).forEach(function(frame) {
-      if (isNodeInContext(frame, self)) {
-        pushUniqueFrame(self.frames, frame);
+  function validateContext(context) {
+    'use strict';
+    if (context.include.length === 0) {
+      if (context.frames.length === 0) {
+        var env = axe.utils.respondable.isInFrame() ? 'frame' : 'page';
+        return new Error('No elements found for include in ' + env + ' Context');
       }
-    });
-    if (this.include.length === 1 && this.include[0] === document) {
-      this.page = true;
+      context.frames.forEach(function(frame, i) {
+        if (frame.include.length === 0) {
+          return new Error('No elements found for include in Context of frame ' + i);
+        }
+      });
     }
   }
-  "use strict";
-  /*exported RuleResult */
-  /**
- * Constructor for the result of Rules
- * @param {Rule} rule
- */
+  function getRootNode(_ref) {
+    var include = _ref.include, exclude = _ref.exclude;
+    var selectors = Array.from(include).concat(Array.from(exclude));
+    var localDocument = selectors.reduce(function(result, item) {
+      if (result) {
+        return result;
+      } else if (item instanceof Element) {
+        return item.ownerDocument;
+      } else if (item instanceof Document) {
+        return item;
+      }
+    }, null);
+    return (localDocument || document).documentElement;
+  }
+  function Context(spec) {
+    'use strict';
+    var _this = this;
+    this.frames = [];
+    this.initiator = spec && typeof spec.initiator === 'boolean' ? spec.initiator : true;
+    this.page = false;
+    spec = normalizeContext(spec);
+    this.flatTree = axe.utils.getFlattenedTree(getRootNode(spec));
+    this.exclude = spec.exclude;
+    this.include = spec.include;
+    this.include = parseSelectorArray(this, 'include');
+    this.exclude = parseSelectorArray(this, 'exclude');
+    axe.utils.select('frame, iframe', this).forEach(function(frame) {
+      if (isNodeInContext(frame, _this)) {
+        pushUniqueFrame(_this.frames, frame.actualNode);
+      }
+    });
+    if (this.include.length === 1 && this.include[0].actualNode === document.documentElement) {
+      this.page = true;
+    }
+    var err = validateContext(this);
+    if (err instanceof Error) {
+      throw err;
+    }
+    if (!Array.isArray(this.include)) {
+      this.include = Array.from(this.include);
+    }
+    this.include.sort(axe.utils.nodeSorter);
+  }
+  'use strict';
   function RuleResult(rule) {
-    "use strict";
-    /**
-  * The ID of the Rule whom this result belongs to
-  * @type {String}
-  */
+    'use strict';
     this.id = rule.id;
-    /**
-  * The calculated result of the Rule, either PASS, FAIL or NA
-  * @type {String}
-  */
-    this.result = axe.constants.result.NA;
-    /**
-  * Whether the Rule is a "pageLevel" rule
-  * @type {Boolean}
-  */
+    this.result = axe.constants.NA;
     this.pageLevel = rule.pageLevel;
-    /**
-  * Impact of the violation
-  * @type {String}  Plain-english impact or null if rule passes
-  */
     this.impact = null;
-    /**
-  * Holds information regarding nodes and individual CheckResults
-  * @type {Array}
-  */
     this.nodes = [];
   }
-  "use strict";
-  /*global RuleResult, createExecutionContext */
+  'use strict';
   function Rule(spec, parentAudit) {
-    /*jshint maxcomplexity:11 */
-    "use strict";
+    'use strict';
     this._audit = parentAudit;
-    /**
-  * The code, or string ID of the rule
-  * @type {String}
-  */
     this.id = spec.id;
-    /**
-  * Selector that this rule applies to
-  * @type {String}
-  */
-    this.selector = spec.selector || "*";
-    /**
-  * Whether to exclude hiddden elements form analysis.  Defaults to true.
-  * @type {Boolean}
-  */
-    this.excludeHidden = typeof spec.excludeHidden === "boolean" ? spec.excludeHidden : true;
-    /**
-  * Flag to enable or disable rule
-  * @type {Boolean}
-  */
-    this.enabled = typeof spec.enabled === "boolean" ? spec.enabled : true;
-    /**
-  * Denotes if the rule should be run if Context is not an entire page AND whether
-  * the Rule should be satisified regardless of Node
-  * @type {Boolean}
-  */
-    this.pageLevel = typeof spec.pageLevel === "boolean" ? spec.pageLevel : false;
-    /**
-  * Checks that any may return true to satisfy rule
-  * @type {Array}
-  */
+    this.selector = spec.selector || '*';
+    this.excludeHidden = typeof spec.excludeHidden === 'boolean' ? spec.excludeHidden : true;
+    this.enabled = typeof spec.enabled === 'boolean' ? spec.enabled : true;
+    this.pageLevel = typeof spec.pageLevel === 'boolean' ? spec.pageLevel : false;
     this.any = spec.any || [];
-    /**
-  * Checks that must all return true to satisfy rule
-  * @type {Array}
-  */
     this.all = spec.all || [];
-    /**
-  * Checks that none may return true to satisfy rule
-  * @type {Array}
-  */
     this.none = spec.none || [];
-    /**
-  * Tags associated to this rule
-  * @type {Array}
-  */
     this.tags = spec.tags || [];
+    this.preload = spec.preload ? true : false;
     if (spec.matches) {
-      /**
-   * Optional function to test if rule should be run against a node, overrides Rule#matches
-   * @type {Function}
-   */
       this.matches = createExecutionContext(spec.matches);
     }
   }
-  /**
- * Optionally test each node against a `matches` function to determine if the rule should run against
- * a given node.  Defaults to `true`.
- * @return {Boolean}    Whether the rule should run
- */
   Rule.prototype.matches = function() {
-    "use strict";
+    'use strict';
     return true;
   };
-  /**
- * Selects `HTMLElement`s based on configured selector
- * @param  {Context} context The resolved Context object
- * @return {Array}           All matching `HTMLElement`s
- */
   Rule.prototype.gather = function(context) {
-    "use strict";
+    'use strict';
     var elements = axe.utils.select(this.selector, context);
     if (this.excludeHidden) {
       return elements.filter(function(element) {
-        return !axe.utils.isHidden(element);
+        return !axe.utils.isHidden(element.actualNode);
       });
     }
     return elements;
   };
-  Rule.prototype.runChecks = function(type, node, options, resolve, reject) {
-    "use strict";
+  Rule.prototype.runChecks = function(type, node, options, context, resolve, reject) {
+    'use strict';
     var self = this;
     var checkQueue = axe.utils.queue();
     this[type].forEach(function(c) {
       var check = self._audit.checks[c.id || c];
       var option = axe.utils.getCheckOption(check, self.id, options);
       checkQueue.defer(function(res, rej) {
-        check.run(node, option, res, rej);
+        check.run(node, option, context, res, rej);
       });
     });
     checkQueue.then(function(results) {
@@ -696,81 +745,78 @@
       });
     }).catch(reject);
   };
-  /**
- * Runs the Rule's `evaluate` function
- * @param  {Context}   context  The resolved Context object
- * @param  {Mixed}   options  Options specific to this rule
- * @param  {Function} callback Function to call when evaluate is complete; receives a RuleResult instance
- */
   Rule.prototype.run = function(context, options, resolve, reject) {
-    "use strict";
-    var nodes = this.gather(context);
+    var _this = this;
     var q = axe.utils.queue();
-    var self = this;
-    var ruleResult;
-    ruleResult = new RuleResult(this);
+    var ruleResult = new RuleResult(this);
+    var markStart = 'mark_runchecks_start_' + this.id;
+    var markEnd = 'mark_runchecks_end_' + this.id;
+    var nodes = void 0;
+    try {
+      nodes = this.gather(context).filter(function(node) {
+        return _this.matches(node.actualNode, node);
+      });
+    } catch (error) {
+      reject(new SupportError({
+        cause: error,
+        ruleId: this.id
+      }));
+      return;
+    }
+    if (options.performanceTimer) {
+      axe.log('gather (', nodes.length, '):', axe.utils.performanceTimer.timeElapsed() + 'ms');
+      axe.utils.performanceTimer.mark(markStart);
+    }
     nodes.forEach(function(node) {
-      if (self.matches(node)) {
-        q.defer(function(resolveNode, rejectNode) {
-          var checkQueue = axe.utils.queue();
+      q.defer(function(resolveNode, rejectNode) {
+        var checkQueue = axe.utils.queue();
+        [ 'any', 'all', 'none' ].forEach(function(type) {
           checkQueue.defer(function(res, rej) {
-            self.runChecks("any", node, options, res, rej);
+            _this.runChecks(type, node, options, context, res, rej);
           });
-          checkQueue.defer(function(res, rej) {
-            self.runChecks("all", node, options, res, rej);
-          });
-          checkQueue.defer(function(res, rej) {
-            self.runChecks("none", node, options, res, rej);
-          });
-          checkQueue.then(function(results) {
-            if (results.length) {
-              var hasResults = false, result = {
-                node: new axe.utils.DqElement(node)
-              };
-              results.forEach(function(r) {
-                var res = r.results.filter(function(result) {
-                  return result;
-                });
-                result[r.type] = res;
-                if (res.length) {
-                  hasResults = true;
-                }
-              });
-              if (hasResults) {
-                ruleResult.nodes.push(result);
-              }
-            }
-            resolveNode();
-          }).catch(rejectNode);
         });
-      }
+        checkQueue.then(function(results) {
+          if (results.length) {
+            var hasResults = false, result = {};
+            results.forEach(function(r) {
+              var res = r.results.filter(function(result) {
+                return result;
+              });
+              result[r.type] = res;
+              if (res.length) {
+                hasResults = true;
+              }
+            });
+            if (hasResults) {
+              result.node = new axe.utils.DqElement(node.actualNode, options);
+              ruleResult.nodes.push(result);
+            }
+          }
+          resolveNode();
+        }).catch(function(err) {
+          return rejectNode(err);
+        });
+      });
     });
+    if (options.performanceTimer) {
+      axe.utils.performanceTimer.mark(markEnd);
+      axe.utils.performanceTimer.measure('runchecks_' + this.id, markStart, markEnd);
+    }
     q.then(function() {
-      resolve(ruleResult);
-    }).catch(reject);
+      return resolve(ruleResult);
+    }).catch(function(error) {
+      return reject(error);
+    });
   };
-  /**
- * Iterates the rule's Checks looking for ones that have an after function
- * @private
- * @param  {Rule} rule The rule to check for after checks
- * @return {Array}      Checks that have an after function
- */
   function findAfterChecks(rule) {
-    "use strict";
+    'use strict';
     return axe.utils.getAllChecks(rule).map(function(c) {
       var check = rule._audit.checks[c.id || c];
-      return check && typeof check.after === "function" ? check : null;
+      return check && typeof check.after === 'function' ? check : null;
     }).filter(Boolean);
   }
-  /**
- * Finds and collates all results for a given Check on a specific Rule
- * @private
- * @param  {Array} nodes RuleResult#nodes; array of 'detail' objects
- * @param  {String} checkID The ID of the Check to find
- * @return {Array}         Matching CheckResults
- */
   function findCheckResults(nodes, checkID) {
-    "use strict";
+    'use strict';
     var checkResults = [];
     nodes.forEach(function(nodeResult) {
       var checks = axe.utils.getAllChecks(nodeResult);
@@ -783,14 +829,14 @@
     return checkResults;
   }
   function filterChecks(checks) {
-    "use strict";
+    'use strict';
     return checks.filter(function(check) {
       return check.filtered !== true;
     });
   }
   function sanitizeNodes(result) {
-    "use strict";
-    var checkTypes = [ "any", "all", "none" ];
+    'use strict';
+    var checkTypes = [ 'any', 'all', 'none' ];
     var nodes = result.nodes.filter(function(detail) {
       var length = 0;
       checkTypes.forEach(function(type) {
@@ -811,14 +857,8 @@
     }
     return nodes;
   }
-  /**
- * Runs all of the Rule's Check#after methods
- * @param  {RuleResult} result  The "pre-after" RuleResult
- * @param  {Mixed} options Options specific to the rule
- * @return {RuleResult}         The RuleResult as filtered by after functions
- */
   Rule.prototype.after = function(result, options) {
-    "use strict";
+    'use strict';
     var afterChecks = findAfterChecks(this);
     var ruleID = this.id;
     afterChecks.forEach(function(check) {
@@ -834,82 +874,1067 @@
     result.nodes = sanitizeNodes(result);
     return result;
   };
-  /**
- * Reconfigure a rule after it has been added
- * @param {Object} spec - the attributes to be reconfigured
- */
   Rule.prototype.configure = function(spec) {
-    /*jshint maxcomplexity:14 */
-    /*jshint maxstatements:20 */
-    /*jshint evil:true */
-    "use strict";
-    if (spec.hasOwnProperty("selector")) {
+    'use strict';
+    if (spec.hasOwnProperty('selector')) {
       this.selector = spec.selector;
     }
-    if (spec.hasOwnProperty("excludeHidden")) {
-      this.excludeHidden = typeof spec.excludeHidden === "boolean" ? spec.excludeHidden : true;
+    if (spec.hasOwnProperty('excludeHidden')) {
+      this.excludeHidden = typeof spec.excludeHidden === 'boolean' ? spec.excludeHidden : true;
     }
-    if (spec.hasOwnProperty("enabled")) {
-      this.enabled = typeof spec.enabled === "boolean" ? spec.enabled : true;
+    if (spec.hasOwnProperty('enabled')) {
+      this.enabled = typeof spec.enabled === 'boolean' ? spec.enabled : true;
     }
-    if (spec.hasOwnProperty("pageLevel")) {
-      this.pageLevel = typeof spec.pageLevel === "boolean" ? spec.pageLevel : false;
+    if (spec.hasOwnProperty('pageLevel')) {
+      this.pageLevel = typeof spec.pageLevel === 'boolean' ? spec.pageLevel : false;
     }
-    if (spec.hasOwnProperty("any")) {
+    if (spec.hasOwnProperty('any')) {
       this.any = spec.any;
     }
-    if (spec.hasOwnProperty("all")) {
+    if (spec.hasOwnProperty('all')) {
       this.all = spec.all;
     }
-    if (spec.hasOwnProperty("none")) {
+    if (spec.hasOwnProperty('none')) {
       this.none = spec.none;
     }
-    if (spec.hasOwnProperty("tags")) {
+    if (spec.hasOwnProperty('tags')) {
       this.tags = spec.tags;
     }
-    if (spec.hasOwnProperty("matches")) {
-      if (typeof spec.matches === "string") {
-        this.matches = new Function("return " + spec.matches + ";")();
+    if (spec.hasOwnProperty('matches')) {
+      if (typeof spec.matches === 'string') {
+        this.matches = new Function('return ' + spec.matches + ';')();
       } else {
         this.matches = spec.matches;
       }
     }
   };
-  "use strict";
-  axe.constants = {};
-  axe.constants.result = {
-    PASS: "PASS",
-    FAIL: "FAIL",
-    NA: "NA"
-  };
-  axe.constants.raisedMetadata = {
-    impact: [ "minor", "moderate", "serious", "critical" ]
-  };
-  "use strict";
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
+  'use strict';
+  (function(axe) {
+    var definitions = [ {
+      name: 'NA',
+      value: 'inapplicable',
+      priority: 0,
+      group: 'inapplicable'
+    }, {
+      name: 'PASS',
+      value: 'passed',
+      priority: 1,
+      group: 'passes'
+    }, {
+      name: 'CANTTELL',
+      value: 'cantTell',
+      priority: 2,
+      group: 'incomplete'
+    }, {
+      name: 'FAIL',
+      value: 'failed',
+      priority: 3,
+      group: 'violations'
+    } ];
+    var constants = {
+      helpUrlBase: 'https://dequeuniversity.com/rules/',
+      results: [],
+      resultGroups: [],
+      resultGroupMap: {},
+      impact: Object.freeze([ 'minor', 'moderate', 'serious', 'critical' ]),
+      preloadAssets: Object.freeze([ 'cssom' ]),
+      preloadAssetsTimeout: 1e4
+    };
+    definitions.forEach(function(definition) {
+      var name = definition.name;
+      var value = definition.value;
+      var priority = definition.priority;
+      var group = definition.group;
+      constants[name] = value;
+      constants[name + '_PRIO'] = priority;
+      constants[name + '_GROUP'] = group;
+      constants.results[priority] = value;
+      constants.resultGroups[priority] = group;
+      constants.resultGroupMap[value] = group;
+    });
+    Object.freeze(constants.results);
+    Object.freeze(constants.resultGroups);
+    Object.freeze(constants.resultGroupMap);
+    Object.freeze(constants);
+    Object.defineProperty(axe, 'constants', {
+      value: constants,
+      enumerable: true,
+      configurable: false,
+      writable: false
+    });
+  })(axe);
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
     return typeof obj;
   } : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
   };
-  /*jshint devel: true */
-  /**
- * Logs a message to the developer console (if it exists and is active).
- */
+  axe.imports['axios'] = function() {
+    return function(modules) {
+      var installedModules = {};
+      function __webpack_require__(moduleId) {
+        if (installedModules[moduleId]) {
+          return installedModules[moduleId].exports;
+        }
+        var module = installedModules[moduleId] = {
+          exports: {},
+          id: moduleId,
+          loaded: false
+        };
+        modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+        module.loaded = true;
+        return module.exports;
+      }
+      __webpack_require__.m = modules;
+      __webpack_require__.c = installedModules;
+      __webpack_require__.p = '';
+      return __webpack_require__(0);
+    }([ function(module, exports, __webpack_require__) {
+      module.exports = __webpack_require__(1);
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      var bind = __webpack_require__(3);
+      var Axios = __webpack_require__(5);
+      var defaults = __webpack_require__(6);
+      function createInstance(defaultConfig) {
+        var context = new Axios(defaultConfig);
+        var instance = bind(Axios.prototype.request, context);
+        utils.extend(instance, Axios.prototype, context);
+        utils.extend(instance, context);
+        return instance;
+      }
+      var axios = createInstance(defaults);
+      axios.Axios = Axios;
+      axios.create = function create(instanceConfig) {
+        return createInstance(utils.merge(defaults, instanceConfig));
+      };
+      axios.Cancel = __webpack_require__(23);
+      axios.CancelToken = __webpack_require__(24);
+      axios.isCancel = __webpack_require__(20);
+      axios.all = function all(promises) {
+        return Promise.all(promises);
+      };
+      axios.spread = __webpack_require__(25);
+      module.exports = axios;
+      module.exports.default = axios;
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var bind = __webpack_require__(3);
+      var isBuffer = __webpack_require__(4);
+      var toString = Object.prototype.toString;
+      function isArray(val) {
+        return toString.call(val) === '[object Array]';
+      }
+      function isArrayBuffer(val) {
+        return toString.call(val) === '[object ArrayBuffer]';
+      }
+      function isFormData(val) {
+        return typeof FormData !== 'undefined' && val instanceof FormData;
+      }
+      function isArrayBufferView(val) {
+        var result;
+        if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView) {
+          result = ArrayBuffer.isView(val);
+        } else {
+          result = val && val.buffer && val.buffer instanceof ArrayBuffer;
+        }
+        return result;
+      }
+      function isString(val) {
+        return typeof val === 'string';
+      }
+      function isNumber(val) {
+        return typeof val === 'number';
+      }
+      function isUndefined(val) {
+        return typeof val === 'undefined';
+      }
+      function isObject(val) {
+        return val !== null && (typeof val === 'undefined' ? 'undefined' : _typeof(val)) === 'object';
+      }
+      function isDate(val) {
+        return toString.call(val) === '[object Date]';
+      }
+      function isFile(val) {
+        return toString.call(val) === '[object File]';
+      }
+      function isBlob(val) {
+        return toString.call(val) === '[object Blob]';
+      }
+      function isFunction(val) {
+        return toString.call(val) === '[object Function]';
+      }
+      function isStream(val) {
+        return isObject(val) && isFunction(val.pipe);
+      }
+      function isURLSearchParams(val) {
+        return typeof URLSearchParams !== 'undefined' && val instanceof URLSearchParams;
+      }
+      function trim(str) {
+        return str.replace(/^\s*/, '').replace(/\s*$/, '');
+      }
+      function isStandardBrowserEnv() {
+        if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
+          return false;
+        }
+        return typeof window !== 'undefined' && typeof document !== 'undefined';
+      }
+      function forEach(obj, fn) {
+        if (obj === null || typeof obj === 'undefined') {
+          return;
+        }
+        if ((typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) !== 'object') {
+          obj = [ obj ];
+        }
+        if (isArray(obj)) {
+          for (var i = 0, l = obj.length; i < l; i++) {
+            fn.call(null, obj[i], i, obj);
+          }
+        } else {
+          for (var key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+              fn.call(null, obj[key], key, obj);
+            }
+          }
+        }
+      }
+      function merge() {
+        var result = {};
+        function assignValue(val, key) {
+          if (_typeof(result[key]) === 'object' && (typeof val === 'undefined' ? 'undefined' : _typeof(val)) === 'object') {
+            result[key] = merge(result[key], val);
+          } else {
+            result[key] = val;
+          }
+        }
+        for (var i = 0, l = arguments.length; i < l; i++) {
+          forEach(arguments[i], assignValue);
+        }
+        return result;
+      }
+      function extend(a, b, thisArg) {
+        forEach(b, function assignValue(val, key) {
+          if (thisArg && typeof val === 'function') {
+            a[key] = bind(val, thisArg);
+          } else {
+            a[key] = val;
+          }
+        });
+        return a;
+      }
+      module.exports = {
+        isArray: isArray,
+        isArrayBuffer: isArrayBuffer,
+        isBuffer: isBuffer,
+        isFormData: isFormData,
+        isArrayBufferView: isArrayBufferView,
+        isString: isString,
+        isNumber: isNumber,
+        isObject: isObject,
+        isUndefined: isUndefined,
+        isDate: isDate,
+        isFile: isFile,
+        isBlob: isBlob,
+        isFunction: isFunction,
+        isStream: isStream,
+        isURLSearchParams: isURLSearchParams,
+        isStandardBrowserEnv: isStandardBrowserEnv,
+        forEach: forEach,
+        merge: merge,
+        extend: extend,
+        trim: trim
+      };
+    }, function(module, exports) {
+      'use strict';
+      module.exports = function bind(fn, thisArg) {
+        return function wrap() {
+          var args = new Array(arguments.length);
+          for (var i = 0; i < args.length; i++) {
+            args[i] = arguments[i];
+          }
+          return fn.apply(thisArg, args);
+        };
+      };
+    }, function(module, exports) {
+      /*!
+  	 * Determine if an object is a Buffer
+  	 *
+  	 * @author   Feross Aboukhadijeh <https://feross.org>
+  	 * @license  MIT
+  	 */
+      module.exports = function(obj) {
+        return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer);
+      };
+      function isBuffer(obj) {
+        return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj);
+      }
+      function isSlowBuffer(obj) {
+        return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0));
+      }
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var defaults = __webpack_require__(6);
+      var utils = __webpack_require__(2);
+      var InterceptorManager = __webpack_require__(17);
+      var dispatchRequest = __webpack_require__(18);
+      function Axios(instanceConfig) {
+        this.defaults = instanceConfig;
+        this.interceptors = {
+          request: new InterceptorManager(),
+          response: new InterceptorManager()
+        };
+      }
+      Axios.prototype.request = function request(config) {
+        if (typeof config === 'string') {
+          config = utils.merge({
+            url: arguments[0]
+          }, arguments[1]);
+        }
+        config = utils.merge(defaults, {
+          method: 'get'
+        }, this.defaults, config);
+        config.method = config.method.toLowerCase();
+        var chain = [ dispatchRequest, undefined ];
+        var promise = Promise.resolve(config);
+        this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
+          chain.unshift(interceptor.fulfilled, interceptor.rejected);
+        });
+        this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
+          chain.push(interceptor.fulfilled, interceptor.rejected);
+        });
+        while (chain.length) {
+          promise = promise.then(chain.shift(), chain.shift());
+        }
+        return promise;
+      };
+      utils.forEach([ 'delete', 'get', 'head', 'options' ], function forEachMethodNoData(method) {
+        Axios.prototype[method] = function(url, config) {
+          return this.request(utils.merge(config || {}, {
+            method: method,
+            url: url
+          }));
+        };
+      });
+      utils.forEach([ 'post', 'put', 'patch' ], function forEachMethodWithData(method) {
+        Axios.prototype[method] = function(url, data, config) {
+          return this.request(utils.merge(config || {}, {
+            method: method,
+            url: url,
+            data: data
+          }));
+        };
+      });
+      module.exports = Axios;
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      var normalizeHeaderName = __webpack_require__(7);
+      var DEFAULT_CONTENT_TYPE = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      };
+      function setContentTypeIfUnset(headers, value) {
+        if (!utils.isUndefined(headers) && utils.isUndefined(headers['Content-Type'])) {
+          headers['Content-Type'] = value;
+        }
+      }
+      function getDefaultAdapter() {
+        var adapter;
+        if (typeof XMLHttpRequest !== 'undefined') {
+          adapter = __webpack_require__(8);
+        } else if (typeof process !== 'undefined') {
+          adapter = __webpack_require__(8);
+        }
+        return adapter;
+      }
+      var defaults = {
+        adapter: getDefaultAdapter(),
+        transformRequest: [ function transformRequest(data, headers) {
+          normalizeHeaderName(headers, 'Content-Type');
+          if (utils.isFormData(data) || utils.isArrayBuffer(data) || utils.isBuffer(data) || utils.isStream(data) || utils.isFile(data) || utils.isBlob(data)) {
+            return data;
+          }
+          if (utils.isArrayBufferView(data)) {
+            return data.buffer;
+          }
+          if (utils.isURLSearchParams(data)) {
+            setContentTypeIfUnset(headers, 'application/x-www-form-urlencoded;charset=utf-8');
+            return data.toString();
+          }
+          if (utils.isObject(data)) {
+            setContentTypeIfUnset(headers, 'application/json;charset=utf-8');
+            return JSON.stringify(data);
+          }
+          return data;
+        } ],
+        transformResponse: [ function transformResponse(data) {
+          if (typeof data === 'string') {
+            try {
+              data = JSON.parse(data);
+            } catch (e) {}
+          }
+          return data;
+        } ],
+        timeout: 0,
+        xsrfCookieName: 'XSRF-TOKEN',
+        xsrfHeaderName: 'X-XSRF-TOKEN',
+        maxContentLength: -1,
+        validateStatus: function validateStatus(status) {
+          return status >= 200 && status < 300;
+        }
+      };
+      defaults.headers = {
+        common: {
+          Accept: 'application/json, text/plain, */*'
+        }
+      };
+      utils.forEach([ 'delete', 'get', 'head' ], function forEachMethodNoData(method) {
+        defaults.headers[method] = {};
+      });
+      utils.forEach([ 'post', 'put', 'patch' ], function forEachMethodWithData(method) {
+        defaults.headers[method] = utils.merge(DEFAULT_CONTENT_TYPE);
+      });
+      module.exports = defaults;
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      module.exports = function normalizeHeaderName(headers, normalizedName) {
+        utils.forEach(headers, function processHeader(value, name) {
+          if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
+            headers[normalizedName] = value;
+            delete headers[name];
+          }
+        });
+      };
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      var settle = __webpack_require__(9);
+      var buildURL = __webpack_require__(12);
+      var parseHeaders = __webpack_require__(13);
+      var isURLSameOrigin = __webpack_require__(14);
+      var createError = __webpack_require__(10);
+      var btoa = typeof window !== 'undefined' && window.btoa && window.btoa.bind(window) || __webpack_require__(15);
+      module.exports = function xhrAdapter(config) {
+        return new Promise(function dispatchXhrRequest(resolve, reject) {
+          var requestData = config.data;
+          var requestHeaders = config.headers;
+          if (utils.isFormData(requestData)) {
+            delete requestHeaders['Content-Type'];
+          }
+          var request = new XMLHttpRequest();
+          var loadEvent = 'onreadystatechange';
+          var xDomain = false;
+          if ('production' !== 'test' && typeof window !== 'undefined' && window.XDomainRequest && !('withCredentials' in request) && !isURLSameOrigin(config.url)) {
+            request = new window.XDomainRequest();
+            loadEvent = 'onload';
+            xDomain = true;
+            request.onprogress = function handleProgress() {};
+            request.ontimeout = function handleTimeout() {};
+          }
+          if (config.auth) {
+            var username = config.auth.username || '';
+            var password = config.auth.password || '';
+            requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
+          }
+          request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
+          request.timeout = config.timeout;
+          request[loadEvent] = function handleLoad() {
+            if (!request || request.readyState !== 4 && !xDomain) {
+              return;
+            }
+            if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
+              return;
+            }
+            var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
+            var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
+            var response = {
+              data: responseData,
+              status: request.status === 1223 ? 204 : request.status,
+              statusText: request.status === 1223 ? 'No Content' : request.statusText,
+              headers: responseHeaders,
+              config: config,
+              request: request
+            };
+            settle(resolve, reject, response);
+            request = null;
+          };
+          request.onerror = function handleError() {
+            reject(createError('Network Error', config, null, request));
+            request = null;
+          };
+          request.ontimeout = function handleTimeout() {
+            reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED', request));
+            request = null;
+          };
+          if (utils.isStandardBrowserEnv()) {
+            var cookies = __webpack_require__(16);
+            var xsrfValue = (config.withCredentials || isURLSameOrigin(config.url)) && config.xsrfCookieName ? cookies.read(config.xsrfCookieName) : undefined;
+            if (xsrfValue) {
+              requestHeaders[config.xsrfHeaderName] = xsrfValue;
+            }
+          }
+          if ('setRequestHeader' in request) {
+            utils.forEach(requestHeaders, function setRequestHeader(val, key) {
+              if (typeof requestData === 'undefined' && key.toLowerCase() === 'content-type') {
+                delete requestHeaders[key];
+              } else {
+                request.setRequestHeader(key, val);
+              }
+            });
+          }
+          if (config.withCredentials) {
+            request.withCredentials = true;
+          }
+          if (config.responseType) {
+            try {
+              request.responseType = config.responseType;
+            } catch (e) {
+              if (config.responseType !== 'json') {
+                throw e;
+              }
+            }
+          }
+          if (typeof config.onDownloadProgress === 'function') {
+            request.addEventListener('progress', config.onDownloadProgress);
+          }
+          if (typeof config.onUploadProgress === 'function' && request.upload) {
+            request.upload.addEventListener('progress', config.onUploadProgress);
+          }
+          if (config.cancelToken) {
+            config.cancelToken.promise.then(function onCanceled(cancel) {
+              if (!request) {
+                return;
+              }
+              request.abort();
+              reject(cancel);
+              request = null;
+            });
+          }
+          if (requestData === undefined) {
+            requestData = null;
+          }
+          request.send(requestData);
+        });
+      };
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var createError = __webpack_require__(10);
+      module.exports = function settle(resolve, reject, response) {
+        var validateStatus = response.config.validateStatus;
+        if (!response.status || !validateStatus || validateStatus(response.status)) {
+          resolve(response);
+        } else {
+          reject(createError('Request failed with status code ' + response.status, response.config, null, response.request, response));
+        }
+      };
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var enhanceError = __webpack_require__(11);
+      module.exports = function createError(message, config, code, request, response) {
+        var error = new Error(message);
+        return enhanceError(error, config, code, request, response);
+      };
+    }, function(module, exports) {
+      'use strict';
+      module.exports = function enhanceError(error, config, code, request, response) {
+        error.config = config;
+        if (code) {
+          error.code = code;
+        }
+        error.request = request;
+        error.response = response;
+        return error;
+      };
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      function encode(val) {
+        return encodeURIComponent(val).replace(/%40/gi, '@').replace(/%3A/gi, ':').replace(/%24/g, '$').replace(/%2C/gi, ',').replace(/%20/g, '+').replace(/%5B/gi, '[').replace(/%5D/gi, ']');
+      }
+      module.exports = function buildURL(url, params, paramsSerializer) {
+        if (!params) {
+          return url;
+        }
+        var serializedParams;
+        if (paramsSerializer) {
+          serializedParams = paramsSerializer(params);
+        } else if (utils.isURLSearchParams(params)) {
+          serializedParams = params.toString();
+        } else {
+          var parts = [];
+          utils.forEach(params, function serialize(val, key) {
+            if (val === null || typeof val === 'undefined') {
+              return;
+            }
+            if (utils.isArray(val)) {
+              key = key + '[]';
+            } else {
+              val = [ val ];
+            }
+            utils.forEach(val, function parseValue(v) {
+              if (utils.isDate(v)) {
+                v = v.toISOString();
+              } else if (utils.isObject(v)) {
+                v = JSON.stringify(v);
+              }
+              parts.push(encode(key) + '=' + encode(v));
+            });
+          });
+          serializedParams = parts.join('&');
+        }
+        if (serializedParams) {
+          url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
+        }
+        return url;
+      };
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      var ignoreDuplicateOf = [ 'age', 'authorization', 'content-length', 'content-type', 'etag', 'expires', 'from', 'host', 'if-modified-since', 'if-unmodified-since', 'last-modified', 'location', 'max-forwards', 'proxy-authorization', 'referer', 'retry-after', 'user-agent' ];
+      module.exports = function parseHeaders(headers) {
+        var parsed = {};
+        var key;
+        var val;
+        var i;
+        if (!headers) {
+          return parsed;
+        }
+        utils.forEach(headers.split('\n'), function parser(line) {
+          i = line.indexOf(':');
+          key = utils.trim(line.substr(0, i)).toLowerCase();
+          val = utils.trim(line.substr(i + 1));
+          if (key) {
+            if (parsed[key] && ignoreDuplicateOf.indexOf(key) >= 0) {
+              return;
+            }
+            if (key === 'set-cookie') {
+              parsed[key] = (parsed[key] ? parsed[key] : []).concat([ val ]);
+            } else {
+              parsed[key] = parsed[key] ? parsed[key] + ', ' + val : val;
+            }
+          }
+        });
+        return parsed;
+      };
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      module.exports = utils.isStandardBrowserEnv() ? function standardBrowserEnv() {
+        var msie = /(msie|trident)/i.test(navigator.userAgent);
+        var urlParsingNode = document.createElement('a');
+        var originURL;
+        function resolveURL(url) {
+          var href = url;
+          if (msie) {
+            urlParsingNode.setAttribute('href', href);
+            href = urlParsingNode.href;
+          }
+          urlParsingNode.setAttribute('href', href);
+          return {
+            href: urlParsingNode.href,
+            protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, '') : '',
+            host: urlParsingNode.host,
+            search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, '') : '',
+            hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, '') : '',
+            hostname: urlParsingNode.hostname,
+            port: urlParsingNode.port,
+            pathname: urlParsingNode.pathname.charAt(0) === '/' ? urlParsingNode.pathname : '/' + urlParsingNode.pathname
+          };
+        }
+        originURL = resolveURL(window.location.href);
+        return function isURLSameOrigin(requestURL) {
+          var parsed = utils.isString(requestURL) ? resolveURL(requestURL) : requestURL;
+          return parsed.protocol === originURL.protocol && parsed.host === originURL.host;
+        };
+      }() : function nonStandardBrowserEnv() {
+        return function isURLSameOrigin() {
+          return true;
+        };
+      }();
+    }, function(module, exports) {
+      'use strict';
+      var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      function E() {
+        this.message = 'String contains an invalid character';
+      }
+      E.prototype = new Error();
+      E.prototype.code = 5;
+      E.prototype.name = 'InvalidCharacterError';
+      function btoa(input) {
+        var str = String(input);
+        var output = '';
+        for (var block, charCode, idx = 0, map = chars; str.charAt(idx | 0) || (map = '=', 
+        idx % 1); output += map.charAt(63 & block >> 8 - idx % 1 * 8)) {
+          charCode = str.charCodeAt(idx += 3 / 4);
+          if (charCode > 255) {
+            throw new E();
+          }
+          block = block << 8 | charCode;
+        }
+        return output;
+      }
+      module.exports = btoa;
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      module.exports = utils.isStandardBrowserEnv() ? function standardBrowserEnv() {
+        return {
+          write: function write(name, value, expires, path, domain, secure) {
+            var cookie = [];
+            cookie.push(name + '=' + encodeURIComponent(value));
+            if (utils.isNumber(expires)) {
+              cookie.push('expires=' + new Date(expires).toGMTString());
+            }
+            if (utils.isString(path)) {
+              cookie.push('path=' + path);
+            }
+            if (utils.isString(domain)) {
+              cookie.push('domain=' + domain);
+            }
+            if (secure === true) {
+              cookie.push('secure');
+            }
+            document.cookie = cookie.join('; ');
+          },
+          read: function read(name) {
+            var match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+            return match ? decodeURIComponent(match[3]) : null;
+          },
+          remove: function remove(name) {
+            this.write(name, '', Date.now() - 864e5);
+          }
+        };
+      }() : function nonStandardBrowserEnv() {
+        return {
+          write: function write() {},
+          read: function read() {
+            return null;
+          },
+          remove: function remove() {}
+        };
+      }();
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      function InterceptorManager() {
+        this.handlers = [];
+      }
+      InterceptorManager.prototype.use = function use(fulfilled, rejected) {
+        this.handlers.push({
+          fulfilled: fulfilled,
+          rejected: rejected
+        });
+        return this.handlers.length - 1;
+      };
+      InterceptorManager.prototype.eject = function eject(id) {
+        if (this.handlers[id]) {
+          this.handlers[id] = null;
+        }
+      };
+      InterceptorManager.prototype.forEach = function forEach(fn) {
+        utils.forEach(this.handlers, function forEachHandler(h) {
+          if (h !== null) {
+            fn(h);
+          }
+        });
+      };
+      module.exports = InterceptorManager;
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      var transformData = __webpack_require__(19);
+      var isCancel = __webpack_require__(20);
+      var defaults = __webpack_require__(6);
+      var isAbsoluteURL = __webpack_require__(21);
+      var combineURLs = __webpack_require__(22);
+      function throwIfCancellationRequested(config) {
+        if (config.cancelToken) {
+          config.cancelToken.throwIfRequested();
+        }
+      }
+      module.exports = function dispatchRequest(config) {
+        throwIfCancellationRequested(config);
+        if (config.baseURL && !isAbsoluteURL(config.url)) {
+          config.url = combineURLs(config.baseURL, config.url);
+        }
+        config.headers = config.headers || {};
+        config.data = transformData(config.data, config.headers, config.transformRequest);
+        config.headers = utils.merge(config.headers.common || {}, config.headers[config.method] || {}, config.headers || {});
+        utils.forEach([ 'delete', 'get', 'head', 'post', 'put', 'patch', 'common' ], function cleanHeaderConfig(method) {
+          delete config.headers[method];
+        });
+        var adapter = config.adapter || defaults.adapter;
+        return adapter(config).then(function onAdapterResolution(response) {
+          throwIfCancellationRequested(config);
+          response.data = transformData(response.data, response.headers, config.transformResponse);
+          return response;
+        }, function onAdapterRejection(reason) {
+          if (!isCancel(reason)) {
+            throwIfCancellationRequested(config);
+            if (reason && reason.response) {
+              reason.response.data = transformData(reason.response.data, reason.response.headers, config.transformResponse);
+            }
+          }
+          return Promise.reject(reason);
+        });
+      };
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var utils = __webpack_require__(2);
+      module.exports = function transformData(data, headers, fns) {
+        utils.forEach(fns, function transform(fn) {
+          data = fn(data, headers);
+        });
+        return data;
+      };
+    }, function(module, exports) {
+      'use strict';
+      module.exports = function isCancel(value) {
+        return !!(value && value.__CANCEL__);
+      };
+    }, function(module, exports) {
+      'use strict';
+      module.exports = function isAbsoluteURL(url) {
+        return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
+      };
+    }, function(module, exports) {
+      'use strict';
+      module.exports = function combineURLs(baseURL, relativeURL) {
+        return relativeURL ? baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '') : baseURL;
+      };
+    }, function(module, exports) {
+      'use strict';
+      function Cancel(message) {
+        this.message = message;
+      }
+      Cancel.prototype.toString = function toString() {
+        return 'Cancel' + (this.message ? ': ' + this.message : '');
+      };
+      Cancel.prototype.__CANCEL__ = true;
+      module.exports = Cancel;
+    }, function(module, exports, __webpack_require__) {
+      'use strict';
+      var Cancel = __webpack_require__(23);
+      function CancelToken(executor) {
+        if (typeof executor !== 'function') {
+          throw new TypeError('executor must be a function.');
+        }
+        var resolvePromise;
+        this.promise = new Promise(function promiseExecutor(resolve) {
+          resolvePromise = resolve;
+        });
+        var token = this;
+        executor(function cancel(message) {
+          if (token.reason) {
+            return;
+          }
+          token.reason = new Cancel(message);
+          resolvePromise(token.reason);
+        });
+      }
+      CancelToken.prototype.throwIfRequested = function throwIfRequested() {
+        if (this.reason) {
+          throw this.reason;
+        }
+      };
+      CancelToken.source = function source() {
+        var cancel;
+        var token = new CancelToken(function executor(c) {
+          cancel = c;
+        });
+        return {
+          token: token,
+          cancel: cancel
+        };
+      };
+      module.exports = CancelToken;
+    }, function(module, exports) {
+      'use strict';
+      module.exports = function spread(callback) {
+        return function wrap(arr) {
+          return callback.apply(null, arr);
+        };
+      };
+    } ]);
+  }();
+  'use strict';
+  axe.imports['doT'] = function(module, exports, define, require, process) {
+    var global = Function('return this')();
+    var __old_global__ = global['doT'];
+    (function() {
+      'use strict';
+      var doT = {
+        name: 'doT',
+        version: '1.1.1',
+        templateSettings: {
+          evaluate: /\{\{([\s\S]+?(\}?)+)\}\}/g,
+          interpolate: /\{\{=([\s\S]+?)\}\}/g,
+          encode: /\{\{!([\s\S]+?)\}\}/g,
+          use: /\{\{#([\s\S]+?)\}\}/g,
+          useParams: /(^|[^\w$])def(?:\.|\[[\'\"])([\w$\.]+)(?:[\'\"]\])?\s*\:\s*([\w$\.]+|\"[^\"]+\"|\'[^\']+\'|\{[^\}]+\})/g,
+          define: /\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g,
+          defineParams: /^\s*([\w$]+):([\s\S]+)/,
+          conditional: /\{\{\?(\?)?\s*([\s\S]*?)\s*\}\}/g,
+          iterate: /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
+          varname: 'it',
+          strip: true,
+          append: true,
+          selfcontained: false,
+          doNotSkipEncoded: false
+        },
+        template: undefined,
+        compile: undefined,
+        log: true
+      }, _globals;
+      doT.encodeHTMLSource = function(doNotSkipEncoded) {
+        var encodeHTMLRules = {
+          '&': '&#38;',
+          '<': '&#60;',
+          '>': '&#62;',
+          '"': '&#34;',
+          '\'': '&#39;',
+          '/': '&#47;'
+        }, matchHTML = doNotSkipEncoded ? /[&<>"'\/]/g : /&(?!#?\w+;)|<|>|"|'|\//g;
+        return function(code) {
+          return code ? code.toString().replace(matchHTML, function(m) {
+            return encodeHTMLRules[m] || m;
+          }) : '';
+        };
+      };
+      _globals = function() {
+        return this || (0, eval)('this');
+      }();
+      if (typeof module !== 'undefined' && module.exports) {
+        module.exports = doT;
+      } else if (typeof define === 'function' && define.amd) {
+        define(function() {
+          return doT;
+        });
+      } else {
+        _globals.doT = doT;
+      }
+      var startend = {
+        append: {
+          start: '\'+(',
+          end: ')+\'',
+          startencode: '\'+encodeHTML('
+        },
+        split: {
+          start: '\';out+=(',
+          end: ');out+=\'',
+          startencode: '\';out+=encodeHTML('
+        }
+      }, skip = /$^/;
+      function resolveDefs(c, block, def) {
+        return (typeof block === 'string' ? block : block.toString()).replace(c.define || skip, function(m, code, assign, value) {
+          if (code.indexOf('def.') === 0) {
+            code = code.substring(4);
+          }
+          if (!(code in def)) {
+            if (assign === ':') {
+              if (c.defineParams) {
+                value.replace(c.defineParams, function(m, param, v) {
+                  def[code] = {
+                    arg: param,
+                    text: v
+                  };
+                });
+              }
+              if (!(code in def)) {
+                def[code] = value;
+              }
+            } else {
+              new Function('def', 'def[\'' + code + '\']=' + value)(def);
+            }
+          }
+          return '';
+        }).replace(c.use || skip, function(m, code) {
+          if (c.useParams) {
+            code = code.replace(c.useParams, function(m, s, d, param) {
+              if (def[d] && def[d].arg && param) {
+                var rw = (d + ':' + param).replace(/'|\\/g, '_');
+                def.__exp = def.__exp || {};
+                def.__exp[rw] = def[d].text.replace(new RegExp('(^|[^\\w$])' + def[d].arg + '([^\\w$])', 'g'), '$1' + param + '$2');
+                return s + 'def.__exp[\'' + rw + '\']';
+              }
+            });
+          }
+          var v = new Function('def', 'return ' + code)(def);
+          return v ? resolveDefs(c, v, def) : v;
+        });
+      }
+      function unescape(code) {
+        return code.replace(/\\('|\\)/g, '$1').replace(/[\r\t\n]/g, ' ');
+      }
+      doT.template = function(tmpl, c, def) {
+        c = c || doT.templateSettings;
+        var cse = c.append ? startend.append : startend.split, needhtmlencode, sid = 0, indv, str = c.use || c.define ? resolveDefs(c, tmpl, def || {}) : tmpl;
+        str = ('var out=\'' + (c.strip ? str.replace(/(^|\r|\n)\t* +| +\t*(\r|\n|$)/g, ' ').replace(/\r|\n|\t|\/\*[\s\S]*?\*\//g, '') : str).replace(/'|\\/g, '\\$&').replace(c.interpolate || skip, function(m, code) {
+          return cse.start + unescape(code) + cse.end;
+        }).replace(c.encode || skip, function(m, code) {
+          needhtmlencode = true;
+          return cse.startencode + unescape(code) + cse.end;
+        }).replace(c.conditional || skip, function(m, elsecase, code) {
+          return elsecase ? code ? '\';}else if(' + unescape(code) + '){out+=\'' : '\';}else{out+=\'' : code ? '\';if(' + unescape(code) + '){out+=\'' : '\';}out+=\'';
+        }).replace(c.iterate || skip, function(m, iterate, vname, iname) {
+          if (!iterate) {
+            return '\';} } out+=\'';
+          }
+          sid += 1;
+          indv = iname || 'i' + sid;
+          iterate = unescape(iterate);
+          return '\';var arr' + sid + '=' + iterate + ';if(arr' + sid + '){var ' + vname + ',' + indv + '=-1,l' + sid + '=arr' + sid + '.length-1;while(' + indv + '<l' + sid + '){' + vname + '=arr' + sid + '[' + indv + '+=1];out+=\'';
+        }).replace(c.evaluate || skip, function(m, code) {
+          return '\';' + unescape(code) + 'out+=\'';
+        }) + '\';return out;').replace(/\n/g, '\\n').replace(/\t/g, '\\t').replace(/\r/g, '\\r').replace(/(\s|;|\}|^|\{)out\+='';/g, '$1').replace(/\+''/g, '');
+        if (needhtmlencode) {
+          if (!c.selfcontained && _globals && !_globals._encodeHTML) {
+            _globals._encodeHTML = doT.encodeHTMLSource(c.doNotSkipEncoded);
+          }
+          str = 'var encodeHTML = typeof _encodeHTML !== \'undefined\' ? _encodeHTML : (' + doT.encodeHTMLSource.toString() + '(' + (c.doNotSkipEncoded || '') + '));' + str;
+        }
+        try {
+          return new Function(c.varname, str);
+        } catch (e) {
+          if (typeof console !== 'undefined') {
+            console.log('Could not create a template function: ' + str);
+          }
+          throw e;
+        }
+      };
+      doT.compile = function(tmpl, def) {
+        return doT.template(tmpl, null, def);
+      };
+    })();
+    var lib = global['doT'];
+    delete global['doT'];
+    if (__old_global__) {
+      global['doT'] = __old_global__;
+    }
+    return lib;
+  }();
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
   axe.log = function() {
-    "use strict";
-    if ((typeof console === "undefined" ? "undefined" : _typeof(console)) === "object" && console.log) {
-      // IE does not support console.log.apply
+    'use strict';
+    if ((typeof console === 'undefined' ? 'undefined' : _typeof(console)) === 'object' && console.log) {
       Function.prototype.apply.call(console.log, console, arguments);
     }
   };
-  "use strict";
+  'use strict';
   function cleanupPlugins(resolve, reject) {
-    "use strict";
+    'use strict';
+    resolve = resolve || function() {};
+    reject = reject || axe.log;
     if (!axe._audit) {
-      throw new Error("No audit configured");
+      throw new Error('No audit configured');
     }
     var q = axe.utils.queue();
-    // If a plugin fails it's cleanup, we still want the others to run
     var cleanupErrors = [];
     Object.keys(axe.plugins).forEach(function(key) {
       q.defer(function(res) {
@@ -924,10 +1949,11 @@
         }
       });
     });
-    axe.utils.toArray(document.querySelectorAll("frame, iframe")).forEach(function(frame) {
+    var flattenedTree = axe.utils.getFlattenedTree(document.body);
+    axe.utils.querySelectorAll(flattenedTree, 'iframe, frame').forEach(function(node) {
       q.defer(function(res, rej) {
-        return axe.utils.sendCommandToFrame(frame, {
-          command: "cleanup-plugin"
+        return axe.utils.sendCommandToFrame(node.actualNode, {
+          command: 'cleanup-plugin'
         }, res, rej);
       });
     });
@@ -940,16 +1966,15 @@
     }).catch(reject);
   }
   axe.cleanup = cleanupPlugins;
-  "use strict";
-  /*global reporters */
+  'use strict';
   function configureChecksRulesAndBranding(spec) {
-    "use strict";
+    'use strict';
     var audit;
     audit = axe._audit;
     if (!audit) {
-      throw new Error("No audit configured");
+      throw new Error('No audit configured');
     }
-    if (spec.reporter && (typeof spec.reporter === "function" || reporters[spec.reporter])) {
+    if (spec.reporter && (typeof spec.reporter === 'function' || reporters[spec.reporter])) {
       audit.reporter = spec.reporter;
     }
     if (spec.checks) {
@@ -957,24 +1982,36 @@
         audit.addCheck(check);
       });
     }
+    var modifiedRules = [];
     if (spec.rules) {
       spec.rules.forEach(function(rule) {
+        modifiedRules.push(rule.id);
         audit.addRule(rule);
       });
     }
-    if (typeof spec.branding !== "undefined") {
+    if (spec.disableOtherRules) {
+      audit.rules.forEach(function(rule) {
+        if (modifiedRules.includes(rule.id) === false) {
+          rule.enabled = false;
+        }
+      });
+    }
+    if (typeof spec.branding !== 'undefined') {
       audit.setBranding(spec.branding);
+    } else {
+      audit._constructHelpUrls();
+    }
+    if (spec.tagExclude) {
+      audit.tagExclude = spec.tagExclude;
+    }
+    if (spec.locale) {
+      audit.applyLocale(spec.locale);
     }
   }
   axe.configure = configureChecksRulesAndBranding;
-  "use strict";
-  /**
- * Searches and returns rules that contain a tag in the list of tags.
- * @param  {Array}   tags  Optional array of tags
- * @return {Array}  Array of rules
- */
+  'use strict';
   axe.getRules = function(tags) {
-    "use strict";
+    'use strict';
     tags = tags || [];
     var matchingRules = !tags.length ? axe._audit.rules : axe._audit.rules.filter(function(item) {
       return !!tags.filter(function(tag) {
@@ -993,10 +2030,9 @@
       };
     });
   };
-  "use strict";
-  /*global Audit, runRules, cleanupPlugins */
+  'use strict';
   function runCommand(data, keepalive, callback) {
-    "use strict";
+    'use strict';
     var resolve = callback;
     var reject = function reject(err) {
       if (err instanceof Error === false) {
@@ -1005,44 +2041,41 @@
       callback(err);
     };
     var context = data && data.context || {};
-    if (context.include && !context.include.length) {
+    if (context.hasOwnProperty('include') && !context.include.length) {
       context.include = [ document ];
     }
     var options = data && data.options || {};
     switch (data.command) {
-     case "rules":
-      return runRules(context, options, resolve, reject);
+     case 'rules':
+      return runRules(context, options, function(results, cleanup) {
+        resolve(results);
+        cleanup();
+      }, reject);
 
-     case "cleanup-plugin":
+     case 'cleanup-plugin':
       return cleanupPlugins(resolve, reject);
 
      default:
-      // go through the registered commands
       if (axe._audit && axe._audit.commands && axe._audit.commands[data.command]) {
         return axe._audit.commands[data.command](data, callback);
       }
     }
   }
-  /**
- * Sets up Rules, Messages and default options for Checks, must be invoked before attempting analysis
- * @param  {Object} audit The "audit specifcation" object
- * @private
- */
   axe._load = function(audit) {
-    "use strict";
-    axe.utils.respondable.subscribe("axe.ping", function(data, keepalive, respond) {
+    'use strict';
+    axe.utils.respondable.subscribe('axe.ping', function(data, keepalive, respond) {
       respond({
         axe: true
       });
     });
-    axe.utils.respondable.subscribe("axe.start", runCommand);
+    axe.utils.respondable.subscribe('axe.start', runCommand);
     axe._audit = new Audit(audit);
   };
-  "use strict";
+  'use strict';
   var axe = axe || {};
   axe.plugins = {};
   function Plugin(spec) {
-    "use strict";
+    'use strict';
     this._run = spec.run;
     this._collect = spec.collect;
     this._registry = {};
@@ -1051,15 +2084,15 @@
     });
   }
   Plugin.prototype.run = function() {
-    "use strict";
+    'use strict';
     return this._run.apply(this, arguments);
   };
   Plugin.prototype.collect = function() {
-    "use strict";
+    'use strict';
     return this._collect.apply(this, arguments);
   };
   Plugin.prototype.cleanup = function(done) {
-    "use strict";
+    'use strict';
     var q = axe.utils.queue();
     var that = this;
     Object.keys(this._registry).forEach(function(key) {
@@ -1072,281 +2105,547 @@
     });
   };
   Plugin.prototype.add = function(impl) {
-    "use strict";
+    'use strict';
     this._registry[impl.id] = impl;
   };
   axe.registerPlugin = function(plugin) {
-    "use strict";
+    'use strict';
     axe.plugins[plugin.id] = new Plugin(plugin);
   };
-  "use strict";
-  /*exported getReporter */
+  'use strict';
   var reporters = {};
   var defaultReporter;
-  function getReporter(reporter) {
-    "use strict";
-    if (typeof reporter === "string" && reporters[reporter]) {
+  axe.getReporter = function(reporter) {
+    'use strict';
+    if (typeof reporter === 'string' && reporters[reporter]) {
       return reporters[reporter];
     }
-    if (typeof reporter === "function") {
+    if (typeof reporter === 'function') {
       return reporter;
     }
     return defaultReporter;
-  }
-  axe.reporter = function registerReporter(name, cb, isDefault) {
-    "use strict";
+  };
+  axe.addReporter = function registerReporter(name, cb, isDefault) {
+    'use strict';
     reporters[name] = cb;
     if (isDefault) {
       defaultReporter = cb;
     }
   };
-  "use strict";
-  /*global axe */
+  'use strict';
   function resetConfiguration() {
-    "use strict";
+    'use strict';
     var audit = axe._audit;
     if (!audit) {
-      throw new Error("No audit configured");
+      throw new Error('No audit configured');
     }
     audit.resetRulesAndChecks();
   }
   axe.reset = resetConfiguration;
-  "use strict";
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
-    return typeof obj;
-  } : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
-  };
-  /*global Context, getReporter */
-  /*exported runRules */
-  /**
- * Starts analysis on the current document and its subframes
- * @private
- * @param  {Object}   context  The `Context` specification object @see Context
- * @param  {Array}    options  Optional RuleOptions
- * @param  {Function} callback The function to invoke when analysis is complete; receives an array of `RuleResult`s
- */
+  'use strict';
+  function cleanup() {
+    axe._tree = undefined;
+    axe._selectorData = undefined;
+  }
   function runRules(context, options, resolve, reject) {
-    "use strict";
-    context = new Context(context);
+    'use strict';
+    try {
+      context = new Context(context);
+      axe._tree = context.flatTree;
+      axe._selectorData = axe.utils.getSelectorData(context.flatTree);
+    } catch (e) {
+      cleanup();
+      return reject(e);
+    }
     var q = axe.utils.queue();
     var audit = axe._audit;
-    if (context.frames.length) {
+    if (options.performanceTimer) {
+      axe.utils.performanceTimer.auditStart();
+    }
+    if (context.frames.length && options.iframes !== false) {
       q.defer(function(res, rej) {
-        axe.utils.collectResultsFromFrames(context, options, "rules", null, res, rej);
+        axe.utils.collectResultsFromFrames(context, options, 'rules', null, res, rej);
       });
     }
+    var scrollState = void 0;
     q.defer(function(res, rej) {
+      if (options.restoreScroll) {
+        scrollState = axe.utils.getScrollState();
+      }
       audit.run(context, options, res, rej);
     });
     q.then(function(data) {
       try {
-        // Add wrapper object so that we may use the same "merge" function for results from inside and outside frames
-        var results = axe.utils.mergeResults(data.map(function(d) {
+        if (scrollState) {
+          axe.utils.setScrollState(scrollState);
+        }
+        if (options.performanceTimer) {
+          axe.utils.performanceTimer.auditEnd();
+        }
+        var results = axe.utils.mergeResults(data.map(function(results) {
           return {
-            results: d
+            results: results
           };
         }));
-        // after should only run once, so ensure we are in the top level window
         if (context.initiator) {
           results = audit.after(results, options);
+          results.forEach(axe.utils.publishMetaData);
           results = results.map(axe.utils.finalizeRuleResult);
         }
-        resolve(results);
+        try {
+          resolve(results, cleanup);
+        } catch (e) {
+          cleanup();
+          axe.log(e);
+        }
       } catch (e) {
+        cleanup();
         reject(e);
       }
-    }).catch(reject);
+    }).catch(function(e) {
+      cleanup();
+      reject(e);
+    });
   }
-  axe.a11yCheck = function(context, options, callback) {
-    "use strict";
-    if (typeof options === "function") {
+  axe._runRules = runRules;
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
+  function isContext(potential) {
+    'use strict';
+    switch (true) {
+     case typeof potential === 'string':
+     case Array.isArray(potential):
+     case Node && potential instanceof Node:
+     case NodeList && potential instanceof NodeList:
+      return true;
+
+     case (typeof potential === 'undefined' ? 'undefined' : _typeof(potential)) !== 'object':
+      return false;
+
+     case potential.include !== undefined:
+     case potential.exclude !== undefined:
+     case typeof potential.length === 'number':
+      return true;
+
+     default:
+      return false;
+    }
+  }
+  var noop = function noop() {};
+  function normalizeRunParams(context, options, callback) {
+    'use strict';
+    var typeErr = new TypeError('axe.run arguments are invalid');
+    if (!isContext(context)) {
+      if (callback !== undefined) {
+        throw typeErr;
+      }
+      callback = options;
+      options = context;
+      context = document;
+    }
+    if ((typeof options === 'undefined' ? 'undefined' : _typeof(options)) !== 'object') {
+      if (callback !== undefined) {
+        throw typeErr;
+      }
       callback = options;
       options = {};
     }
-    if (!options || (typeof options === "undefined" ? "undefined" : _typeof(options)) !== "object") {
-      options = {};
+    if (typeof callback !== 'function' && callback !== undefined) {
+      throw typeErr;
     }
-    var audit = axe._audit;
-    if (!audit) {
-      throw new Error("No audit configured");
+    return {
+      context: context,
+      options: options,
+      callback: callback || noop
+    };
+  }
+  axe.run = function(context, options, callback) {
+    'use strict';
+    if (!axe._audit) {
+      throw new Error('No audit configured');
     }
-    var reporter = getReporter(options.reporter || audit.reporter);
-    runRules(context, options, function(results) {
-      reporter(results, callback);
-    }, axe.log);
+    var args = normalizeRunParams(context, options, callback);
+    context = args.context;
+    options = args.options;
+    callback = args.callback;
+    options.reporter = options.reporter || axe._audit.reporter || 'v1';
+    if (options.performanceTimer) {
+      axe.utils.performanceTimer.start();
+    }
+    var p = void 0;
+    var reject = noop;
+    var resolve = noop;
+    if (typeof Promise === 'function' && callback === noop) {
+      p = new Promise(function(_resolve, _reject) {
+        reject = _reject;
+        resolve = _resolve;
+      });
+    }
+    axe._runRules(context, options, function(rawResults, cleanup) {
+      var respond = function respond(results) {
+        cleanup();
+        try {
+          callback(null, results);
+        } catch (e) {
+          axe.log(e);
+        }
+        resolve(results);
+      };
+      if (options.performanceTimer) {
+        axe.utils.performanceTimer.end();
+      }
+      try {
+        var reporter = axe.getReporter(options.reporter);
+        var results = reporter(rawResults, options, respond);
+        if (results !== undefined) {
+          respond(results);
+        }
+      } catch (err) {
+        cleanup();
+        callback(err);
+        reject(err);
+      }
+    }, function(err) {
+      callback(err);
+      reject(err);
+    });
+    return p;
   };
-  "use strict";
-  /*global helpers */
-  /**
- * Finds failing Checks and combines each help message into an array
- * @param  {Object} nodeData Individual "detail" object to generate help messages for
- * @return {String}          failure messages
- */
+  'use strict';
   helpers.failureSummary = function failureSummary(nodeData) {
-    "use strict";
+    'use strict';
     var failingChecks = {};
-    // combine "all" and "none" as messaging is the same
     failingChecks.none = nodeData.none.concat(nodeData.all);
     failingChecks.any = nodeData.any;
     return Object.keys(failingChecks).map(function(key) {
       if (!failingChecks[key].length) {
         return;
       }
-      // @todo rm .failureMessage
-      return axe._audit.data.failureSummaries[key].failureMessage(failingChecks[key].map(function(check) {
-        return check.message || "";
-      }));
+      var sum = axe._audit.data.failureSummaries[key];
+      if (sum && typeof sum.failureMessage === 'function') {
+        return sum.failureMessage(failingChecks[key].map(function(check) {
+          return check.message || '';
+        }));
+      }
     }).filter(function(i) {
       return i !== undefined;
-    }).join("\n\n");
+    }).join('\n\n');
   };
-  "use strict";
-  /*global helpers */
-  helpers.formatCheck = function(check) {
-    "use strict";
-    return {
-      id: check.id,
-      impact: check.impact,
-      message: check.message,
-      data: check.data,
-      relatedNodes: check.relatedNodes.map(helpers.formatNode)
-    };
+  'use strict';
+  helpers.incompleteFallbackMessage = function incompleteFallbackMessage() {
+    'use strict';
+    return axe._audit.data.incompleteFallbackMessage();
   };
-  "use strict";
-  /*global helpers */
-  helpers.formatChecks = function(nodeResult, data) {
-    "use strict";
-    nodeResult.any = data.any.map(helpers.formatCheck);
-    nodeResult.all = data.all.map(helpers.formatCheck);
-    nodeResult.none = data.none.map(helpers.formatCheck);
-    return nodeResult;
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
   };
-  "use strict";
-  /*global helpers */
-  helpers.formatNode = function(node) {
-    "use strict";
-    return {
-      target: node ? node.selector : null,
-      html: node ? node.source : null
-    };
-  };
-  "use strict";
-  /*global helpers */
-  helpers.formatRuleResult = function(ruleResult) {
-    "use strict";
-    return {
-      id: ruleResult.id,
-      description: ruleResult.description,
-      help: ruleResult.help,
-      helpUrl: ruleResult.helpUrl || null,
-      impact: null,
-      tags: ruleResult.tags,
-      nodes: []
-    };
-  };
-  "use strict";
-  /*global helpers */
-  helpers.splitResultsWithChecks = function(results) {
-    "use strict";
-    return helpers.splitResults(results, helpers.formatChecks);
-  };
-  "use strict";
-  /*global helpers */
-  helpers.splitResults = function(results, nodeDataMapper) {
-    "use strict";
-    var violations = [], passes = [];
-    results.forEach(function(rr) {
-      function mapNode(nodeData) {
-        var result = nodeData.result || rr.result;
-        var node = helpers.formatNode(nodeData.node);
-        node.impact = nodeData.impact || null;
-        return nodeDataMapper(node, nodeData, result);
+  function normalizeRelatedNodes(node, options) {
+    'use strict';
+    [ 'any', 'all', 'none' ].forEach(function(type) {
+      if (!Array.isArray(node[type])) {
+        return;
       }
-      var failResult, passResult = helpers.formatRuleResult(rr);
-      failResult = axe.utils.clone(passResult);
-      failResult.impact = rr.impact || null;
-      failResult.nodes = rr.violations.map(mapNode);
-      passResult.nodes = rr.passes.map(mapNode);
-      if (failResult.nodes.length) {
-        violations.push(failResult);
-      }
-      if (passResult.nodes.length) {
-        passes.push(passResult);
-      }
+      node[type].filter(function(checkRes) {
+        return Array.isArray(checkRes.relatedNodes);
+      }).forEach(function(checkRes) {
+        checkRes.relatedNodes = checkRes.relatedNodes.map(function(relatedNode) {
+          var res = {
+            html: relatedNode.source
+          };
+          if (options.elementRef && !relatedNode.fromFrame) {
+            res.element = relatedNode.element;
+          }
+          if (options.selectors !== false || relatedNode.fromFrame) {
+            res.target = relatedNode.selector;
+          }
+          if (options.xpath) {
+            res.xpath = relatedNode.xpath;
+          }
+          return res;
+        });
+      });
     });
-    return {
-      violations: violations,
-      passes: passes,
-      url: window.location.href,
-      timestamp: new Date().toISOString()
-    };
+  }
+  var resultKeys = axe.constants.resultGroups;
+  helpers.processAggregate = function(results, options) {
+    var resultObject = axe.utils.aggregateResult(results);
+    resultObject.timestamp = new Date().toISOString();
+    resultObject.url = window.location.href;
+    resultKeys.forEach(function(key) {
+      if (options.resultTypes && !options.resultTypes.includes(key)) {
+        (resultObject[key] || []).forEach(function(ruleResult) {
+          if (Array.isArray(ruleResult.nodes) && ruleResult.nodes.length > 0) {
+            ruleResult.nodes = [ ruleResult.nodes[0] ];
+          }
+        });
+      }
+      resultObject[key] = (resultObject[key] || []).map(function(ruleResult) {
+        ruleResult = Object.assign({}, ruleResult);
+        if (Array.isArray(ruleResult.nodes) && ruleResult.nodes.length > 0) {
+          ruleResult.nodes = ruleResult.nodes.map(function(subResult) {
+            if (_typeof(subResult.node) === 'object') {
+              subResult.html = subResult.node.source;
+              if (options.elementRef && !subResult.node.fromFrame) {
+                subResult.element = subResult.node.element;
+              }
+              if (options.selectors !== false || subResult.node.fromFrame) {
+                subResult.target = subResult.node.selector;
+              }
+              if (options.xpath) {
+                subResult.xpath = subResult.node.xpath;
+              }
+            }
+            delete subResult.result;
+            delete subResult.node;
+            normalizeRelatedNodes(subResult, options);
+            return subResult;
+          });
+        }
+        resultKeys.forEach(function(key) {
+          return delete ruleResult[key];
+        });
+        delete ruleResult.pageLevel;
+        delete ruleResult.result;
+        return ruleResult;
+      });
+    });
+    return resultObject;
   };
-  "use strict";
-  /*global helpers */
-  axe.reporter("na", function(results, callback) {
-    "use strict";
-    var na = results.filter(function(rr) {
-      return rr.violations.length === 0 && rr.passes.length === 0;
-    }).map(helpers.formatRuleResult);
-    var formattedResults = helpers.splitResultsWithChecks(results);
+  'use strict';
+  axe.addReporter('na', function(results, options, callback) {
+    'use strict';
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+    var out = helpers.processAggregate(results, options);
     callback({
-      violations: formattedResults.violations,
-      passes: formattedResults.passes,
-      notApplicable: na,
-      timestamp: formattedResults.timestamp,
-      url: formattedResults.url
+      violations: out.violations,
+      passes: out.passes,
+      incomplete: out.incomplete,
+      inapplicable: out.inapplicable,
+      timestamp: out.timestamp,
+      url: out.url
     });
   });
-  "use strict";
-  /*global helpers */
-  axe.reporter("no-passes", function(results, callback) {
-    "use strict";
-    var formattedResults = helpers.splitResultsWithChecks(results);
+  'use strict';
+  axe.addReporter('no-passes', function(results, options, callback) {
+    'use strict';
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+    options.resultTypes = [ 'violations' ];
+    var out = helpers.processAggregate(results, options);
     callback({
-      violations: formattedResults.violations,
-      timestamp: formattedResults.timestamp,
-      url: formattedResults.url
+      violations: out.violations,
+      timestamp: out.timestamp,
+      url: out.url
     });
   });
-  "use strict";
-  axe.reporter("raw", function(results, callback) {
-    "use strict";
+  'use strict';
+  axe.addReporter('raw', function(results, options, callback) {
+    'use strict';
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
     callback(results);
   });
-  "use strict";
-  /*global helpers */
-  axe.reporter("v1", function(results, callback) {
-    "use strict";
-    var formattedResults = helpers.splitResults(results, function(nodeResult, data, result) {
-      if (result === axe.constants.result.FAIL) {
-        nodeResult.failureSummary = helpers.failureSummary(data);
-      }
-      return nodeResult;
+  'use strict';
+  axe.addReporter('v1', function(results, options, callback) {
+    'use strict';
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+    var out = helpers.processAggregate(results, options);
+    out.violations.forEach(function(result) {
+      return result.nodes.forEach(function(nodeResult) {
+        nodeResult.failureSummary = helpers.failureSummary(nodeResult);
+      });
     });
     callback({
-      violations: formattedResults.violations,
-      passes: formattedResults.passes,
-      timestamp: formattedResults.timestamp,
-      url: formattedResults.url
+      violations: out.violations,
+      passes: out.passes,
+      incomplete: out.incomplete,
+      inapplicable: out.inapplicable,
+      timestamp: out.timestamp,
+      url: out.url
     });
   });
-  "use strict";
-  /*global helpers */
-  axe.reporter("v2", function(results, callback) {
-    "use strict";
-    var formattedResults = helpers.splitResultsWithChecks(results);
+  'use strict';
+  axe.addReporter('v2', function(results, options, callback) {
+    'use strict';
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+    var out = helpers.processAggregate(results, options);
     callback({
-      violations: formattedResults.violations,
-      passes: formattedResults.passes,
-      timestamp: formattedResults.timestamp,
-      url: formattedResults.url
+      violations: out.violations,
+      passes: out.passes,
+      incomplete: out.incomplete,
+      inapplicable: out.inapplicable,
+      timestamp: out.timestamp,
+      url: out.url
     });
   }, true);
-  "use strict";
-  /* global axe*/
+  'use strict';
+  axe.utils.aggregate = function(map, values, initial) {
+    values = values.slice();
+    if (initial) {
+      values.push(initial);
+    }
+    var sorting = values.map(function(val) {
+      return map.indexOf(val);
+    }).sort();
+    return map[sorting.pop()];
+  };
+  'use strict';
+  var _axe$constants = axe.constants, CANTTELL_PRIO = _axe$constants.CANTTELL_PRIO, FAIL_PRIO = _axe$constants.FAIL_PRIO;
+  var checkMap = [];
+  checkMap[axe.constants.PASS_PRIO] = true;
+  checkMap[axe.constants.CANTTELL_PRIO] = null;
+  checkMap[axe.constants.FAIL_PRIO] = false;
+  var checkTypes = [ 'any', 'all', 'none' ];
+  function anyAllNone(obj, functor) {
+    return checkTypes.reduce(function(out, type) {
+      out[type] = (obj[type] || []).map(function(val) {
+        return functor(val, type);
+      });
+      return out;
+    }, {});
+  }
+  axe.utils.aggregateChecks = function(nodeResOriginal) {
+    var nodeResult = Object.assign({}, nodeResOriginal);
+    anyAllNone(nodeResult, function(check, type) {
+      var i = typeof check.result === 'undefined' ? -1 : checkMap.indexOf(check.result);
+      check.priority = i !== -1 ? i : axe.constants.CANTTELL_PRIO;
+      if (type === 'none') {
+        if (check.priority === axe.constants.PASS_PRIO) {
+          check.priority = axe.constants.FAIL_PRIO;
+        } else if (check.priority === axe.constants.FAIL_PRIO) {
+          check.priority = axe.constants.PASS_PRIO;
+        }
+      }
+    });
+    var priorities = {
+      all: nodeResult.all.reduce(function(a, b) {
+        return Math.max(a, b.priority);
+      }, 0),
+      none: nodeResult.none.reduce(function(a, b) {
+        return Math.max(a, b.priority);
+      }, 0),
+      any: nodeResult.any.reduce(function(a, b) {
+        return Math.min(a, b.priority);
+      }, 4) % 4
+    };
+    nodeResult.priority = Math.max(priorities.all, priorities.none, priorities.any);
+    var impacts = [];
+    checkTypes.forEach(function(type) {
+      nodeResult[type] = nodeResult[type].filter(function(check) {
+        return check.priority === nodeResult.priority && check.priority === priorities[type];
+      });
+      nodeResult[type].forEach(function(check) {
+        return impacts.push(check.impact);
+      });
+    });
+    if ([ CANTTELL_PRIO, FAIL_PRIO ].includes(nodeResult.priority)) {
+      nodeResult.impact = axe.utils.aggregate(axe.constants.impact, impacts);
+    } else {
+      nodeResult.impact = null;
+    }
+    anyAllNone(nodeResult, function(c) {
+      delete c.result;
+      delete c.priority;
+    });
+    nodeResult.result = axe.constants.results[nodeResult.priority];
+    delete nodeResult.priority;
+    return nodeResult;
+  };
+  'use strict';
+  (function() {
+    axe.utils.aggregateNodeResults = function(nodeResults) {
+      var ruleResult = {};
+      nodeResults = nodeResults.map(function(nodeResult) {
+        if (nodeResult.any && nodeResult.all && nodeResult.none) {
+          return axe.utils.aggregateChecks(nodeResult);
+        } else if (Array.isArray(nodeResult.node)) {
+          return axe.utils.finalizeRuleResult(nodeResult);
+        } else {
+          throw new TypeError('Invalid Result type');
+        }
+      });
+      if (nodeResults && nodeResults.length) {
+        var resultList = nodeResults.map(function(node) {
+          return node.result;
+        });
+        ruleResult.result = axe.utils.aggregate(axe.constants.results, resultList, ruleResult.result);
+      } else {
+        ruleResult.result = 'inapplicable';
+      }
+      axe.constants.resultGroups.forEach(function(group) {
+        return ruleResult[group] = [];
+      });
+      nodeResults.forEach(function(nodeResult) {
+        var groupName = axe.constants.resultGroupMap[nodeResult.result];
+        ruleResult[groupName].push(nodeResult);
+      });
+      var impactGroup = axe.constants.FAIL_GROUP;
+      if (ruleResult[impactGroup].length === 0) {
+        impactGroup = axe.constants.CANTTELL_GROUP;
+      }
+      if (ruleResult[impactGroup].length > 0) {
+        var impactList = ruleResult[impactGroup].map(function(failure) {
+          return failure.impact;
+        });
+        ruleResult.impact = axe.utils.aggregate(axe.constants.impact, impactList) || null;
+      } else {
+        ruleResult.impact = null;
+      }
+      return ruleResult;
+    };
+  })();
+  'use strict';
+  function copyToGroup(resultObject, subResult, group) {
+    var resultCopy = Object.assign({}, subResult);
+    resultCopy.nodes = (resultCopy[group] || []).concat();
+    axe.constants.resultGroups.forEach(function(group) {
+      delete resultCopy[group];
+    });
+    resultObject[group].push(resultCopy);
+  }
+  axe.utils.aggregateResult = function(results) {
+    var resultObject = {};
+    axe.constants.resultGroups.forEach(function(groupName) {
+      return resultObject[groupName] = [];
+    });
+    results.forEach(function(subResult) {
+      if (subResult.error) {
+        copyToGroup(resultObject, subResult, axe.constants.CANTTELL_GROUP);
+      } else if (subResult.result === axe.constants.NA) {
+        copyToGroup(resultObject, subResult, axe.constants.NA_GROUP);
+      } else {
+        axe.constants.resultGroups.forEach(function(group) {
+          if (Array.isArray(subResult[group]) && subResult[group].length > 0) {
+            copyToGroup(resultObject, subResult, group);
+          }
+        });
+      }
+    });
+    return resultObject;
+  };
+  'use strict';
   function areStylesSet(el, styles, stopAt) {
-    "use strict";
+    'use strict';
     var styl = window.getComputedStyle(el, null);
     var set = false;
     if (!styl) {
@@ -1366,22 +2665,16 @@
     return areStylesSet(el.parentNode, styles, stopAt);
   }
   axe.utils.areStylesSet = areStylesSet;
-  "use strict";
-  /**
- * Helper to denote which checks are asyncronous and provide callbacks and pass data back to the CheckResult
- * @param  {CheckResult}   checkResult The target object
- * @param  {Function} callback    The callback to expose when `this.async()` is called
- * @return {Object}               Bound to `this` for a check's fn
- */
-  axe.utils.checkHelper = function checkHelper(checkResult, resolve, reject) {
-    "use strict";
+  'use strict';
+  axe.utils.checkHelper = function checkHelper(checkResult, options, resolve, reject) {
+    'use strict';
     return {
       isAsync: false,
       async: function async() {
         this.isAsync = true;
         return function(result) {
           if (result instanceof Error === false) {
-            checkResult.value = result;
+            checkResult.result = result;
             resolve(checkResult);
           } else {
             reject(result);
@@ -1394,26 +2687,21 @@
       relatedNodes: function relatedNodes(nodes) {
         nodes = nodes instanceof Node ? [ nodes ] : axe.utils.toArray(nodes);
         checkResult.relatedNodes = nodes.map(function(element) {
-          return new axe.utils.DqElement(element);
+          return new axe.utils.DqElement(element, options);
         });
       }
     };
   };
-  "use strict";
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
     return typeof obj;
   } : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
   };
-  /**
- * Deeply clones an object or array
- * @param  {Mixed} obj The object/array to clone
- * @return {Mixed}     A clone of the initial object or array
- */
   axe.utils.clone = function(obj) {
-    "use strict";
+    'use strict';
     var index, length, out = obj;
-    if (obj !== null && (typeof obj === "undefined" ? "undefined" : _typeof(obj)) === "object") {
+    if (obj !== null && (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) === 'object') {
       if (Array.isArray(obj)) {
         out = [];
         for (index = 0, length = obj.length; index < length; index++) {
@@ -1421,7 +2709,6 @@
         }
       } else {
         out = {};
-        // jshint forin: false
         for (index in obj) {
           out[index] = axe.utils.clone(obj[index]);
         }
@@ -1429,44 +2716,39 @@
     }
     return out;
   };
-  "use strict";
+  'use strict';
   function err(message, node) {
-    "use strict";
-    return new Error(message + ": " + axe.utils.getSelector(node));
+    'use strict';
+    var selector;
+    if (axe._tree) {
+      selector = axe.utils.getSelector(node);
+    }
+    return new Error(message + ': ' + (selector || node));
   }
-  /**
- * Sends a command to the sepecified frame
- * @param  {Element}  node       The frame element to send the message to
- * @param  {Object}   parameters Parameters to pass to the frame
- * @param  {Function} callback   Function to call when results from all frames have returned
- */
   axe.utils.sendCommandToFrame = function(node, parameters, resolve, reject) {
-    "use strict";
+    'use strict';
     var win = node.contentWindow;
     if (!win) {
-      axe.log("Frame does not have a content window", node);
+      axe.log('Frame does not have a content window', node);
       resolve(null);
       return;
     }
     var timeout = setTimeout(function() {
-      // This double timeout is important for allowing iframes to respond
-      // DO NOT REMOVE
       timeout = setTimeout(function() {
-        var errMsg = err("No response from frame", node);
         if (!parameters.debug) {
-          axe.log(errMsg);
           resolve(null);
         } else {
-          reject(errMsg);
+          reject(err('No response from frame', node));
         }
       }, 0);
     }, 500);
-    axe.utils.respondable(win, "axe.ping", null, undefined, function() {
+    axe.utils.respondable(win, 'axe.ping', null, undefined, function() {
       clearTimeout(timeout);
+      var frameWaitTime = parameters.options && parameters.options.frameWaitTime || 6e4;
       timeout = setTimeout(function() {
-        reject(err("Axe in frame timed out", node));
-      }, 3e4);
-      axe.utils.respondable(win, "axe.start", parameters, true, function(data) {
+        reject(err('Axe in frame timed out', node));
+      }, frameWaitTime);
+      axe.utils.respondable(win, 'axe.start', parameters, undefined, function(data) {
         clearTimeout(timeout);
         if (data instanceof Error === false) {
           resolve(data);
@@ -1476,18 +2758,11 @@
       });
     });
   };
-  /**
- * Sends a message to frames to start analysis and collate results (via `mergeResults`)
- * @private
- * @param  {Context}   context  The resolved Context object
- * @param  {Object}   options   Options object (as passed to `runRules`)
- * @param  {Function} callback  Function to call when results from all frames have returned
- */
   function collectResultsFromFrames(context, options, command, parameter, resolve, reject) {
-    "use strict";
+    'use strict';
     var q = axe.utils.queue();
     var frames = context.frames;
-    function defer(frame) {
+    frames.forEach(function(frame) {
       var params = {
         options: options,
         command: command,
@@ -1512,482 +2787,1330 @@
           res(null);
         }, rej);
       });
-    }
-    for (var i = 0, l = frames.length; i < l; i++) {
-      defer(frames[i]);
-    }
+    });
     q.then(function(data) {
-      resolve(axe.utils.mergeResults(data));
+      resolve(axe.utils.mergeResults(data, options));
     }).catch(reject);
   }
   axe.utils.collectResultsFromFrames = collectResultsFromFrames;
-  /**
- * Sends a message to frames to start analysis and collate results (via `mergeResults`)
- * @private
- * @param  {Context}   context  The resolved Context object
- * @param  {Object}   options   Options object (as passed to `runRules`)
- * @param  {Function} callback  Function to call when results from all frames have returned
- */
-  function runFrameAudit(frame, options, resolve, reject) {
-    "use strict";
-    var node = frame.node;
-    var params = {
-      options: options,
-      command: "rules",
-      parameter: null,
-      context: {
-        initiator: false,
-        page: true,
-        include: frame.include || [],
-        exclude: frame.exclude || []
-      }
-    };
-    axe.utils.sendCommandToFrame(node, params, function(data) {
-      if (data) {
-        return resolve({
-          results: data,
-          frameElement: node,
-          frame: axe.utils.getSelector(node)
-        });
-      }
-      // frame did not return data
-      resolve(null);
-    }, reject);
-  }
-  axe.utils.runFrameAudit = runFrameAudit;
-  "use strict";
-  /**
- * Wrapper for Node#contains; PhantomJS does not support Node#contains and erroneously reports that it does
- * @param  {HTMLElement} node      The candidate container node
- * @param  {HTMLElement} otherNode The node to test is contained by `node`
- * @return {Boolean}           Whether `node` contains `otherNode`
- */
+  'use strict';
   axe.utils.contains = function(node, otherNode) {
-    //jshint bitwise: false
-    "use strict";
-    if (typeof node.contains === "function") {
-      return node.contains(otherNode);
+    'use strict';
+    function containsShadowChild(node, otherNode) {
+      if (node.shadowId === otherNode.shadowId) {
+        return true;
+      }
+      return !!node.children.find(function(child) {
+        return containsShadowChild(child, otherNode);
+      });
     }
-    return !!(node.compareDocumentPosition(otherNode) & 16);
+    if (node.shadowId || otherNode.shadowId) {
+      return containsShadowChild(node, otherNode);
+    }
+    if (typeof node.actualNode.contains === 'function') {
+      return node.actualNode.contains(otherNode.actualNode);
+    }
+    return !!(node.actualNode.compareDocumentPosition(otherNode.actualNode) & 16);
   };
-  "use strict";
-  /*exported DqElement */
+  'use strict';
+  (function(axe) {
+    /*!
+ * The copyright below covers the code within this function block only
+ *
+ * Copyright (c) 2013 Dulin Marat
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+    function CssSelectorParser() {
+      this.pseudos = {};
+      this.attrEqualityMods = {};
+      this.ruleNestingOperators = {};
+      this.substitutesEnabled = false;
+    }
+    CssSelectorParser.prototype.registerSelectorPseudos = function(name) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        name = arguments[j];
+        this.pseudos[name] = 'selector';
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.unregisterSelectorPseudos = function(name) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        name = arguments[j];
+        delete this.pseudos[name];
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.registerNumericPseudos = function(name) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        name = arguments[j];
+        this.pseudos[name] = 'numeric';
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.unregisterNumericPseudos = function(name) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        name = arguments[j];
+        delete this.pseudos[name];
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.registerNestingOperators = function(operator) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        operator = arguments[j];
+        this.ruleNestingOperators[operator] = true;
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.unregisterNestingOperators = function(operator) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        operator = arguments[j];
+        delete this.ruleNestingOperators[operator];
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.registerAttrEqualityMods = function(mod) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        mod = arguments[j];
+        this.attrEqualityMods[mod] = true;
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.unregisterAttrEqualityMods = function(mod) {
+      for (var j = 0, len = arguments.length; j < len; j++) {
+        mod = arguments[j];
+        delete this.attrEqualityMods[mod];
+      }
+      return this;
+    };
+    CssSelectorParser.prototype.enableSubstitutes = function() {
+      this.substitutesEnabled = true;
+      return this;
+    };
+    CssSelectorParser.prototype.disableSubstitutes = function() {
+      this.substitutesEnabled = false;
+      return this;
+    };
+    function isIdentStart(c) {
+      return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c === '-' || c === '_';
+    }
+    function isIdent(c) {
+      return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c === '-' || c === '_';
+    }
+    function isHex(c) {
+      return c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' || c >= '0' && c <= '9';
+    }
+    function isDecimal(c) {
+      return c >= '0' && c <= '9';
+    }
+    function isAttrMatchOperator(chr) {
+      return chr === '=' || chr === '^' || chr === '$' || chr === '*' || chr === '~';
+    }
+    var identSpecialChars = {
+      '!': true,
+      '"': true,
+      '#': true,
+      $: true,
+      '%': true,
+      '&': true,
+      '\'': true,
+      '(': true,
+      ')': true,
+      '*': true,
+      '+': true,
+      ',': true,
+      '.': true,
+      '/': true,
+      ';': true,
+      '<': true,
+      '=': true,
+      '>': true,
+      '?': true,
+      '@': true,
+      '[': true,
+      '\\': true,
+      ']': true,
+      '^': true,
+      '`': true,
+      '{': true,
+      '|': true,
+      '}': true,
+      '~': true
+    };
+    var strReplacementsRev = {
+      '\n': '\\n',
+      '\r': '\\r',
+      '\t': '\\t',
+      '\f': '\\f',
+      '\v': '\\v'
+    };
+    var singleQuoteEscapeChars = {
+      n: '\n',
+      r: '\r',
+      t: '\t',
+      f: '\f',
+      '\\': '\\',
+      '\'': '\''
+    };
+    var doubleQuotesEscapeChars = {
+      n: '\n',
+      r: '\r',
+      t: '\t',
+      f: '\f',
+      '\\': '\\',
+      '"': '"'
+    };
+    function ParseContext(str, pos, pseudos, attrEqualityMods, ruleNestingOperators, substitutesEnabled) {
+      var chr, getIdent, getStr, l, skipWhitespace;
+      l = str.length;
+      chr = null;
+      getStr = function getStr(quote, escapeTable) {
+        var esc, hex, result;
+        result = '';
+        pos++;
+        chr = str.charAt(pos);
+        while (pos < l) {
+          if (chr === quote) {
+            pos++;
+            return result;
+          } else if (chr === '\\') {
+            pos++;
+            chr = str.charAt(pos);
+            if (chr === quote) {
+              result += quote;
+            } else if (esc = escapeTable[chr]) {
+              result += esc;
+            } else if (isHex(chr)) {
+              hex = chr;
+              pos++;
+              chr = str.charAt(pos);
+              while (isHex(chr)) {
+                hex += chr;
+                pos++;
+                chr = str.charAt(pos);
+              }
+              if (chr === ' ') {
+                pos++;
+                chr = str.charAt(pos);
+              }
+              result += String.fromCharCode(parseInt(hex, 16));
+              continue;
+            } else {
+              result += chr;
+            }
+          } else {
+            result += chr;
+          }
+          pos++;
+          chr = str.charAt(pos);
+        }
+        return result;
+      };
+      getIdent = function getIdent() {
+        var result = '';
+        chr = str.charAt(pos);
+        while (pos < l) {
+          if (isIdent(chr)) {
+            result += chr;
+          } else if (chr === '\\') {
+            pos++;
+            if (pos >= l) {
+              throw Error('Expected symbol but end of file reached.');
+            }
+            chr = str.charAt(pos);
+            if (identSpecialChars[chr]) {
+              result += chr;
+            } else if (isHex(chr)) {
+              var hex = chr;
+              pos++;
+              chr = str.charAt(pos);
+              while (isHex(chr)) {
+                hex += chr;
+                pos++;
+                chr = str.charAt(pos);
+              }
+              if (chr === ' ') {
+                pos++;
+                chr = str.charAt(pos);
+              }
+              result += String.fromCharCode(parseInt(hex, 16));
+              continue;
+            } else {
+              result += chr;
+            }
+          } else {
+            return result;
+          }
+          pos++;
+          chr = str.charAt(pos);
+        }
+        return result;
+      };
+      skipWhitespace = function skipWhitespace() {
+        chr = str.charAt(pos);
+        var result = false;
+        while (chr === ' ' || chr === '\t' || chr === '\n' || chr === '\r' || chr === '\f') {
+          result = true;
+          pos++;
+          chr = str.charAt(pos);
+        }
+        return result;
+      };
+      this.parse = function() {
+        var res = this.parseSelector();
+        if (pos < l) {
+          throw Error('Rule expected but "' + str.charAt(pos) + '" found.');
+        }
+        return res;
+      };
+      this.parseSelector = function() {
+        var res;
+        var selector = res = this.parseSingleSelector();
+        chr = str.charAt(pos);
+        while (chr === ',') {
+          pos++;
+          skipWhitespace();
+          if (res.type !== 'selectors') {
+            res = {
+              type: 'selectors',
+              selectors: [ selector ]
+            };
+          }
+          selector = this.parseSingleSelector();
+          if (!selector) {
+            throw Error('Rule expected after ",".');
+          }
+          res.selectors.push(selector);
+        }
+        return res;
+      };
+      this.parseSingleSelector = function() {
+        skipWhitespace();
+        var selector = {
+          type: 'ruleSet'
+        };
+        var rule = this.parseRule();
+        if (!rule) {
+          return null;
+        }
+        var currentRule = selector;
+        while (rule) {
+          rule.type = 'rule';
+          currentRule.rule = rule;
+          currentRule = rule;
+          skipWhitespace();
+          chr = str.charAt(pos);
+          if (pos >= l || chr === ',' || chr === ')') {
+            break;
+          }
+          if (ruleNestingOperators[chr]) {
+            var op = chr;
+            pos++;
+            skipWhitespace();
+            rule = this.parseRule();
+            if (!rule) {
+              throw Error('Rule expected after "' + op + '".');
+            }
+            rule.nestingOperator = op;
+          } else {
+            rule = this.parseRule();
+            if (rule) {
+              rule.nestingOperator = null;
+            }
+          }
+        }
+        return selector;
+      };
+      this.parseRule = function() {
+        var rule = null;
+        while (pos < l) {
+          chr = str.charAt(pos);
+          if (chr === '*') {
+            pos++;
+            (rule = rule || {}).tagName = '*';
+          } else if (isIdentStart(chr) || chr === '\\') {
+            (rule = rule || {}).tagName = getIdent();
+          } else if (chr === '.') {
+            pos++;
+            rule = rule || {};
+            (rule.classNames = rule.classNames || []).push(getIdent());
+          } else if (chr === '#') {
+            pos++;
+            (rule = rule || {}).id = getIdent();
+          } else if (chr === '[') {
+            pos++;
+            skipWhitespace();
+            var attr = {
+              name: getIdent()
+            };
+            skipWhitespace();
+            if (chr === ']') {
+              pos++;
+            } else {
+              var operator = '';
+              if (attrEqualityMods[chr]) {
+                operator = chr;
+                pos++;
+                chr = str.charAt(pos);
+              }
+              if (pos >= l) {
+                throw Error('Expected "=" but end of file reached.');
+              }
+              if (chr !== '=') {
+                throw Error('Expected "=" but "' + chr + '" found.');
+              }
+              attr.operator = operator + '=';
+              pos++;
+              skipWhitespace();
+              var attrValue = '';
+              attr.valueType = 'string';
+              if (chr === '"') {
+                attrValue = getStr('"', doubleQuotesEscapeChars);
+              } else if (chr === '\'') {
+                attrValue = getStr('\'', singleQuoteEscapeChars);
+              } else if (substitutesEnabled && chr === '$') {
+                pos++;
+                attrValue = getIdent();
+                attr.valueType = 'substitute';
+              } else {
+                while (pos < l) {
+                  if (chr === ']') {
+                    break;
+                  }
+                  attrValue += chr;
+                  pos++;
+                  chr = str.charAt(pos);
+                }
+                attrValue = attrValue.trim();
+              }
+              skipWhitespace();
+              if (pos >= l) {
+                throw Error('Expected "]" but end of file reached.');
+              }
+              if (chr !== ']') {
+                throw Error('Expected "]" but "' + chr + '" found.');
+              }
+              pos++;
+              attr.value = attrValue;
+            }
+            rule = rule || {};
+            (rule.attrs = rule.attrs || []).push(attr);
+          } else if (chr === ':') {
+            pos++;
+            var pseudoName = getIdent();
+            var pseudo = {
+              name: pseudoName
+            };
+            if (chr === '(') {
+              pos++;
+              var value = '';
+              skipWhitespace();
+              if (pseudos[pseudoName] === 'selector') {
+                pseudo.valueType = 'selector';
+                value = this.parseSelector();
+              } else {
+                pseudo.valueType = pseudos[pseudoName] || 'string';
+                if (chr === '"') {
+                  value = getStr('"', doubleQuotesEscapeChars);
+                } else if (chr === '\'') {
+                  value = getStr('\'', singleQuoteEscapeChars);
+                } else if (substitutesEnabled && chr === '$') {
+                  pos++;
+                  value = getIdent();
+                  pseudo.valueType = 'substitute';
+                } else {
+                  while (pos < l) {
+                    if (chr === ')') {
+                      break;
+                    }
+                    value += chr;
+                    pos++;
+                    chr = str.charAt(pos);
+                  }
+                  value = value.trim();
+                }
+                skipWhitespace();
+              }
+              if (pos >= l) {
+                throw Error('Expected ")" but end of file reached.');
+              }
+              if (chr !== ')') {
+                throw Error('Expected ")" but "' + chr + '" found.');
+              }
+              pos++;
+              pseudo.value = value;
+            }
+            rule = rule || {};
+            (rule.pseudos = rule.pseudos || []).push(pseudo);
+          } else {
+            break;
+          }
+        }
+        return rule;
+      };
+      return this;
+    }
+    CssSelectorParser.prototype.parse = function(str) {
+      var context = new ParseContext(str, 0, this.pseudos, this.attrEqualityMods, this.ruleNestingOperators, this.substitutesEnabled);
+      return context.parse();
+    };
+    CssSelectorParser.prototype.escapeIdentifier = function(s) {
+      var result = '';
+      var i = 0;
+      var len = s.length;
+      while (i < len) {
+        var chr = s.charAt(i);
+        if (identSpecialChars[chr]) {
+          result += '\\' + chr;
+        } else {
+          if (!(chr === '_' || chr === '-' || chr >= 'A' && chr <= 'Z' || chr >= 'a' && chr <= 'z' || i !== 0 && chr >= '0' && chr <= '9')) {
+            var charCode = chr.charCodeAt(0);
+            if ((charCode & 63488) === 55296) {
+              var extraCharCode = s.charCodeAt(i++);
+              if ((charCode & 64512) !== 55296 || (extraCharCode & 64512) !== 56320) {
+                throw Error('UCS-2(decode): illegal sequence');
+              }
+              charCode = ((charCode & 1023) << 10) + (extraCharCode & 1023) + 65536;
+            }
+            result += '\\' + charCode.toString(16) + ' ';
+          } else {
+            result += chr;
+          }
+        }
+        i++;
+      }
+      return result;
+    };
+    CssSelectorParser.prototype.escapeStr = function(s) {
+      var result = '';
+      var i = 0;
+      var len = s.length;
+      var chr, replacement;
+      while (i < len) {
+        chr = s.charAt(i);
+        if (chr === '"') {
+          chr = '\\"';
+        } else if (chr === '\\') {
+          chr = '\\\\';
+        } else if (replacement = strReplacementsRev[chr]) {
+          chr = replacement;
+        }
+        result += chr;
+        i++;
+      }
+      return '"' + result + '"';
+    };
+    CssSelectorParser.prototype.render = function(path) {
+      return this._renderEntity(path).trim();
+    };
+    CssSelectorParser.prototype._renderEntity = function(entity) {
+      var currentEntity, parts, res;
+      res = '';
+      switch (entity.type) {
+       case 'ruleSet':
+        currentEntity = entity.rule;
+        parts = [];
+        while (currentEntity) {
+          if (currentEntity.nestingOperator) {
+            parts.push(currentEntity.nestingOperator);
+          }
+          parts.push(this._renderEntity(currentEntity));
+          currentEntity = currentEntity.rule;
+        }
+        res = parts.join(' ');
+        break;
+
+       case 'selectors':
+        res = entity.selectors.map(this._renderEntity, this).join(', ');
+        break;
+
+       case 'rule':
+        if (entity.tagName) {
+          if (entity.tagName === '*') {
+            res = '*';
+          } else {
+            res = this.escapeIdentifier(entity.tagName);
+          }
+        }
+        if (entity.id) {
+          res += '#' + this.escapeIdentifier(entity.id);
+        }
+        if (entity.classNames) {
+          res += entity.classNames.map(function(cn) {
+            return '.' + this.escapeIdentifier(cn);
+          }, this).join('');
+        }
+        if (entity.attrs) {
+          res += entity.attrs.map(function(attr) {
+            if (attr.operator) {
+              if (attr.valueType === 'substitute') {
+                return '[' + this.escapeIdentifier(attr.name) + attr.operator + '$' + attr.value + ']';
+              } else {
+                return '[' + this.escapeIdentifier(attr.name) + attr.operator + this.escapeStr(attr.value) + ']';
+              }
+            } else {
+              return '[' + this.escapeIdentifier(attr.name) + ']';
+            }
+          }, this).join('');
+        }
+        if (entity.pseudos) {
+          res += entity.pseudos.map(function(pseudo) {
+            if (pseudo.valueType) {
+              if (pseudo.valueType === 'selector') {
+                return ':' + this.escapeIdentifier(pseudo.name) + '(' + this._renderEntity(pseudo.value) + ')';
+              } else if (pseudo.valueType === 'substitute') {
+                return ':' + this.escapeIdentifier(pseudo.name) + '($' + pseudo.value + ')';
+              } else if (pseudo.valueType === 'numeric') {
+                return ':' + this.escapeIdentifier(pseudo.name) + '(' + pseudo.value + ')';
+              } else {
+                return ':' + this.escapeIdentifier(pseudo.name) + '(' + this.escapeIdentifier(pseudo.value) + ')';
+              }
+            } else {
+              return ':' + this.escapeIdentifier(pseudo.name);
+            }
+          }, this).join('');
+        }
+        break;
+
+       default:
+        throw Error('Unknown entity type: "' + entity.type(+'".'));
+      }
+      return res;
+    };
+    var parser = new CssSelectorParser();
+    parser.registerNestingOperators('>');
+    axe.utils.cssParser = parser;
+  })(axe);
+  'use strict';
   function truncate(str, maxLength) {
-    "use strict";
     maxLength = maxLength || 300;
     if (str.length > maxLength) {
-      var index = str.indexOf(">");
+      var index = str.indexOf('>');
       str = str.substring(0, index + 1);
     }
     return str;
   }
   function getSource(element) {
-    "use strict";
     var source = element.outerHTML;
-    if (!source && typeof XMLSerializer === "function") {
+    if (!source && typeof XMLSerializer === 'function') {
       source = new XMLSerializer().serializeToString(element);
     }
-    return truncate(source || "");
+    return truncate(source || '');
   }
-  /**
- * "Serialized" `HTMLElement`. It will calculate the CSS selector,
- * grab the source (outerHTML) and offer an array for storing frame paths
- * @param {HTMLElement} element The element to serialize
- * @param {Object} spec Properties to use in place of the element when instantiated on Elements from other frames
- */
-  function DqElement(element, spec) {
-    "use strict";
-    spec = spec || {};
-    /**
-  * A unique CSS selector for the element
-  * @type {String}
-  */
-    this.selector = spec.selector || [ axe.utils.getSelector(element) ];
-    /**
-  * The generated HTML source code of the element
-  * @type {String}
-  */
-    this.source = spec.source !== undefined ? spec.source : getSource(element);
-    /**
-  * The element which this object is based off or the containing frame, used for sorting.
-  * Excluded in toJSON method.
-  * @type {HTMLElement}
-  */
-    this.element = element;
+  function DqElement(element, options, spec) {
+    this._fromFrame = !!spec;
+    this.spec = spec || {};
+    if (options && options.absolutePaths) {
+      this._options = {
+        toRoot: true
+      };
+    }
+    this.source = this.spec.source !== undefined ? this.spec.source : getSource(element);
+    this._element = element;
   }
-  DqElement.prototype.toJSON = function() {
-    "use strict";
-    return {
-      selector: this.selector,
-      source: this.source
-    };
+  DqElement.prototype = {
+    get selector() {
+      return this.spec.selector || [ axe.utils.getSelector(this.element, this._options) ];
+    },
+    get xpath() {
+      return this.spec.xpath || [ axe.utils.getXpath(this.element) ];
+    },
+    get element() {
+      return this._element;
+    },
+    get fromFrame() {
+      return this._fromFrame;
+    },
+    toJSON: function toJSON() {
+      'use strict';
+      return {
+        selector: this.selector,
+        source: this.source,
+        xpath: this.xpath
+      };
+    }
+  };
+  DqElement.fromFrame = function(node, options, frame) {
+    node.selector.unshift(frame.selector);
+    node.xpath.unshift(frame.xpath);
+    return new axe.utils.DqElement(frame.element, options, node);
   };
   axe.utils.DqElement = DqElement;
-  "use strict";
-  /**
- * Polyfill for Element#matches
- * @param {HTMLElement} node The element to test
- * @param {String} selector The selector to test element against
- * @return {Boolean}
- */
+  'use strict';
   axe.utils.matchesSelector = function() {
-    "use strict";
+    'use strict';
     var method;
-    function getMethod(win) {
-      var index, candidate, elProto = win.Element.prototype, candidates = [ "matches", "matchesSelector", "mozMatchesSelector", "webkitMatchesSelector", "msMatchesSelector" ], length = candidates.length;
+    function getMethod(node) {
+      var index, candidate, candidates = [ 'matches', 'matchesSelector', 'mozMatchesSelector', 'webkitMatchesSelector', 'msMatchesSelector' ], length = candidates.length;
       for (index = 0; index < length; index++) {
         candidate = candidates[index];
-        if (elProto[candidate]) {
+        if (node[candidate]) {
           return candidate;
         }
       }
     }
     return function(node, selector) {
       if (!method || !node[method]) {
-        method = getMethod(node.ownerDocument.defaultView);
+        method = getMethod(node);
       }
       return node[method](selector);
     };
   }();
-  "use strict";
-  /**
- * Escapes a property value of a CSS selector
- * @see https://github.com/mathiasbynens/CSS.escape/
- * @see http://dev.w3.org/csswg/cssom/#serialize-an-identifier
- * @param  {String} value The piece of the selector to escape
- * @return {String}        The escaped selector
- */
+  'use strict';
   axe.utils.escapeSelector = function(value) {
-    "use strict";
-    /*jshint bitwise: true, eqeqeq: false, maxcomplexity: 14, maxstatements: 23, onevar: false, -W041: false */
+    'use strict';
     var string = String(value);
     var length = string.length;
     var index = -1;
     var codeUnit;
-    var result = "";
+    var result = '';
     var firstCodeUnit = string.charCodeAt(0);
     while (++index < length) {
       codeUnit = string.charCodeAt(index);
-      // Note: there’s no need to special-case astral symbols, surrogate
-      // pairs, or lone surrogates.
-      // If the character is NULL (U+0000), then throw an
-      // `InvalidCharacterError` exception and terminate these steps.
       if (codeUnit == 0) {
-        throw new Error("INVALID_CHARACTER_ERR");
-      }
-      if (// If the character is in the range [\1-\1F] (U+0001 to U+001F) or
-      // [\7F-\9F] (U+007F to U+009F), […]
-      codeUnit >= 1 && codeUnit <= 31 || codeUnit >= 127 && codeUnit <= 159 || // If the character is the first character and is in the range [0-9]
-      // (U+0030 to U+0039), […]
-      index == 0 && codeUnit >= 48 && codeUnit <= 57 || // If the character is the second character and is in the range [0-9]
-      // (U+0030 to U+0039) and the first character is a `-` (U+002D), […]
-      index == 1 && codeUnit >= 48 && codeUnit <= 57 && firstCodeUnit == 45) {
-        // http://dev.w3.org/csswg/cssom/#escape-a-character-as-code-point
-        result += "\\" + codeUnit.toString(16) + " ";
+        result += '�';
         continue;
       }
-      // If the character is the second character and is `-` (U+002D) and the
-      // first character is `-` as well, […]
-      if (index == 1 && codeUnit == 45 && firstCodeUnit == 45) {
-        // http://dev.w3.org/csswg/cssom/#escape-a-character
-        result += "\\" + string.charAt(index);
+      if (codeUnit >= 1 && codeUnit <= 31 || codeUnit == 127 || index == 0 && codeUnit >= 48 && codeUnit <= 57 || index == 1 && codeUnit >= 48 && codeUnit <= 57 && firstCodeUnit == 45) {
+        result += '\\' + codeUnit.toString(16) + ' ';
         continue;
       }
-      // If the character is not handled by one of the above rules and is
-      // greater than or equal to U+0080, is `-` (U+002D) or `_` (U+005F), or
-      // is in one of the ranges [0-9] (U+0030 to U+0039), [A-Z] (U+0041 to
-      // U+005A), or [a-z] (U+0061 to U+007A), […]
+      if (index == 0 && length == 1 && codeUnit == 45) {
+        result += '\\' + string.charAt(index);
+        continue;
+      }
       if (codeUnit >= 128 || codeUnit == 45 || codeUnit == 95 || codeUnit >= 48 && codeUnit <= 57 || codeUnit >= 65 && codeUnit <= 90 || codeUnit >= 97 && codeUnit <= 122) {
-        // the character itself
         result += string.charAt(index);
         continue;
       }
-      // Otherwise, the escaped character.
-      // http://dev.w3.org/csswg/cssom/#escape-a-character
-      result += "\\" + string.charAt(index);
+      result += '\\' + string.charAt(index);
     }
     return result;
   };
-  "use strict";
-  /**
- * Extends metadata onto result object and executes any functions.  Will not deeply extend.
- * @param  {Object} to   The target of the extend
- * @param  {Object} from Metadata to extend
- * @param  {Array}  blacklist property names to exclude from resulting object
- */
-  axe.utils.extendBlacklist = function(to, from, blacklist) {
-    "use strict";
-    blacklist = blacklist || [];
-    for (var i in from) {
-      if (from.hasOwnProperty(i) && blacklist.indexOf(i) === -1) {
-        to[i] = from[i];
+  'use strict';
+  axe.utils.extendMetaData = function(to, from) {
+    Object.assign(to, from);
+    Object.keys(from).filter(function(prop) {
+      return typeof from[prop] === 'function';
+    }).forEach(function(prop) {
+      to[prop] = null;
+      try {
+        to[prop] = from[prop](to);
+      } catch (e) {}
+    });
+  };
+  'use strict';
+  axe.utils.finalizeRuleResult = function(ruleResult) {
+    Object.assign(ruleResult, axe.utils.aggregateNodeResults(ruleResult.nodes));
+    delete ruleResult.nodes;
+    return ruleResult;
+  };
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
+  axe.utils.findBy = function(array, key, value) {
+    if (Array.isArray(array)) {
+      return array.find(function(obj) {
+        return (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) === 'object' && obj[key] === value;
+      });
+    }
+  };
+  'use strict';
+  var axe = axe || {
+    utils: {}
+  };
+  function virtualDOMfromNode(node, shadowId) {
+    return {
+      shadowId: shadowId,
+      children: [],
+      actualNode: node
+    };
+  }
+  function getSlotChildren(node) {
+    var retVal = [];
+    node = node.firstChild;
+    while (node) {
+      retVal.push(node);
+      node = node.nextSibling;
+    }
+    return retVal;
+  }
+  axe.utils.getFlattenedTree = function(node, shadowId) {
+    var retVal, realArray, nodeName;
+    function reduceShadowDOM(res, child) {
+      var replacements = axe.utils.getFlattenedTree(child, shadowId);
+      if (replacements) {
+        res = res.concat(replacements);
+      }
+      return res;
+    }
+    if (node.documentElement) {
+      node = node.documentElement;
+    }
+    nodeName = node.nodeName.toLowerCase();
+    if (axe.utils.isShadowRoot(node)) {
+      retVal = virtualDOMfromNode(node, shadowId);
+      shadowId = 'a' + Math.random().toString().substring(2);
+      realArray = Array.from(node.shadowRoot.childNodes);
+      retVal.children = realArray.reduce(reduceShadowDOM, []);
+      return [ retVal ];
+    } else {
+      if (nodeName === 'content') {
+        realArray = Array.from(node.getDistributedNodes());
+        return realArray.reduce(reduceShadowDOM, []);
+      } else if (nodeName === 'slot' && typeof node.assignedNodes === 'function') {
+        realArray = Array.from(node.assignedNodes());
+        if (!realArray.length) {
+          realArray = getSlotChildren(node);
+        }
+        var styl = window.getComputedStyle(node);
+        if (false && styl.display !== 'contents') {
+          retVal = virtualDOMfromNode(node, shadowId);
+          retVal.children = realArray.reduce(reduceShadowDOM, []);
+          return [ retVal ];
+        } else {
+          return realArray.reduce(reduceShadowDOM, []);
+        }
+      } else {
+        if (node.nodeType === 1) {
+          retVal = virtualDOMfromNode(node, shadowId);
+          realArray = Array.from(node.childNodes);
+          retVal.children = realArray.reduce(reduceShadowDOM, []);
+          return [ retVal ];
+        } else if (node.nodeType === 3) {
+          return [ virtualDOMfromNode(node) ];
+        }
+        return undefined;
       }
     }
-    return to;
   };
-  "use strict";
-  /**
- * Extends metadata onto result object and executes any functions
- * @param  {Object} to   The target of the extend
- * @param  {Object} from Metadata to extend
- */
-  axe.utils.extendMetaData = function(to, from) {
-    "use strict";
-    for (var i in from) {
-      if (from.hasOwnProperty(i)) {
-        if (typeof from[i] === "function") {
-          try {
-            to[i] = from[i](to);
-          } catch (e) {
-            to[i] = null;
-          }
-        } else {
-          to[i] = from[i];
+  axe.utils.getNodeFromTree = function(vNode, node) {
+    var found;
+    if (vNode.actualNode === node) {
+      return vNode;
+    }
+    vNode.children.forEach(function(candidate) {
+      var retVal;
+      if (candidate.actualNode === node) {
+        found = candidate;
+      } else {
+        retVal = axe.utils.getNodeFromTree(candidate, node);
+        if (retVal) {
+          found = retVal;
         }
       }
-    }
-  };
-  "use strict";
-  function raiseMetadata(obj, checks) {
-    "use strict";
-    Object.keys(axe.constants.raisedMetadata).forEach(function(key) {
-      var collection = axe.constants.raisedMetadata[key];
-      var highestIndex = checks.reduce(function(prevIndex, current) {
-        var currentIndex = collection.indexOf(current[key]);
-        return currentIndex > prevIndex ? currentIndex : prevIndex;
-      }, -1);
-      if (collection[highestIndex]) {
-        obj[key] = collection[highestIndex];
-      }
     });
-  }
-  /**
- * Calculates the result (PASS or FAIL) of a Node (node-level) or an entire Rule (page-level)
- * @private
- * @param  {Array} checks  Array of checks to calculate the result of
- * @return {String}        Either "PASS" or "FAIL"
- */
-  function calculateCheckResult(failingChecks) {
-    "use strict";
-    var isFailing = failingChecks.any.length || failingChecks.all.length || failingChecks.none.length;
-    return isFailing ? axe.constants.result.FAIL : axe.constants.result.PASS;
-  }
-  /**
- * Iterates and calculates the results of each Node and then rolls the result up to the parent RuleResult
- * @private
- * @param  {RuleResult} ruleResult The RuleResult to test
- */
-  function calculateRuleResult(ruleResult) {
-    "use strict";
-    function checkMap(check) {
-      return axe.utils.extendBlacklist({}, check, [ "result" ]);
-    }
-    var newRuleResult = axe.utils.extendBlacklist({
-      violations: [],
-      passes: []
-    }, ruleResult, [ "nodes" ]);
-    ruleResult.nodes.forEach(function(detail) {
-      var failingChecks = axe.utils.getFailingChecks(detail);
-      var result = calculateCheckResult(failingChecks);
-      if (result === axe.constants.result.FAIL) {
-        raiseMetadata(detail, axe.utils.getAllChecks(failingChecks));
-        detail.any = failingChecks.any.map(checkMap);
-        detail.all = failingChecks.all.map(checkMap);
-        detail.none = failingChecks.none.map(checkMap);
-        newRuleResult.violations.push(detail);
-        return;
-      }
-      detail.any = detail.any.filter(function(check) {
-        return check.result;
-      }).map(checkMap);
-      // no need to filter `all` or `none` since we know they all pass
-      detail.all = detail.all.map(checkMap);
-      detail.none = detail.none.map(checkMap);
-      newRuleResult.passes.push(detail);
-    });
-    raiseMetadata(newRuleResult, newRuleResult.violations);
-    newRuleResult.result = newRuleResult.violations.length ? axe.constants.result.FAIL : newRuleResult.passes.length ? axe.constants.result.PASS : newRuleResult.result;
-    return newRuleResult;
-  }
-  axe.utils.getFailingChecks = function(detail) {
-    "use strict";
-    var any = detail.any.filter(function(check) {
-      return !check.result;
-    });
-    return {
-      all: detail.all.filter(function(check) {
-        return !check.result;
-      }),
-      any: any.length === detail.any.length ? any : [],
-      none: detail.none.filter(function(check) {
-        return !!check.result;
-      })
-    };
+    return found;
   };
-  /**
- * Calculates the result of a Rule based on its types and the result of its child Checks
- * @param  {RuleResult} ruleResult The RuleResult to calculate the result of
- */
-  axe.utils.finalizeRuleResult = function(ruleResult) {
-    "use strict";
-    axe.utils.publishMetaData(ruleResult);
-    return calculateRuleResult(ruleResult);
-  };
-  "use strict";
-  /**
- * Iterates an array of objects looking for a property with a specific value
- * @param  {Array} array  The array of objects to iterate
- * @param  {String} key   The property name to test against
- * @param  {Mixed} value  The value to find
- * @return {Object}       The first matching object or `undefined` if no match
- */
-  axe.utils.findBy = function(array, key, value) {
-    "use strict";
-    array = array || [];
-    var index, length;
-    for (index = 0, length = array.length; index < length; index++) {
-      if (array[index][key] === value) {
-        return array[index];
-      }
-    }
-  };
-  "use strict";
-  /**
- * Gets all Checks (or CheckResults) for a given Rule or RuleResult
- * @param {RuleResult|Rule} rule
- */
+  'use strict';
   axe.utils.getAllChecks = function getAllChecks(object) {
-    "use strict";
+    'use strict';
     var result = [];
     return result.concat(object.any || []).concat(object.all || []).concat(object.none || []);
   };
-  "use strict";
-  /**
- * Determines which CheckOption to use, either defined on the rule options, global check options or the check itself
- * @param  {Check} check    The Check object
- * @param  {String} ruleID  The ID of the rule
- * @param  {Object} options Options object as passed to main API
- * @return {Object}         The resolved object with `options` and `enabled` keys
- */
+  'use strict';
   axe.utils.getCheckOption = function(check, ruleID, options) {
-    "use strict";
     var ruleCheckOption = ((options.rules && options.rules[ruleID] || {}).checks || {})[check.id];
     var checkOption = (options.checks || {})[check.id];
     var enabled = check.enabled;
     var opts = check.options;
     if (checkOption) {
-      if (checkOption.hasOwnProperty("enabled")) {
+      if (checkOption.hasOwnProperty('enabled')) {
         enabled = checkOption.enabled;
       }
-      if (checkOption.hasOwnProperty("options")) {
+      if (checkOption.hasOwnProperty('options')) {
         opts = checkOption.options;
       }
     }
     if (ruleCheckOption) {
-      if (ruleCheckOption.hasOwnProperty("enabled")) {
+      if (ruleCheckOption.hasOwnProperty('enabled')) {
         enabled = ruleCheckOption.enabled;
       }
-      if (ruleCheckOption.hasOwnProperty("options")) {
+      if (ruleCheckOption.hasOwnProperty('options')) {
         opts = ruleCheckOption.options;
       }
     }
     return {
       enabled: enabled,
-      options: opts
+      options: opts,
+      absolutePaths: options.absolutePaths
     };
   };
-  "use strict";
-  /**
- * Gets the index of element siblings that have the same nodeName
- * Intended for use with the CSS psuedo-class `:nth-of-type()` and xpath node index
- * @param  {HTMLElement} element The element to test
- * @return {Number}         The number of preceeding siblings with the same nodeName
- * @private
- */
-  function nthOfType(element) {
-    "use strict";
-    var index = 1, type = element.nodeName.toUpperCase();
-    /*jshint boss:true */
-    element = element.previousElementSibling;
-    while (element) {
-      if (element.nodeName.toUpperCase() === type) {
-        index++;
+  'use strict';
+  var _slicedToArray = function() {
+    function sliceIterator(arr, i) {
+      var _arr = [];
+      var _n = true;
+      var _d = false;
+      var _e = undefined;
+      try {
+        for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
+          _arr.push(_s.value);
+          if (i && _arr.length === i) {
+            break;
+          }
+        }
+      } catch (err) {
+        _d = true;
+        _e = err;
+      } finally {
+        try {
+          if (!_n && _i['return']) {
+            _i['return']();
+          }
+        } finally {
+          if (_d) {
+            throw _e;
+          }
+        }
       }
-      element = element.previousElementSibling;
+      return _arr;
     }
-    return index;
+    return function(arr, i) {
+      if (Array.isArray(arr)) {
+        return arr;
+      } else if (Symbol.iterator in Object(arr)) {
+        return sliceIterator(arr, i);
+      } else {
+        throw new TypeError('Invalid attempt to destructure non-iterable instance');
+      }
+    };
+  }();
+  function isMostlyNumbers() {
+    var str = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
+    return str.length !== 0 && (str.match(/[0-9]/g) || '').length >= str.length / 2;
   }
-  /**
- * Checks if an element has siblings with the same selector
- * @param  {HTMLElement} node     The element to test
- * @param  {String} selector The CSS selector to test
- * @return {Boolean}          Whether any of element's siblings matches selector
- * @private
- */
-  function siblingsHaveSameSelector(node, selector) {
-    "use strict";
-    var index, sibling, siblings = node.parentNode.children;
-    if (!siblings) {
-      return false;
-    }
-    var length = siblings.length;
-    for (index = 0; index < length; index++) {
-      sibling = siblings[index];
-      if (sibling !== node && axe.utils.matchesSelector(sibling, selector)) {
-        return true;
-      }
-    }
-    return false;
+  function splitString(str, splitIndex) {
+    return [ str.substring(0, splitIndex), str.substring(splitIndex) ];
   }
-  /**
- * Gets a unique CSS selector
- * @param  {HTMLElement} node The element to get the selector for
- * @return {String}      Unique CSS selector for the node
- */
-  axe.utils.getSelector = function getSelector(node) {
-    //jshint maxstatements: 21
-    "use strict";
-    function escape(p) {
-      return axe.utils.escapeSelector(p);
+  function trimRight(str) {
+    return str.replace(/\s+$/, '');
+  }
+  function uriParser(url) {
+    var original = url;
+    var protocol = '', domain = '', port = '', path = '', query = '', hash = '';
+    if (url.includes('#')) {
+      var _splitString = splitString(url, url.indexOf('#'));
+      var _splitString2 = _slicedToArray(_splitString, 2);
+      url = _splitString2[0];
+      hash = _splitString2[1];
     }
-    var parts = [], part;
-    while (node.parentNode) {
-      part = "";
-      if (node.id && document.querySelectorAll("#" + axe.utils.escapeSelector(node.id)).length === 1) {
-        parts.unshift("#" + axe.utils.escapeSelector(node.id));
-        break;
-      }
-      if (node.className && typeof node.className === "string") {
-        part = "." + node.className.trim().split(/\s+/).map(escape).join(".");
-        if (part === "." || siblingsHaveSameSelector(node, part)) {
-          part = "";
-        }
-      }
-      if (!part) {
-        part = axe.utils.escapeSelector(node.nodeName).toLowerCase();
-        if (part === "html" || part === "body") {
-          parts.unshift(part);
-          break;
-        }
-        if (siblingsHaveSameSelector(node, part)) {
-          part += ":nth-of-type(" + nthOfType(node) + ")";
-        }
-      }
-      parts.unshift(part);
-      node = node.parentNode;
+    if (url.includes('?')) {
+      var _splitString3 = splitString(url, url.indexOf('?'));
+      var _splitString4 = _slicedToArray(_splitString3, 2);
+      url = _splitString4[0];
+      query = _splitString4[1];
     }
-    return parts.join(" > ");
+    if (url.includes('://')) {
+      var _url$split = url.split('://');
+      var _url$split2 = _slicedToArray(_url$split, 2);
+      protocol = _url$split2[0];
+      url = _url$split2[1];
+      var _splitString5 = splitString(url, url.indexOf('/'));
+      var _splitString6 = _slicedToArray(_splitString5, 2);
+      domain = _splitString6[0];
+      url = _splitString6[1];
+    } else if (url.substr(0, 2) === '//') {
+      url = url.substr(2);
+      var _splitString7 = splitString(url, url.indexOf('/'));
+      var _splitString8 = _slicedToArray(_splitString7, 2);
+      domain = _splitString8[0];
+      url = _splitString8[1];
+    }
+    if (domain.substr(0, 4) === 'www.') {
+      domain = domain.substr(4);
+    }
+    if (domain && domain.includes(':')) {
+      var _splitString9 = splitString(domain, domain.indexOf(':'));
+      var _splitString10 = _slicedToArray(_splitString9, 2);
+      domain = _splitString10[0];
+      port = _splitString10[1];
+    }
+    path = url;
+    return {
+      original: original,
+      protocol: protocol,
+      domain: domain,
+      port: port,
+      path: path,
+      query: query,
+      hash: hash
+    };
+  }
+  axe.utils.getFriendlyUriEnd = function getFriendlyUriEnd() {
+    var uri = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
+    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    if (uri.length <= 1 || uri.substr(0, 5) === 'data:' || uri.substr(0, 11) === 'javascript:' || uri.includes('?')) {
+      return;
+    }
+    var currentDomain = options.currentDomain, _options$maxLength = options.maxLength, maxLength = _options$maxLength === undefined ? 25 : _options$maxLength;
+    var _uriParser = uriParser(uri), path = _uriParser.path, domain = _uriParser.domain, hash = _uriParser.hash;
+    var pathEnd = path.substr(path.substr(0, path.length - 2).lastIndexOf('/') + 1);
+    if (hash) {
+      if (pathEnd && (pathEnd + hash).length <= maxLength) {
+        return trimRight(pathEnd + hash);
+      } else if (pathEnd.length < 2 && hash.length > 2 && hash.length <= maxLength) {
+        return trimRight(hash);
+      } else {
+        return;
+      }
+    } else if (domain && domain.length < maxLength && path.length <= 1) {
+      return trimRight(domain + path);
+    }
+    if (path === '/' + pathEnd && domain && currentDomain && domain !== currentDomain && (domain + path).length <= maxLength) {
+      return trimRight(domain + path);
+    }
+    var lastDotIndex = pathEnd.lastIndexOf('.');
+    if ((lastDotIndex === -1 || lastDotIndex > 1) && (lastDotIndex !== -1 || pathEnd.length > 2) && pathEnd.length <= maxLength && !pathEnd.match(/index(\.[a-zA-Z]{2-4})?/) && !isMostlyNumbers(pathEnd)) {
+      return trimRight(pathEnd);
+    }
   };
-  "use strict";
-  /*exported injectStyle */
-  /*global axe*/
+  'use strict';
+  axe.utils.getRootNode = function getRootNode(node) {
+    var doc = node.getRootNode && node.getRootNode() || document;
+    if (doc === node) {
+      doc = document;
+    }
+    return doc;
+  };
+  'use strict';
+  var escapeSelector = axe.utils.escapeSelector;
+  var isXHTML = void 0;
+  var ignoredAttributes = [ 'class', 'style', 'id', 'selected', 'checked', 'disabled', 'tabindex', 'aria-checked', 'aria-selected', 'aria-invalid', 'aria-activedescendant', 'aria-busy', 'aria-disabled', 'aria-expanded', 'aria-grabbed', 'aria-pressed', 'aria-valuenow' ];
+  var MAXATTRIBUTELENGTH = 31;
+  function getAttributeNameValue(node, at) {
+    var name = at.name;
+    var atnv = void 0;
+    if (name.indexOf('href') !== -1 || name.indexOf('src') !== -1) {
+      var friendly = axe.utils.getFriendlyUriEnd(node.getAttribute(name));
+      if (friendly) {
+        var value = encodeURI(friendly);
+        if (value) {
+          atnv = escapeSelector(at.name) + '$="' + value + '"';
+        } else {
+          return;
+        }
+      } else {
+        atnv = escapeSelector(at.name) + '="' + node.getAttribute(name) + '"';
+      }
+    } else {
+      atnv = escapeSelector(name) + '="' + escapeSelector(at.value) + '"';
+    }
+    return atnv;
+  }
+  function countSort(a, b) {
+    return a.count < b.count ? -1 : a.count === b.count ? 0 : 1;
+  }
+  function filterAttributes(at) {
+    return !ignoredAttributes.includes(at.name) && at.name.indexOf(':') === -1 && (!at.value || at.value.length < MAXATTRIBUTELENGTH);
+  }
+  axe.utils.getSelectorData = function(domTree) {
+    var data = {
+      classes: {},
+      tags: {},
+      attributes: {}
+    };
+    domTree = Array.isArray(domTree) ? domTree : [ domTree ];
+    var currentLevel = domTree.slice();
+    var stack = [];
+    var _loop = function _loop() {
+      var current = currentLevel.pop();
+      var node = current.actualNode;
+      if (!!node.querySelectorAll) {
+        var tag = node.nodeName;
+        if (data.tags[tag]) {
+          data.tags[tag]++;
+        } else {
+          data.tags[tag] = 1;
+        }
+        if (node.classList) {
+          Array.from(node.classList).forEach(function(cl) {
+            var ind = escapeSelector(cl);
+            if (data.classes[ind]) {
+              data.classes[ind]++;
+            } else {
+              data.classes[ind] = 1;
+            }
+          });
+        }
+        if (node.attributes) {
+          Array.from(node.attributes).filter(filterAttributes).forEach(function(at) {
+            var atnv = getAttributeNameValue(node, at);
+            if (atnv) {
+              if (data.attributes[atnv]) {
+                data.attributes[atnv]++;
+              } else {
+                data.attributes[atnv] = 1;
+              }
+            }
+          });
+        }
+      }
+      if (current.children.length) {
+        stack.push(currentLevel);
+        currentLevel = current.children.slice();
+      }
+      while (!currentLevel.length && stack.length) {
+        currentLevel = stack.pop();
+      }
+    };
+    while (currentLevel.length) {
+      _loop();
+    }
+    return data;
+  };
+  function uncommonClasses(node, selectorData) {
+    var retVal = [];
+    var classData = selectorData.classes;
+    var tagData = selectorData.tags;
+    if (node.classList) {
+      Array.from(node.classList).forEach(function(cl) {
+        var ind = escapeSelector(cl);
+        if (classData[ind] < tagData[node.nodeName]) {
+          retVal.push({
+            name: ind,
+            count: classData[ind],
+            species: 'class'
+          });
+        }
+      });
+    }
+    return retVal.sort(countSort);
+  }
+  function getNthChildString(elm, selector) {
+    var siblings = elm.parentNode && Array.from(elm.parentNode.children || '') || [];
+    var hasMatchingSiblings = siblings.find(function(sibling) {
+      return sibling !== elm && axe.utils.matchesSelector(sibling, selector);
+    });
+    if (hasMatchingSiblings) {
+      var nthChild = 1 + siblings.indexOf(elm);
+      return ':nth-child(' + nthChild + ')';
+    } else {
+      return '';
+    }
+  }
+  function getElmId(elm) {
+    if (!elm.getAttribute('id')) {
+      return;
+    }
+    var doc = elm.getRootNode && elm.getRootNode() || document;
+    var id = '#' + escapeSelector(elm.getAttribute('id') || '');
+    if (!id.match(/player_uid_/) && doc.querySelectorAll(id).length === 1) {
+      return id;
+    }
+  }
+  function getBaseSelector(elm) {
+    if (typeof isXHTML === 'undefined') {
+      isXHTML = axe.utils.isXHTML(document);
+    }
+    return escapeSelector(isXHTML ? elm.localName : elm.nodeName.toLowerCase());
+  }
+  function uncommonAttributes(node, selectorData) {
+    var retVal = [];
+    var attData = selectorData.attributes;
+    var tagData = selectorData.tags;
+    if (node.attributes) {
+      Array.from(node.attributes).filter(filterAttributes).forEach(function(at) {
+        var atnv = getAttributeNameValue(node, at);
+        if (atnv && attData[atnv] < tagData[node.nodeName]) {
+          retVal.push({
+            name: atnv,
+            count: attData[atnv],
+            species: 'attribute'
+          });
+        }
+      });
+    }
+    return retVal.sort(countSort);
+  }
+  function getThreeLeastCommonFeatures(elm, selectorData) {
+    var selector = '';
+    var features = void 0;
+    var clss = uncommonClasses(elm, selectorData);
+    var atts = uncommonAttributes(elm, selectorData);
+    if (clss.length && clss[0].count === 1) {
+      features = [ clss[0] ];
+    } else if (atts.length && atts[0].count === 1) {
+      features = [ atts[0] ];
+      selector = getBaseSelector(elm);
+    } else {
+      features = clss.concat(atts);
+      features.sort(countSort);
+      features = features.slice(0, 3);
+      if (!features.some(function(feat) {
+        return feat.species === 'class';
+      })) {
+        selector = getBaseSelector(elm);
+      } else {
+        features.sort(function(a, b) {
+          return a.species !== b.species && a.species === 'class' ? -1 : a.species === b.species ? 0 : 1;
+        });
+      }
+    }
+    return selector += features.reduce(function(val, feat) {
+      switch (feat.species) {
+       case 'class':
+        return val + '.' + feat.name;
+
+       case 'attribute':
+        return val + '[' + feat.name + ']';
+      }
+      return val;
+    }, '');
+  }
+  function generateSelector(elm, options, doc) {
+    if (!axe._selectorData) {
+      throw new Error('Expect axe._selectorData to be set up');
+    }
+    var _options$toRoot = options.toRoot, toRoot = _options$toRoot === undefined ? false : _options$toRoot;
+    var selector = void 0;
+    var similar = void 0;
+    do {
+      var features = getElmId(elm);
+      if (!features) {
+        features = getThreeLeastCommonFeatures(elm, axe._selectorData);
+        features += getNthChildString(elm, features);
+      }
+      if (selector) {
+        selector = features + ' > ' + selector;
+      } else {
+        selector = features;
+      }
+      if (!similar) {
+        similar = Array.from(doc.querySelectorAll(selector));
+      } else {
+        similar = similar.filter(function(item) {
+          return axe.utils.matchesSelector(item, selector);
+        });
+      }
+      elm = elm.parentElement;
+    } while ((similar.length > 1 || toRoot) && elm && elm.nodeType !== 11);
+    if (similar.length === 1) {
+      return selector;
+    } else if (selector.indexOf(' > ') !== -1) {
+      return ':root' + selector.substring(selector.indexOf(' > '));
+    }
+    return ':root';
+  }
+  axe.utils.getSelector = function createUniqueSelector(elm) {
+    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    if (!elm) {
+      return '';
+    }
+    var doc = elm.getRootNode && elm.getRootNode() || document;
+    if (doc.nodeType === 11) {
+      var stack = [];
+      while (doc.nodeType === 11) {
+        stack.push({
+          elm: elm,
+          doc: doc
+        });
+        elm = doc.host;
+        doc = elm.getRootNode();
+      }
+      stack.push({
+        elm: elm,
+        doc: doc
+      });
+      return stack.reverse().map(function(comp) {
+        return generateSelector(comp.elm, options, comp.doc);
+      });
+    } else {
+      return generateSelector(elm, options, doc);
+    }
+  };
+  'use strict';
+  function getXPathArray(node, path) {
+    var sibling, count;
+    if (!node) {
+      return [];
+    }
+    if (!path && node.nodeType === 9) {
+      path = [ {
+        str: 'html'
+      } ];
+      return path;
+    }
+    path = path || [];
+    if (node.parentNode && node.parentNode !== node) {
+      path = getXPathArray(node.parentNode, path);
+    }
+    if (node.previousSibling) {
+      count = 1;
+      sibling = node.previousSibling;
+      do {
+        if (sibling.nodeType === 1 && sibling.nodeName === node.nodeName) {
+          count++;
+        }
+        sibling = sibling.previousSibling;
+      } while (sibling);
+      if (count === 1) {
+        count = null;
+      }
+    } else if (node.nextSibling) {
+      sibling = node.nextSibling;
+      do {
+        if (sibling.nodeType === 1 && sibling.nodeName === node.nodeName) {
+          count = 1;
+          sibling = null;
+        } else {
+          count = null;
+          sibling = sibling.previousSibling;
+        }
+      } while (sibling);
+    }
+    if (node.nodeType === 1) {
+      var element = {};
+      element.str = node.nodeName.toLowerCase();
+      var id = node.getAttribute && axe.utils.escapeSelector(node.getAttribute('id'));
+      if (id && node.ownerDocument.querySelectorAll('#' + id).length === 1) {
+        element.id = node.getAttribute('id');
+      }
+      if (count > 1) {
+        element.count = count;
+      }
+      path.push(element);
+    }
+    return path;
+  }
+  function xpathToString(xpathArray) {
+    return xpathArray.reduce(function(str, elm) {
+      if (elm.id) {
+        return '/' + elm.str + '[@id=\'' + elm.id + '\']';
+      } else {
+        return str + ('/' + elm.str) + (elm.count > 0 ? '[' + elm.count + ']' : '');
+      }
+    }, '');
+  }
+  axe.utils.getXpath = function getXpath(node) {
+    var xpathArray = getXPathArray(node);
+    return xpathToString(xpathArray);
+  };
+  'use strict';
   var styleSheet;
   function injectStyle(style) {
-    "use strict";
+    'use strict';
     if (styleSheet && styleSheet.parentNode) {
-      // append the style to the existing sheet
       if (styleSheet.styleSheet === undefined) {
-        // Not old IE
         styleSheet.appendChild(document.createTextNode(style));
       } else {
         styleSheet.styleSheet.cssText += style;
@@ -1997,11 +4120,10 @@
     if (!style) {
       return;
     }
-    var head = document.head || document.getElementsByTagName("head")[0];
-    styleSheet = document.createElement("style");
-    styleSheet.type = "text/css";
+    var head = document.head || document.getElementsByTagName('head')[0];
+    styleSheet = document.createElement('style');
+    styleSheet.type = 'text/css';
     if (styleSheet.styleSheet === undefined) {
-      // Not old IE
       styleSheet.appendChild(document.createTextNode(style));
     } else {
       styleSheet.styleSheet.cssText = style;
@@ -2010,63 +4132,73 @@
     return styleSheet;
   }
   axe.utils.injectStyle = injectStyle;
-  "use strict";
-  /**
- * Determine whether an element is visible
- *
- * @param {HTMLElement} el The HTMLElement
- * @return {Boolean} The element's visibilty status
- */
+  'use strict';
   axe.utils.isHidden = function isHidden(el, recursed) {
-    "use strict";
-    // 9 === Node.DOCUMENT
+    'use strict';
+    var parent;
     if (el.nodeType === 9) {
       return false;
     }
+    if (el.nodeType === 11) {
+      el = el.host;
+    }
     var style = window.getComputedStyle(el, null);
-    if (!style || !el.parentNode || style.getPropertyValue("display") === "none" || !recursed && // visibility is only accurate on the first element
-    style.getPropertyValue("visibility") === "hidden" || el.getAttribute("aria-hidden") === "true") {
+    if (!style || !el.parentNode || style.getPropertyValue('display') === 'none' || !recursed && style.getPropertyValue('visibility') === 'hidden' || el.getAttribute('aria-hidden') === 'true') {
       return true;
     }
-    return axe.utils.isHidden(el.parentNode, true);
+    parent = el.assignedSlot ? el.assignedSlot : el.parentNode;
+    return axe.utils.isHidden(parent, true);
   };
-  "use strict";
-  /**
-* Adds the owning frame's CSS selector onto each instance of DqElement
-* @private
-* @param  {Array} resultSet `nodes` array on a `RuleResult`
-* @param  {HTMLElement} frameElement  The frame element
-* @param  {String} frameSelector     Unique CSS selector for the frame
-*/
-  function pushFrame(resultSet, frameElement, frameSelector) {
-    "use strict";
+  'use strict';
+  var possibleShadowRoots = [ 'article', 'aside', 'blockquote', 'body', 'div', 'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'main', 'nav', 'p', 'section', 'span' ];
+  axe.utils.isShadowRoot = function isShadowRoot(node) {
+    var nodeName = node.nodeName.toLowerCase();
+    if (node.shadowRoot) {
+      if (/^[a-z][a-z0-9_.-]*-[a-z0-9_.-]*$/.test(nodeName) || possibleShadowRoots.includes(nodeName)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  'use strict';
+  axe.utils.isXHTML = function(doc) {
+    'use strict';
+    if (!doc.createElement) {
+      return false;
+    }
+    return doc.createElement('A').localName === 'A';
+  };
+  'use strict';
+  function pushFrame(resultSet, options, frameElement, frameSelector) {
+    'use strict';
+    var frameXpath = axe.utils.getXpath(frameElement);
+    var frameSpec = {
+      element: frameElement,
+      selector: frameSelector,
+      xpath: frameXpath
+    };
     resultSet.forEach(function(res) {
-      res.node.selector.unshift(frameSelector);
-      res.node = new axe.utils.DqElement(frameElement, res.node);
+      res.node = axe.utils.DqElement.fromFrame(res.node, options, frameSpec);
       var checks = axe.utils.getAllChecks(res);
       if (checks.length) {
         checks.forEach(function(check) {
-          check.relatedNodes.forEach(function(node) {
-            node.selector.unshift(frameSelector);
-            node = new axe.utils.DqElement(frameElement, node);
+          check.relatedNodes = check.relatedNodes.map(function(node) {
+            return axe.utils.DqElement.fromFrame(node, options, frameSpec);
           });
         });
       }
     });
   }
-  /**
-* Adds `to` to `from` and then re-sorts by DOM order
-* @private
-* @param  {Array} target  `nodes` array on a `RuleResult`
-* @param  {Array} to   `nodes` array on a `RuleResult`
-* @return {Array}      The merged and sorted result
-*/
   function spliceNodes(target, to) {
-    "use strict";
+    'use strict';
     var firstFromFrame = to[0].node, sorterResult, t;
     for (var i = 0, l = target.length; i < l; i++) {
       t = target[i].node;
-      sorterResult = axe.utils.nodeSorter(t.element, firstFromFrame.element);
+      sorterResult = axe.utils.nodeSorter({
+        actualNode: t.element
+      }, {
+        actualNode: firstFromFrame.element
+      });
       if (sorterResult > 0 || sorterResult === 0 && firstFromFrame.selector.length < t.selector.length) {
         target.splice.apply(target, [ i, 0 ].concat(to));
         return;
@@ -2075,7 +4207,7 @@
     target.push.apply(target, to);
   }
   function normalizeResult(result) {
-    "use strict";
+    'use strict';
     if (!result || !result.results) {
       return null;
     }
@@ -2087,14 +4219,8 @@
     }
     return result.results;
   }
-  /**
-* Merges one or more RuleResults (possibly from different frames) into one RuleResult
-* @private
-* @param  {Array} frameResults  Array of objects including the RuleResults as `results` and frame as `frame`
-* @return {Array}              The merged RuleResults; should only have one result per rule
-*/
-  axe.utils.mergeResults = function mergeResults(frameResults) {
-    "use strict";
+  axe.utils.mergeResults = function mergeResults(frameResults, options) {
+    'use strict';
     var result = [];
     frameResults.forEach(function(frameResult) {
       var results = normalizeResult(frameResult);
@@ -2103,9 +4229,9 @@
       }
       results.forEach(function(ruleResult) {
         if (ruleResult.nodes && frameResult.frame) {
-          pushFrame(ruleResult.nodes, frameResult.frameElement, frameResult.frame);
+          pushFrame(ruleResult.nodes, options, frameResult.frameElement, frameResult.frame);
         }
-        var res = axe.utils.findBy(result, "id", ruleResult.id);
+        var res = axe.utils.findBy(result, 'id', ruleResult.id);
         if (!res) {
           result.push(ruleResult);
         } else {
@@ -2117,47 +4243,550 @@
     });
     return result;
   };
-  "use strict";
-  /**
- * Array#sort callback to sort nodes by DOM order
- * @private
- * @param  {Node} a
- * @param  {Node} b
- * @return {Integer}   @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/Sort
- */
+  'use strict';
   axe.utils.nodeSorter = function nodeSorter(a, b) {
-    /*jshint bitwise: false */
-    "use strict";
-    if (a === b) {
+    'use strict';
+    if (a.actualNode === b.actualNode) {
       return 0;
     }
-    if (a.compareDocumentPosition(b) & 4) {
-      // a before b
+    if (a.actualNode.compareDocumentPosition(b.actualNode) & 4) {
       return -1;
     }
     return 1;
   };
-  "use strict";
+  'use strict';
+  utils.performanceTimer = function() {
+    'use strict';
+    function now() {
+      if (window.performance && window.performance) {
+        return window.performance.now();
+      }
+    }
+    var originalTime = null;
+    var lastRecordedTime = now();
+    return {
+      start: function start() {
+        this.mark('mark_axe_start');
+      },
+      end: function end() {
+        this.mark('mark_axe_end');
+        this.measure('axe', 'mark_axe_start', 'mark_axe_end');
+        this.logMeasures('axe');
+      },
+      auditStart: function auditStart() {
+        this.mark('mark_audit_start');
+      },
+      auditEnd: function auditEnd() {
+        this.mark('mark_audit_end');
+        this.measure('audit_start_to_end', 'mark_audit_start', 'mark_audit_end');
+        this.logMeasures();
+      },
+      mark: function mark(markName) {
+        if (window.performance && window.performance.mark !== undefined) {
+          window.performance.mark(markName);
+        }
+      },
+      measure: function measure(measureName, startMark, endMark) {
+        if (window.performance && window.performance.measure !== undefined) {
+          window.performance.measure(measureName, startMark, endMark);
+        }
+      },
+      logMeasures: function logMeasures(measureName) {
+        function log(req) {
+          axe.log('Measure ' + req.name + ' took ' + req.duration + 'ms');
+        }
+        if (window.performance && window.performance.getEntriesByType !== undefined) {
+          var measures = window.performance.getEntriesByType('measure');
+          for (var i = 0; i < measures.length; ++i) {
+            var req = measures[i];
+            if (req.name === measureName) {
+              log(req);
+              return;
+            }
+            log(req);
+          }
+        }
+      },
+      timeElapsed: function timeElapsed() {
+        return now() - lastRecordedTime;
+      },
+      reset: function reset() {
+        if (!originalTime) {
+          originalTime = now();
+        }
+        lastRecordedTime = now();
+      }
+    };
+  }();
+  'use strict';
+  if (typeof Object.assign !== 'function') {
+    (function() {
+      Object.assign = function(target) {
+        'use strict';
+        if (target === undefined || target === null) {
+          throw new TypeError('Cannot convert undefined or null to object');
+        }
+        var output = Object(target);
+        for (var index = 1; index < arguments.length; index++) {
+          var source = arguments[index];
+          if (source !== undefined && source !== null) {
+            for (var nextKey in source) {
+              if (source.hasOwnProperty(nextKey)) {
+                output[nextKey] = source[nextKey];
+              }
+            }
+          }
+        }
+        return output;
+      };
+    })();
+  }
+  if (!Array.prototype.find) {
+    Object.defineProperty(Array.prototype, 'find', {
+      value: function value(predicate) {
+        if (this === null) {
+          throw new TypeError('Array.prototype.find called on null or undefined');
+        }
+        if (typeof predicate !== 'function') {
+          throw new TypeError('predicate must be a function');
+        }
+        var list = Object(this);
+        var length = list.length >>> 0;
+        var thisArg = arguments[1];
+        var value;
+        for (var i = 0; i < length; i++) {
+          value = list[i];
+          if (predicate.call(thisArg, value, i, list)) {
+            return value;
+          }
+        }
+        return undefined;
+      }
+    });
+  }
+  axe.utils.pollyfillElementsFromPoint = function() {
+    if (document.elementsFromPoint) {
+      return document.elementsFromPoint;
+    }
+    if (document.msElementsFromPoint) {
+      return document.msElementsFromPoint;
+    }
+    var usePointer = function() {
+      var element = document.createElement('x');
+      element.style.cssText = 'pointer-events:auto';
+      return element.style.pointerEvents === 'auto';
+    }();
+    var cssProp = usePointer ? 'pointer-events' : 'visibility';
+    var cssDisableVal = usePointer ? 'none' : 'hidden';
+    var style = document.createElement('style');
+    style.innerHTML = usePointer ? '* { pointer-events: all }' : '* { visibility: visible }';
+    return function(x, y) {
+      var current, i, d;
+      var elements = [];
+      var previousPointerEvents = [];
+      document.head.appendChild(style);
+      while ((current = document.elementFromPoint(x, y)) && elements.indexOf(current) === -1) {
+        elements.push(current);
+        previousPointerEvents.push({
+          value: current.style.getPropertyValue(cssProp),
+          priority: current.style.getPropertyPriority(cssProp)
+        });
+        current.style.setProperty(cssProp, cssDisableVal, 'important');
+      }
+      if (elements.indexOf(document.documentElement) < elements.length - 1) {
+        elements.splice(elements.indexOf(document.documentElement), 1);
+        elements.push(document.documentElement);
+      }
+      for (i = previousPointerEvents.length; !!(d = previousPointerEvents[--i]); ) {
+        elements[i].style.setProperty(cssProp, d.value ? d.value : '', d.priority);
+      }
+      document.head.removeChild(style);
+      return elements;
+    };
+  };
+  if (typeof window.addEventListener === 'function') {
+    document.elementsFromPoint = axe.utils.pollyfillElementsFromPoint();
+  }
+  if (!Array.prototype.includes) {
+    Object.defineProperty(Array.prototype, 'includes', {
+      value: function value(searchElement) {
+        'use strict';
+        var O = Object(this);
+        var len = parseInt(O.length, 10) || 0;
+        if (len === 0) {
+          return false;
+        }
+        var n = parseInt(arguments[1], 10) || 0;
+        var k;
+        if (n >= 0) {
+          k = n;
+        } else {
+          k = len + n;
+          if (k < 0) {
+            k = 0;
+          }
+        }
+        var currentElement;
+        while (k < len) {
+          currentElement = O[k];
+          if (searchElement === currentElement || searchElement !== searchElement && currentElement !== currentElement) {
+            return true;
+          }
+          k++;
+        }
+        return false;
+      }
+    });
+  }
+  if (!Array.prototype.some) {
+    Object.defineProperty(Array.prototype, 'some', {
+      value: function value(fun) {
+        'use strict';
+        if (this == null) {
+          throw new TypeError('Array.prototype.some called on null or undefined');
+        }
+        if (typeof fun !== 'function') {
+          throw new TypeError();
+        }
+        var t = Object(this);
+        var len = t.length >>> 0;
+        var thisArg = arguments.length >= 2 ? arguments[1] : void 0;
+        for (var i = 0; i < len; i++) {
+          if (i in t && fun.call(thisArg, t[i], i, t)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    });
+  }
+  if (!Array.from) {
+    Object.defineProperty(Array, 'from', {
+      value: function() {
+        var toStr = Object.prototype.toString;
+        var isCallable = function isCallable(fn) {
+          return typeof fn === 'function' || toStr.call(fn) === '[object Function]';
+        };
+        var toInteger = function toInteger(value) {
+          var number = Number(value);
+          if (isNaN(number)) {
+            return 0;
+          }
+          if (number === 0 || !isFinite(number)) {
+            return number;
+          }
+          return (number > 0 ? 1 : -1) * Math.floor(Math.abs(number));
+        };
+        var maxSafeInteger = Math.pow(2, 53) - 1;
+        var toLength = function toLength(value) {
+          var len = toInteger(value);
+          return Math.min(Math.max(len, 0), maxSafeInteger);
+        };
+        return function from(arrayLike) {
+          var C = this;
+          var items = Object(arrayLike);
+          if (arrayLike == null) {
+            throw new TypeError('Array.from requires an array-like object - not null or undefined');
+          }
+          var mapFn = arguments.length > 1 ? arguments[1] : void undefined;
+          var T;
+          if (typeof mapFn !== 'undefined') {
+            if (!isCallable(mapFn)) {
+              throw new TypeError('Array.from: when provided, the second argument must be a function');
+            }
+            if (arguments.length > 2) {
+              T = arguments[2];
+            }
+          }
+          var len = toLength(items.length);
+          var A = isCallable(C) ? Object(new C(len)) : new Array(len);
+          var k = 0;
+          var kValue;
+          while (k < len) {
+            kValue = items[k];
+            if (mapFn) {
+              A[k] = typeof T === 'undefined' ? mapFn(kValue, k) : mapFn.call(T, kValue, k);
+            } else {
+              A[k] = kValue;
+            }
+            k += 1;
+          }
+          A.length = len;
+          return A;
+        };
+      }()
+    });
+  }
+  if (!String.prototype.includes) {
+    String.prototype.includes = function(search, start) {
+      if (typeof start !== 'number') {
+        start = 0;
+      }
+      if (start + search.length > this.length) {
+        return false;
+      } else {
+        return this.indexOf(search, start) !== -1;
+      }
+    };
+  }
+  'use strict';
+  function loadCssom(_ref, timeout, convertTextToStylesheetFn) {
+    var root = _ref.root, shadowId = _ref.shadowId;
+    function getExternalStylesheet(_ref2) {
+      var resolve = _ref2.resolve, reject = _ref2.reject, url = _ref2.url;
+      axe.imports.axios({
+        method: 'get',
+        url: url,
+        timeout: timeout
+      }).then(function(_ref3) {
+        var data = _ref3.data;
+        var sheet = convertTextToStylesheetFn({
+          data: data,
+          isExternal: true,
+          shadowId: shadowId
+        });
+        resolve(sheet);
+      }).catch(reject);
+    }
+    var q = axe.utils.queue();
+    Array.from(root.styleSheets).forEach(function(sheet) {
+      if (sheet.disabled) {
+        return;
+      }
+      try {
+        var cssRules = sheet.cssRules;
+        var rules = Array.from(cssRules);
+        var importRules = rules.filter(function(r) {
+          return r.href;
+        });
+        if (!importRules.length) {
+          q.defer(function(resolve) {
+            return resolve({
+              sheet: sheet,
+              isExternal: false,
+              shadowId: shadowId
+            });
+          });
+          return;
+        }
+        importRules.forEach(function(rule) {
+          q.defer(function(resolve, reject) {
+            getExternalStylesheet({
+              resolve: resolve,
+              reject: reject,
+              url: rule.href
+            });
+          });
+        });
+        var inlineRules = rules.filter(function(rule) {
+          return !rule.href;
+        });
+        var inlineRulesCssText = inlineRules.reduce(function(out, rule) {
+          out.push(rule.cssText);
+          return out;
+        }, []).join();
+        q.defer(function(resolve) {
+          return resolve(convertTextToStylesheetFn({
+            data: inlineRulesCssText,
+            shadowId: shadowId,
+            isExternal: false
+          }));
+        });
+      } catch (e) {
+        if (!sheet.href) {
+          return;
+        }
+        q.defer(function(resolve, reject) {
+          getExternalStylesheet({
+            resolve: resolve,
+            reject: reject,
+            url: sheet.href
+          });
+        });
+      }
+    }, []);
+    return q;
+  }
+  function getAllRootsInTree(tree) {
+    var ids = [];
+    var documents = axe.utils.querySelectorAllFilter(tree, '*', function(node) {
+      if (ids.includes(node.shadowId)) {
+        return false;
+      }
+      ids.push(node.shadowId);
+      return true;
+    }).map(function(node) {
+      return {
+        shadowId: node.shadowId,
+        root: axe.utils.getRootNode(node.actualNode)
+      };
+    });
+    return documents;
+  }
+  axe.utils.preloadCssom = function preloadCssom(_ref4) {
+    var timeout = _ref4.timeout, _ref4$treeRoot = _ref4.treeRoot, treeRoot = _ref4$treeRoot === undefined ? axe._tree[0] : _ref4$treeRoot;
+    var roots = axe.utils.uniqueArray(getAllRootsInTree(treeRoot), []);
+    var q = axe.utils.queue();
+    if (!roots.length) {
+      return q;
+    }
+    var dynamicDoc = document.implementation.createHTMLDocument();
+    function convertTextToStylesheet(_ref5) {
+      var data = _ref5.data, isExternal = _ref5.isExternal, shadowId = _ref5.shadowId;
+      var style = dynamicDoc.createElement('style');
+      style.type = 'text/css';
+      style.appendChild(dynamicDoc.createTextNode(data));
+      dynamicDoc.head.appendChild(style);
+      return {
+        sheet: style.sheet,
+        isExternal: isExternal,
+        shadowId: shadowId
+      };
+    }
+    q.defer(function(resolve, reject) {
+      roots.reduce(function(out, root) {
+        out.defer(function(resolve, reject) {
+          loadCssom(root, timeout, convertTextToStylesheet).then(resolve).catch(reject);
+        });
+        return out;
+      }, axe.utils.queue()).then(function(assets) {
+        resolve(assets.reduce(function(out, cssomSheets) {
+          return out.concat(cssomSheets);
+        }, []));
+      }).catch(reject);
+    });
+    return q;
+  };
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
+  function _defineProperty(obj, key, value) {
+    if (key in obj) {
+      Object.defineProperty(obj, key, {
+        value: value,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    } else {
+      obj[key] = value;
+    }
+    return obj;
+  }
+  function isValidPreloadObject(preload) {
+    return (typeof preload === 'undefined' ? 'undefined' : _typeof(preload)) === 'object' && Array.isArray(preload.assets);
+  }
+  axe.utils.shouldPreload = function shouldPreload(options) {
+    if (!options || !options.preload) {
+      return false;
+    }
+    if (typeof options.preload === 'boolean') {
+      return options.preload;
+    }
+    return isValidPreloadObject(options.preload);
+  };
+  axe.utils.getPreloadConfig = function getPreloadConfig(options) {
+    var config = {
+      assets: axe.constants.preloadAssets,
+      timeout: axe.constants.preloadAssetsTimeout
+    };
+    if (typeof options.preload === 'boolean') {
+      return config;
+    }
+    var areRequestedAssetsValid = options.preload.assets.every(function(a) {
+      return axe.constants.preloadAssets.includes(a.toLowerCase());
+    });
+    if (!areRequestedAssetsValid) {
+      throw new Error('Requested assets, not supported. ' + ('Supported assets are: ' + axe.constants.preloadAssets.join(', ') + '.'));
+    }
+    config.assets = axe.utils.uniqueArray(options.preload.assets.map(function(a) {
+      return a.toLowerCase();
+    }), []);
+    if (options.preload.timeout && typeof options.preload.timeout === 'number' && !Number.isNaN(options.preload.timeout)) {
+      config.timeout = options.preload.timeout;
+    }
+    return config;
+  };
+  axe.utils.preload = function preload(options) {
+    var preloadFunctionsMap = {
+      cssom: axe.utils.preloadCssom
+    };
+    var q = axe.utils.queue();
+    var shouldPreload = axe.utils.shouldPreload(options);
+    if (!shouldPreload) {
+      return q;
+    }
+    var preloadConfig = axe.utils.getPreloadConfig(options);
+    preloadConfig.assets.forEach(function(asset) {
+      q.defer(function(resolve, reject) {
+        preloadFunctionsMap[asset](preloadConfig).then(function(results) {
+          resolve(_defineProperty({}, asset, results[0]));
+        }).catch(reject);
+      });
+    });
+    return q;
+  };
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
+  function getIncompleteReason(checkData, messages) {
+    function getDefaultMsg(messages) {
+      if (messages.incomplete && messages.incomplete.default) {
+        return messages.incomplete.default;
+      } else {
+        return helpers.incompleteFallbackMessage();
+      }
+    }
+    if (checkData && checkData.missingData) {
+      try {
+        var msg = messages.incomplete[checkData.missingData[0].reason];
+        if (!msg) {
+          throw new Error();
+        }
+        return msg;
+      } catch (e) {
+        if (typeof checkData.missingData === 'string') {
+          return messages.incomplete[checkData.missingData];
+        } else {
+          return getDefaultMsg(messages);
+        }
+      }
+    } else {
+      return getDefaultMsg(messages);
+    }
+  }
   function extender(checksData, shouldBeTrue) {
-    "use strict";
+    'use strict';
     return function(check) {
       var sourceData = checksData[check.id] || {};
       var messages = sourceData.messages || {};
-      var data = axe.utils.extendBlacklist({}, sourceData, [ "messages" ]);
-      data.message = check.result === shouldBeTrue ? messages.pass : messages.fail;
+      var data = Object.assign({}, sourceData);
+      delete data.messages;
+      if (check.result === undefined) {
+        if (_typeof(messages.incomplete) === 'object') {
+          data.message = function() {
+            return getIncompleteReason(check.data, messages);
+          };
+        } else {
+          data.message = messages.incomplete;
+        }
+      } else {
+        data.message = check.result === shouldBeTrue ? messages.pass : messages.fail;
+      }
       axe.utils.extendMetaData(check, data);
     };
   }
-  /**
- * Publish metadata from axe._audit.data
- * @param  {RuleResult} result Result to publish to
- * @private
- */
   axe.utils.publishMetaData = function(ruleResult) {
-    "use strict";
+    'use strict';
     var checksData = axe._audit.data.checks || {};
     var rulesData = axe._audit.data.rules || {};
-    var rule = axe.utils.findBy(axe._audit.rules, "id", ruleResult.id) || {};
+    var rule = axe.utils.findBy(axe._audit.rules, 'id', ruleResult.id) || {};
     ruleResult.tags = axe.utils.clone(rule.tags || []);
     var shouldBeTrue = extender(checksData, true);
     var shouldBeFalse = extender(checksData, false);
@@ -2168,39 +4797,254 @@
     });
     axe.utils.extendMetaData(ruleResult, axe.utils.clone(rulesData[ruleResult.id] || {}));
   };
-  "use strict";
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
-    return typeof obj;
-  } : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+  'use strict';
+  var convertExpressions = function convertExpressions() {};
+  var matchExpressions = function matchExpressions() {};
+  function matchesTag(node, exp) {
+    return node.nodeType === 1 && (exp.tag === '*' || node.nodeName.toLowerCase() === exp.tag);
+  }
+  function matchesClasses(node, exp) {
+    return !exp.classes || exp.classes.reduce(function(result, cl) {
+      return result && node.className && node.className.match(cl.regexp);
+    }, true);
+  }
+  function matchesAttributes(node, exp) {
+    return !exp.attributes || exp.attributes.reduce(function(result, att) {
+      var nodeAtt = node.getAttribute(att.key);
+      return result && nodeAtt !== null && (!att.value || att.test(nodeAtt));
+    }, true);
+  }
+  function matchesId(node, exp) {
+    return !exp.id || node.id === exp.id;
+  }
+  function matchesPseudos(target, exp) {
+    if (!exp.pseudos || exp.pseudos.reduce(function(result, pseudo) {
+      if (pseudo.name === 'not') {
+        return result && !matchExpressions([ target ], pseudo.expressions, false).length;
+      }
+      throw new Error('the pseudo selector ' + pseudo.name + ' has not yet been implemented');
+    }, true)) {
+      return true;
+    }
+    return false;
+  }
+  var escapeRegExp = function() {
+    /*! Credit: XRegExp 0.6.1 (c) 2007-2008 Steven Levithan <http://stevenlevithan.com/regex/xregexp/> MIT License */
+    var from = /(?=[\-\[\]{}()*+?.\\\^$|,#\s])/g;
+    var to = '\\';
+    return function(string) {
+      return string.replace(from, to);
+    };
+  }();
+  var reUnescape = /\\/g;
+  function convertAttributes(atts) {
+    /*! Credit Mootools Copyright Mootools, MIT License */
+    if (!atts) {
+      return;
+    }
+    return atts.map(function(att) {
+      var attributeKey = att.name.replace(reUnescape, '');
+      var attributeValue = (att.value || '').replace(reUnescape, '');
+      var test, regexp;
+      switch (att.operator) {
+       case '^=':
+        regexp = new RegExp('^' + escapeRegExp(attributeValue));
+        break;
+
+       case '$=':
+        regexp = new RegExp(escapeRegExp(attributeValue) + '$');
+        break;
+
+       case '~=':
+        regexp = new RegExp('(^|\\s)' + escapeRegExp(attributeValue) + '(\\s|$)');
+        break;
+
+       case '|=':
+        regexp = new RegExp('^' + escapeRegExp(attributeValue) + '(-|$)');
+        break;
+
+       case '=':
+        test = function test(value) {
+          return attributeValue === value;
+        };
+        break;
+
+       case '*=':
+        test = function test(value) {
+          return value && value.includes(attributeValue);
+        };
+        break;
+
+       case '!=':
+        test = function test(value) {
+          return attributeValue !== value;
+        };
+        break;
+
+       default:
+        test = function test(value) {
+          return !!value;
+        };
+      }
+      if (attributeValue === '' && /^[*$^]=$/.test(att.operator)) {
+        test = function test() {
+          return false;
+        };
+      }
+      if (!test) {
+        test = function test(value) {
+          return value && regexp.test(value);
+        };
+      }
+      return {
+        key: attributeKey,
+        value: attributeValue,
+        test: test
+      };
+    });
+  }
+  function convertClasses(classes) {
+    if (!classes) {
+      return;
+    }
+    return classes.map(function(className) {
+      className = className.replace(reUnescape, '');
+      return {
+        value: className,
+        regexp: new RegExp('(^|\\s)' + escapeRegExp(className) + '(\\s|$)')
+      };
+    });
+  }
+  function convertPseudos(pseudos) {
+    if (!pseudos) {
+      return;
+    }
+    return pseudos.map(function(p) {
+      var expressions;
+      if (p.name === 'not') {
+        expressions = axe.utils.cssParser.parse(p.value);
+        expressions = expressions.selectors ? expressions.selectors : [ expressions ];
+        expressions = convertExpressions(expressions);
+      }
+      return {
+        name: p.name,
+        expressions: expressions,
+        value: p.value
+      };
+    });
+  }
+  convertExpressions = function convertExpressions(expressions) {
+    return expressions.map(function(exp) {
+      var newExp = [];
+      var rule = exp.rule;
+      while (rule) {
+        newExp.push({
+          tag: rule.tagName ? rule.tagName.toLowerCase() : '*',
+          combinator: rule.nestingOperator ? rule.nestingOperator : ' ',
+          id: rule.id,
+          attributes: convertAttributes(rule.attrs),
+          classes: convertClasses(rule.classNames),
+          pseudos: convertPseudos(rule.pseudos)
+        });
+        rule = rule.rule;
+      }
+      return newExp;
+    });
   };
-  (function() {
-    "use strict";
-    function noop() {}
-    function funcGuard(f) {
-      if (typeof f !== "function") {
-        throw new TypeError("Queue methods require functions as arguments");
+  function createLocalVariables(nodes, anyLevel, thisLevel, parentShadowId) {
+    var retVal = {
+      nodes: nodes.slice(),
+      anyLevel: anyLevel,
+      thisLevel: thisLevel,
+      parentShadowId: parentShadowId
+    };
+    retVal.nodes.reverse();
+    return retVal;
+  }
+  function matchesSelector(node, exp) {
+    return matchesTag(node.actualNode, exp[0]) && matchesClasses(node.actualNode, exp[0]) && matchesAttributes(node.actualNode, exp[0]) && matchesId(node.actualNode, exp[0]) && matchesPseudos(node, exp[0]);
+  }
+  matchExpressions = function matchExpressions(domTree, expressions, recurse, filter) {
+    var stack = [];
+    var nodes = Array.isArray(domTree) ? domTree : [ domTree ];
+    var currentLevel = createLocalVariables(nodes, expressions, [], domTree[0].shadowId);
+    var result = [];
+    while (currentLevel.nodes.length) {
+      var node = currentLevel.nodes.pop();
+      var childOnly = [];
+      var childAny = [];
+      var combined = currentLevel.anyLevel.slice().concat(currentLevel.thisLevel);
+      var added = false;
+      for (var i = 0; i < combined.length; i++) {
+        var exp = combined[i];
+        if (matchesSelector(node, exp) && (!exp[0].id || node.shadowId === currentLevel.parentShadowId)) {
+          if (exp.length === 1) {
+            if (!added && (!filter || filter(node))) {
+              result.push(node);
+              added = true;
+            }
+          } else {
+            var rest = exp.slice(1);
+            if ([ ' ', '>' ].includes(rest[0].combinator) === false) {
+              throw new Error('axe.utils.querySelectorAll does not support the combinator: ' + exp[1].combinator);
+            }
+            if (rest[0].combinator === '>') {
+              childOnly.push(rest);
+            } else {
+              childAny.push(rest);
+            }
+          }
+        }
+        if (currentLevel.anyLevel.includes(exp) && (!exp[0].id || node.shadowId === currentLevel.parentShadowId)) {
+          childAny.push(exp);
+        }
+      }
+      if (node.children && node.children.length && recurse) {
+        stack.push(currentLevel);
+        currentLevel = createLocalVariables(node.children, childAny, childOnly, node.shadowId);
+      }
+      while (!currentLevel.nodes.length && stack.length) {
+        currentLevel = stack.pop();
       }
     }
-    /**
-  * Create an asynchronous "queue", list of functions to be invoked in parallel, but not necessarily returned in order
-  * @return {Queue} The newly generated "queue"
-  */
+    return result;
+  };
+  axe.utils.querySelectorAll = function(domTree, selector) {
+    return axe.utils.querySelectorAllFilter(domTree, selector);
+  };
+  axe.utils.querySelectorAllFilter = function(domTree, selector, filter) {
+    domTree = Array.isArray(domTree) ? domTree : [ domTree ];
+    var expressions = axe.utils.cssParser.parse(selector);
+    expressions = expressions.selectors ? expressions.selectors : [ expressions ];
+    expressions = convertExpressions(expressions);
+    return matchExpressions(domTree, expressions, true, filter);
+  };
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
+  (function() {
+    'use strict';
+    function noop() {}
+    function funcGuard(f) {
+      if (typeof f !== 'function') {
+        throw new TypeError('Queue methods require functions as arguments');
+      }
+    }
     function queue() {
       var tasks = [];
       var started = 0;
       var remaining = 0;
-      // number of tasks not yet finished
       var completeQueue = noop;
       var complete = false;
       var err;
-      // By default, wait until the next tick,
-      // if no catch was set, throw to console.
       var defaultFail = function defaultFail(e) {
         err = e;
         setTimeout(function() {
           if (err !== undefined && err !== null) {
-            axe.log("Uncaught error (of queue)", err);
+            axe.log('Uncaught error (of queue)', err);
           }
         }, 1);
       };
@@ -2216,11 +5060,8 @@
         };
       }
       function abort(msg) {
-        // reset tasks
         completeQueue = noop;
-        // notify catch
         failed(msg);
-        // return unfinished work
         return tasks;
       }
       function pop() {
@@ -2235,14 +5076,8 @@
         }
       }
       var q = {
-        /**
-    * Defer a function that may or may not run asynchronously.
-    *
-    * First parameter should be the function to execute with subsequent
-    * parameters being passed as arguments to that function
-    */
         defer: function defer(fn) {
-          if ((typeof fn === "undefined" ? "undefined" : _typeof(fn)) === "object" && fn.then && fn.catch) {
+          if ((typeof fn === 'undefined' ? 'undefined' : _typeof(fn)) === 'object' && fn.then && fn.catch) {
             var defer = fn;
             fn = function fn(resolve, reject) {
               defer.then(resolve).catch(reject);
@@ -2251,25 +5086,18 @@
           funcGuard(fn);
           if (err !== undefined) {
             return;
-          } else {
-            if (complete) {
-              throw new Error("Queue already completed");
-            }
+          } else if (complete) {
+            throw new Error('Queue already completed');
           }
           tasks.push(fn);
           ++remaining;
           pop();
           return q;
         },
-        /**
-    * The callback to execute once all "deferred" functions have completed.  Will only be invoked once.
-    * @param  {Function} f The callback, receives an array of the return/callbacked
-    * values of each of the "deferred" functions
-    */
         then: function then(fn) {
           funcGuard(fn);
           if (completeQueue !== noop) {
-            throw new Error("queue `then` already set");
+            throw new Error('queue `then` already set');
           }
           if (!err) {
             completeQueue = fn;
@@ -2280,10 +5108,10 @@
           }
           return q;
         },
-        "catch": function _catch(fn) {
+        catch: function _catch(fn) {
           funcGuard(fn);
           if (failed !== defaultFail) {
-            throw new Error("queue `catch` already set");
+            throw new Error('queue `catch` already set');
           }
           if (!err) {
             failed = fn;
@@ -2293,68 +5121,39 @@
           }
           return q;
         },
-        /**
-    * Abort the "queue" and prevent `then` function from firing
-    * @param  {Function} fn The callback to execute; receives an array of the results which have completed
-    */
         abort: abort
       };
       return q;
     }
     axe.utils.queue = queue;
   })();
-  "use strict";
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
     return typeof obj;
   } : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
   };
-  /*global uuid, utils, axe */
   (function(exports) {
-    "use strict";
-    var messages = {}, subscribers = {};
-    /**
-  * get the unique string to be used to identify our instance of aXe
-  * @private
-  */
+    'use strict';
+    var messages = {}, subscribers = {}, errorTypes = Object.freeze([ 'EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError' ]);
     function _getSource() {
-      var application = "axe", version = "", src;
-      if (typeof axe !== "undefined" && axe._audit && !axe._audit.application) {
+      var application = 'axeAPI', version = '', src;
+      if (typeof axe !== 'undefined' && axe._audit && axe._audit.application) {
         application = axe._audit.application;
       }
-      if (typeof axe !== "undefined") {
+      if (typeof axe !== 'undefined') {
         version = axe.version;
       }
-      src = application + "." + version;
+      src = application + '.' + version;
       return src;
     }
-    /**
-  * Verify the received message is from the "respondable" module
-  * @private
-  * @param  {Object} postedMessage The message received via postMessage
-  * @return {Boolean}              `true` if the message is verified from respondable
-  */
     function verify(postedMessage) {
-      if (// Check incoming message is valid
-      (typeof postedMessage === "undefined" ? "undefined" : _typeof(postedMessage)) === "object" && typeof postedMessage.uuid === "string" && postedMessage._respondable === true) {
+      if ((typeof postedMessage === 'undefined' ? 'undefined' : _typeof(postedMessage)) === 'object' && typeof postedMessage.uuid === 'string' && postedMessage._respondable === true) {
         var messageSource = _getSource();
-        // Check the version matches
-        // Allow free communication with axe test
-        return postedMessage._source === messageSource || postedMessage._source === "axe.x.y.z" || messageSource === "axe.x.y.z";
+        return postedMessage._source === messageSource || postedMessage._source === 'axeAPI.x.y.z' || messageSource === 'axeAPI.x.y.z';
       }
       return false;
     }
-    /**
-  * Posts the message to correct frame.
-  * This abstraction necessary because IE9 & 10 do not support posting Objects; only strings
-  * @private
-  * @param  {Window}   win      The `window` to post the message to
-  * @param  {String}   topic    The topic of the message
-  * @param  {Object}   message  The message content
-  * @param  {String}   uuid     The UUID, or pseudo-unique ID of the message
-  * @param  {Boolean}  keepalive Whether to allow multiple responses - default is false
-  * @param  {Function} callback The function to invoke when/if the message is responded to
-  */
     function post(win, topic, message, uuid, keepalive, callback) {
       var error;
       if (message instanceof Error) {
@@ -2374,80 +5173,47 @@
         _source: _getSource(),
         _keepalive: keepalive
       };
-      if (typeof callback === "function") {
+      if (typeof callback === 'function') {
         messages[uuid] = callback;
       }
-      win.postMessage(JSON.stringify(data), "*");
+      win.postMessage(JSON.stringify(data), '*');
     }
-    /**
-  * Post a message to a window who may or may not respond to it.
-  * @param  {Window}   win      The window to post the message to
-  * @param  {String}   topic    The topic of the message
-  * @param  {Object}   message  The message content
-  * @param  {Boolean}  keepalive Whether to allow multiple responses - default is false
-  * @param  {Function} callback The function to invoke when/if the message is responded to
-  */
     function respondable(win, topic, message, keepalive, callback) {
       var id = uuid.v1();
       post(win, topic, message, id, keepalive, callback);
     }
-    /**
-  * Subscribe to messages sent via the `respondable` module.
-  * @param  {String}   topic    The topic to listen to
-  * @param  {Function} callback The function to invoke when a message is received
-  */
     respondable.subscribe = function(topic, callback) {
       subscribers[topic] = callback;
     };
-    /**
-  * Helper closure to create a function that may be used to respond to a message
-  * @private
-  * @param  {Window} source The window from which the message originated
-  * @param  {String} topic  The topic of the message
-  * @param  {String} uuid   The "unique" ID of the original message
-  * @return {Function}      A function that may be invoked to respond to the message
-  */
+    respondable.isInFrame = function(win) {
+      win = win || window;
+      return !!win.frameElement;
+    };
     function createResponder(source, topic, uuid) {
       return function(message, keepalive, callback) {
         post(source, topic, message, uuid, keepalive, callback);
       };
     }
-    /**
-  * Publishes the "respondable" message to the appropriate subscriber
-  * @private
-  * @param  {Event} event The event object of the postMessage
-  * @param  {Object} data  The data sent with the message
-  * @param  {Boolean}  keepalive Whether to allow multiple responses - default is false
-  */
-    function publish(target, data, keepalive) {
+    function publish(source, data, keepalive) {
       var topic = data.topic;
       var subscriber = subscribers[topic];
       if (subscriber) {
-        var responder = createResponder(target, null, data.uuid);
+        var responder = createResponder(source, null, data.uuid);
         subscriber(data.message, keepalive, responder);
       }
     }
-    /**
-  * Convert a javascript Error into something that can be stringified
-  * @param  {Error} error  Any type of error
-  * @return {Object}       Processable object
-  */
     function buildErrorObject(error) {
-      var msg = error.message || "Unknown error occurred";
-      var ErrConstructor = window[error.name] || Error;
+      var msg = error.message || 'Unknown error occurred';
+      var errorName = errorTypes.includes(error.name) ? error.name : 'Error';
+      var ErrConstructor = window[errorName] || Error;
       if (error.stack) {
-        msg += "\n" + error.stack.replace(error.message, "");
+        msg += '\n' + error.stack.replace(error.message, '');
       }
       return new ErrConstructor(msg);
     }
-    /**
-  * Parse the received message for processing
-  * @param  {string} dataString Message received
-  * @return {object}            Object to be used for pub/sub
-  */
     function parseMessage(dataString) {
       var data;
-      if (typeof dataString !== "string") {
+      if (typeof dataString !== 'string') {
         return;
       }
       try {
@@ -2456,16 +5222,15 @@
       if (!verify(data)) {
         return;
       }
-      if (_typeof(data.error) === "object") {
+      if (_typeof(data.error) === 'object') {
         data.error = buildErrorObject(data.error);
       } else {
         data.error = undefined;
       }
       return data;
     }
-    if (typeof window.addEventListener === "function") {
-      window.addEventListener("message", function(e) {
-        // jshint maxstatements: 20
+    if (typeof window.addEventListener === 'function') {
+      window.addEventListener('message', function(e) {
         var data = parseMessage(e.data);
         if (!data) {
           return;
@@ -2492,78 +5257,105 @@
     }
     exports.respondable = respondable;
   })(utils);
-  "use strict";
-  /**
- * Check if a rule matches the value of runOnly type=tag
- * @private
- * @param  {object} rule
- * @param  {object}	runOnly Value of runOnly with type=tags
- * @return {bool}
- */
+  'use strict';
   function matchTags(rule, runOnly) {
-    "use strict";
+    'use strict';
     var include, exclude, matching;
-    // normalize include/exclude
-    if (runOnly.include || runOnly.exclude) {
-      // Wrap include and exclude if it's not already an array
+    var defaultExclude = axe._audit && axe._audit.tagExclude ? axe._audit.tagExclude : [];
+    if (runOnly.hasOwnProperty('include') || runOnly.hasOwnProperty('exclude')) {
       include = runOnly.include || [];
       include = Array.isArray(include) ? include : [ include ];
       exclude = runOnly.exclude || [];
       exclude = Array.isArray(exclude) ? exclude : [ exclude ];
+      exclude = exclude.concat(defaultExclude.filter(function(tag) {
+        return include.indexOf(tag) === -1;
+      }));
     } else {
       include = Array.isArray(runOnly) ? runOnly : [ runOnly ];
-      exclude = [];
+      exclude = defaultExclude.filter(function(tag) {
+        return include.indexOf(tag) === -1;
+      });
     }
     matching = include.some(function(tag) {
       return rule.tags.indexOf(tag) !== -1;
     });
-    if (matching) {
-      return !exclude.some(function(tag) {
-        return rule.tags.indexOf(tag) !== -1;
+    if (matching || include.length === 0 && rule.enabled !== false) {
+      return exclude.every(function(tag) {
+        return rule.tags.indexOf(tag) === -1;
       });
     } else {
       return false;
     }
   }
-  /**
- * Determines whether a rule should run
- * @param  {Rule}    rule     The rule to test
- * @param  {Context} context  The context of the Audit
- * @param  {Object}  options  Options object
- * @return {Boolean}
- */
   axe.utils.ruleShouldRun = function(rule, context, options) {
-    "use strict";
+    'use strict';
     var runOnly = options.runOnly || {};
     var ruleOptions = (options.rules || {})[rule.id];
-    // Never run page level rules if the context is not on the page
     if (rule.pageLevel && !context.page) {
       return false;
+    } else if (runOnly.type === 'rule') {
+      return runOnly.values.indexOf(rule.id) !== -1;
+    } else if (ruleOptions && typeof ruleOptions.enabled === 'boolean') {
+      return ruleOptions.enabled;
+    } else if (runOnly.type === 'tag' && runOnly.values) {
+      return matchTags(rule, runOnly.values);
     } else {
-      if (runOnly.type === "rule") {
-        return runOnly.values.indexOf(rule.id) !== -1;
-      } else {
-        if (ruleOptions && typeof ruleOptions.enabled === "boolean") {
-          return ruleOptions.enabled;
-        } else {
-          if (runOnly.type === "tag" && runOnly.values) {
-            return matchTags(rule, runOnly.values);
-          } else {
-            return !!rule.enabled;
-          }
-        }
-      }
+      return matchTags(rule, []);
     }
   };
-  "use strict";
-  /**
- * Get the deepest node in a given collection
- * @private
- * @param  {Array} collection Array of nodes to test
- * @return {Node}             The deepest node
- */
+  'use strict';
+  function getScroll(elm) {
+    var style = window.getComputedStyle(elm);
+    var visibleOverflowY = style.getPropertyValue('overflow-y') === 'visible';
+    var visibleOverflowX = style.getPropertyValue('overflow-x') === 'visible';
+    if (!visibleOverflowY && elm.scrollHeight > elm.clientHeight || !visibleOverflowX && elm.scrollWidth > elm.clientWidth) {
+      return {
+        elm: elm,
+        top: elm.scrollTop,
+        left: elm.scrollLeft
+      };
+    }
+  }
+  function setScroll(elm, top, left) {
+    if (elm === window) {
+      return elm.scroll(top, left);
+    } else {
+      elm.scrollTop = top;
+      elm.scrollLeft = left;
+    }
+  }
+  function getElmScrollRecursive(root) {
+    return Array.from(root.children).reduce(function(scrolls, elm) {
+      var scroll = getScroll(elm);
+      if (scroll) {
+        scrolls.push(scroll);
+      }
+      return scrolls.concat(getElmScrollRecursive(elm));
+    }, []);
+  }
+  axe.utils.getScrollState = function getScrollState() {
+    var win = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : window;
+    var root = win.document.documentElement;
+    var windowScroll = [ win.pageXOffset !== undefined ? {
+      elm: win,
+      top: win.pageYOffset,
+      left: win.pageXOffset
+    } : {
+      elm: root,
+      top: root.scrollTop,
+      left: root.scrollLeft
+    } ];
+    return windowScroll.concat(getElmScrollRecursive(document.body));
+  };
+  axe.utils.setScrollState = function setScrollState(scrollState) {
+    scrollState.forEach(function(_ref) {
+      var elm = _ref.elm, top = _ref.top, left = _ref.left;
+      return setScroll(elm, top, left);
+    });
+  };
+  'use strict';
   function getDeepest(collection) {
-    "use strict";
+    'use strict';
     return collection.sort(function(a, b) {
       if (axe.utils.contains(a, b)) {
         return 1;
@@ -2571,15 +5363,8 @@
       return -1;
     })[0];
   }
-  /**
- * Determines if a node is included or excluded in a given context
- * @private
- * @param  {Node}  node     The node to test
- * @param  {Object}  context "Resolved" context object, @see resolveContext
- * @return {Boolean}         [description]
- */
   function isNodeInContext(node, context) {
-    "use strict";
+    'use strict';
     var include = context.include && getDeepest(context.include.filter(function(candidate) {
       return axe.utils.contains(candidate, node);
     }));
@@ -2591,68 +5376,80 @@
     }
     return false;
   }
-  /**
- * Pushes unique nodes that are in context to an array
- * @private
- * @param  {Array} result  The array to push to
- * @param  {Array} nodes   The list of nodes to push
- * @param  {Object} context The "resolved" context object, @see resolveContext
- */
-  function pushNode(result, nodes, context) {
-    "use strict";
+  function pushNode(result, nodes) {
+    'use strict';
+    var temp;
+    if (result.length === 0) {
+      return nodes;
+    }
+    if (result.length < nodes.length) {
+      temp = result;
+      result = nodes;
+      nodes = temp;
+    }
     for (var i = 0, l = nodes.length; i < l; i++) {
-      if (result.indexOf(nodes[i]) === -1 && isNodeInContext(nodes[i], context)) {
+      if (!result.includes(nodes[i])) {
         result.push(nodes[i]);
       }
     }
+    return result;
   }
-  /**
- * Selects elements which match `select` that are included and excluded via the `Context` object
- * @param  {String} selector  CSS selector of the HTMLElements to select
- * @param  {Context} context  The "resolved" context object, @see Context
- * @return {Array}            Matching nodes sorted by DOM order
- */
-  axe.utils.select = function select(selector, context) {
-    "use strict";
-    var result = [], candidate;
-    for (var i = 0, l = context.include.length; i < l; i++) {
-      candidate = context.include[i];
-      if (candidate.nodeType === candidate.ELEMENT_NODE && axe.utils.matchesSelector(candidate, selector)) {
-        pushNode(result, [ candidate ], context);
+  function reduceIncludes(includes) {
+    return includes.reduce(function(res, el) {
+      if (!res.length || !res[res.length - 1].actualNode.contains(el.actualNode)) {
+        res.push(el);
       }
-      pushNode(result, candidate.querySelectorAll(selector), context);
+      return res;
+    }, []);
+  }
+  axe.utils.select = function select(selector, context) {
+    'use strict';
+    var result = [], candidate;
+    if (axe._selectCache) {
+      for (var j = 0, l = axe._selectCache.length; j < l; j++) {
+        var item = axe._selectCache[j];
+        if (item.selector === selector) {
+          return item.result;
+        }
+      }
     }
-    return result.sort(axe.utils.nodeSorter);
+    var curried = function(context) {
+      return function(node) {
+        return isNodeInContext(node, context);
+      };
+    }(context);
+    var reducedIncludes = reduceIncludes(context.include);
+    for (var i = 0; i < reducedIncludes.length; i++) {
+      candidate = reducedIncludes[i];
+      if (candidate.actualNode.nodeType === candidate.actualNode.ELEMENT_NODE && axe.utils.matchesSelector(candidate.actualNode, selector) && curried(candidate)) {
+        result = pushNode(result, [ candidate ]);
+      }
+      result = pushNode(result, axe.utils.querySelectorAllFilter(candidate, selector, curried));
+    }
+    if (axe._selectCache) {
+      axe._selectCache.push({
+        selector: selector,
+        result: result
+      });
+    }
+    return result;
   };
-  "use strict";
-  /**
- * Converts array-like (numerical indicies and `length` property) structures to actual, real arrays
- * @param  {Mixed} thing Array-like thing to convert
- * @return {Array}
- */
+  'use strict';
   axe.utils.toArray = function(thing) {
-    "use strict";
+    'use strict';
     return Array.prototype.slice.call(thing);
   };
-  "use strict";
-  /*jshint bitwise: false, eqeqeq: false, curly: false, strict: false, eqnull: true,
-maxstatements: false, maxcomplexity: false */
-  //     uuid.js
-  //
-  //     Copyright (c) 2010-2012 Robert Kieffer
-  //     MIT License - http://opensource.org/licenses/mit-license.php
+  axe.utils.uniqueArray = function(arr1, arr2) {
+    return arr1.concat(arr2).filter(function(elem, pos, arr) {
+      return arr.indexOf(elem) === pos;
+    });
+  };
+  'use strict';
   var uuid;
   (function(_global) {
-    // Unique ID creation requires a high quality random # generator.  We feature
-    // detect to determine the best RNG source, normalizing to a function that
-    // returns 128-bits of randomness, since that's what's usually required
     var _rng;
-    // Allow for MSIE11 msCrypto
     var _crypto = _global.crypto || _global.msCrypto;
     if (!_rng && _crypto && _crypto.getRandomValues) {
-      // WHATWG crypto-based RNG - http://wiki.whatwg.org/wiki/Crypto
-      //
-      // Moderately fast, high quality
       var _rnds8 = new Uint8Array(16);
       _rng = function whatwgRNG() {
         _crypto.getRandomValues(_rnds8);
@@ -2660,10 +5457,6 @@ maxstatements: false, maxcomplexity: false */
       };
     }
     if (!_rng) {
-      // Math.random()-based (RNG)
-      //
-      // If all else fails, use Math.random().  It's fast, but is of unspecified
-      // quality.
       var _rnds = new Array(16);
       _rng = function _rng() {
         for (var i = 0, r; i < 16; i++) {
@@ -2675,122 +5468,83 @@ maxstatements: false, maxcomplexity: false */
         return _rnds;
       };
     }
-    // Buffer class to use
-    var BufferClass = typeof _global.Buffer == "function" ? _global.Buffer : Array;
-    // Maps for number <-> hex string conversion
+    var BufferClass = typeof _global.Buffer == 'function' ? _global.Buffer : Array;
     var _byteToHex = [];
     var _hexToByte = {};
     for (var i = 0; i < 256; i++) {
       _byteToHex[i] = (i + 256).toString(16).substr(1);
       _hexToByte[_byteToHex[i]] = i;
     }
-    // **`parse()` - Parse a UUID into it's component bytes**
     function parse(s, buf, offset) {
       var i = buf && offset || 0, ii = 0;
       buf = buf || [];
       s.toLowerCase().replace(/[0-9a-f]{2}/g, function(oct) {
         if (ii < 16) {
-          // Don't overflow!
           buf[i + ii++] = _hexToByte[oct];
         }
       });
-      // Zero out remaining bytes if string was short
       while (ii < 16) {
         buf[i + ii++] = 0;
       }
       return buf;
     }
-    // **`unparse()` - Convert UUID byte array (ala parse()) into a string**
     function unparse(buf, offset) {
       var i = offset || 0, bth = _byteToHex;
-      return bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + "-" + bth[buf[i++]] + bth[buf[i++]] + "-" + bth[buf[i++]] + bth[buf[i++]] + "-" + bth[buf[i++]] + bth[buf[i++]] + "-" + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]];
+      return bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + '-' + bth[buf[i++]] + bth[buf[i++]] + '-' + bth[buf[i++]] + bth[buf[i++]] + '-' + bth[buf[i++]] + bth[buf[i++]] + '-' + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]] + bth[buf[i++]];
     }
-    // **`v1()` - Generate time-based UUID**
-    //
-    // Inspired by https://github.com/LiosK/UUID.js
-    // and http://docs.python.org/library/uuid.html
-    // random #'s we need to init node and clockseq
     var _seedBytes = _rng();
-    // Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
     var _nodeId = [ _seedBytes[0] | 1, _seedBytes[1], _seedBytes[2], _seedBytes[3], _seedBytes[4], _seedBytes[5] ];
-    // Per 4.2.2, randomize (14 bit) clockseq
     var _clockseq = (_seedBytes[6] << 8 | _seedBytes[7]) & 16383;
-    // Previous uuid creation time
     var _lastMSecs = 0, _lastNSecs = 0;
-    // See https://github.com/broofa/node-uuid for API details
     function v1(options, buf, offset) {
       var i = buf && offset || 0;
       var b = buf || [];
       options = options || {};
       var clockseq = options.clockseq != null ? options.clockseq : _clockseq;
-      // UUID timestamps are 100 nano-second units since the Gregorian epoch,
-      // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
-      // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
-      // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
       var msecs = options.msecs != null ? options.msecs : new Date().getTime();
-      // Per 4.2.1.2, use count of uuid's generated during the current clock
-      // cycle to simulate higher resolution clock
       var nsecs = options.nsecs != null ? options.nsecs : _lastNSecs + 1;
-      // Time since last uuid creation (in msecs)
       var dt = msecs - _lastMSecs + (nsecs - _lastNSecs) / 1e4;
-      // Per 4.2.1.2, Bump clockseq on clock regression
       if (dt < 0 && options.clockseq == null) {
         clockseq = clockseq + 1 & 16383;
       }
-      // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
-      // time interval
       if ((dt < 0 || msecs > _lastMSecs) && options.nsecs == null) {
         nsecs = 0;
       }
-      // Per 4.2.1.2 Throw error if too many uuids are requested
       if (nsecs >= 1e4) {
-        throw new Error("uuid.v1(): Can't create more than 10M uuids/sec");
+        throw new Error('uuid.v1(): Can\'t create more than 10M uuids/sec');
       }
       _lastMSecs = msecs;
       _lastNSecs = nsecs;
       _clockseq = clockseq;
-      // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
       msecs += 122192928e5;
-      // `time_low`
       var tl = ((msecs & 268435455) * 1e4 + nsecs) % 4294967296;
       b[i++] = tl >>> 24 & 255;
       b[i++] = tl >>> 16 & 255;
       b[i++] = tl >>> 8 & 255;
       b[i++] = tl & 255;
-      // `time_mid`
       var tmh = msecs / 4294967296 * 1e4 & 268435455;
       b[i++] = tmh >>> 8 & 255;
       b[i++] = tmh & 255;
-      // `time_high_and_version`
       b[i++] = tmh >>> 24 & 15 | 16;
-      // include version
       b[i++] = tmh >>> 16 & 255;
-      // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
       b[i++] = clockseq >>> 8 | 128;
-      // `clock_seq_low`
       b[i++] = clockseq & 255;
-      // `node`
       var node = options.node || _nodeId;
       for (var n = 0; n < 6; n++) {
         b[i + n] = node[n];
       }
       return buf ? buf : unparse(b);
     }
-    // **`v4()` - Generate random UUID**
-    // See https://github.com/broofa/node-uuid for API details
     function v4(options, buf, offset) {
-      // Deprecated - 'format' argument, as supported in v1.2
       var i = buf && offset || 0;
-      if (typeof options == "string") {
-        buf = options == "binary" ? new BufferClass(16) : null;
+      if (typeof options == 'string') {
+        buf = options == 'binary' ? new BufferClass(16) : null;
         options = null;
       }
       options = options || {};
       var rnds = options.random || (options.rng || _rng)();
-      // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
       rnds[6] = rnds[6] & 15 | 64;
       rnds[8] = rnds[8] & 63 | 128;
-      // Copy bytes to buffer, if provided
       if (buf) {
         for (var ii = 0; ii < 16; ii++) {
           buf[i + ii] = rnds[ii];
@@ -2798,7 +5552,6 @@ maxstatements: false, maxcomplexity: false */
       }
       return buf || unparse(rnds);
     }
-    // Export public API
     uuid = v4;
     uuid.v1 = v1;
     uuid.v4 = v4;
@@ -2806,367 +5559,491 @@ maxstatements: false, maxcomplexity: false */
     uuid.unparse = unparse;
     uuid.BufferClass = BufferClass;
   })(window);
-  "use strict";
+  'use strict';
+  var _typeof = typeof Symbol === 'function' && typeof Symbol.iterator === 'symbol' ? function(obj) {
+    return typeof obj;
+  } : function(obj) {
+    return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
+  };
   axe._load({
     data: {
       rules: {
         accesskeys: {
-          description: "Ensures every accesskey attribute value is unique",
-          help: "accesskey attribute value must be unique"
+          description: 'Ensures every accesskey attribute value is unique',
+          help: 'accesskey attribute value must be unique'
         },
-        "area-alt": {
-          description: "Ensures <area> elements of image maps have alternate text",
-          help: "Active <area> elements must have alternate text"
+        'area-alt': {
+          description: 'Ensures <area> elements of image maps have alternate text',
+          help: 'Active <area> elements must have alternate text'
         },
-        "aria-allowed-attr": {
-          description: "Ensures ARIA attributes are allowed for an element's role",
-          help: "Elements must only use allowed ARIA attributes"
+        'aria-allowed-attr': {
+          description: 'Ensures ARIA attributes are allowed for an element\'s role',
+          help: 'Elements must only use allowed ARIA attributes'
         },
-        "aria-required-attr": {
-          description: "Ensures elements with ARIA roles have all required ARIA attributes",
-          help: "Required ARIA attributes must be provided"
+        'aria-allowed-role': {
+          description: 'Ensures role attribute has an appropriate value for the element',
+          help: 'ARIA role must be appropriate for the element'
         },
-        "aria-required-children": {
-          description: "Ensures elements with an ARIA role that require child roles contain them",
-          help: "Certain ARIA roles must contain particular children"
+        'aria-dpub-role-fallback': {
+          description: 'Ensures unsupported DPUB roles are only used on elements with implicit fallback roles',
+          help: 'Unsupported DPUB ARIA roles should be used on elements with implicit fallback roles'
         },
-        "aria-required-parent": {
-          description: "Ensures elements with an ARIA role that require parent roles are contained by them",
-          help: "Certain ARIA roles must be contained by particular parents"
+        'aria-hidden-body': {
+          description: 'Ensures aria-hidden=\'true\' is not present on the document body.',
+          help: 'aria-hidden=\'true\' must not be present on the document body'
         },
-        "aria-roles": {
-          description: "Ensures all elements with a role attribute use a valid value",
-          help: "ARIA roles used must conform to valid values"
+        'aria-required-attr': {
+          description: 'Ensures elements with ARIA roles have all required ARIA attributes',
+          help: 'Required ARIA attributes must be provided'
         },
-        "aria-valid-attr-value": {
-          description: "Ensures all ARIA attributes have valid values",
-          help: "ARIA attributes must conform to valid values"
+        'aria-required-children': {
+          description: 'Ensures elements with an ARIA role that require child roles contain them',
+          help: 'Certain ARIA roles must contain particular children'
         },
-        "aria-valid-attr": {
-          description: "Ensures attributes that begin with aria- are valid ARIA attributes",
-          help: "ARIA attributes must conform to valid names"
+        'aria-required-parent': {
+          description: 'Ensures elements with an ARIA role that require parent roles are contained by them',
+          help: 'Certain ARIA roles must be contained by particular parents'
         },
-        "audio-caption": {
-          description: "Ensures <audio> elements have captions",
-          help: "<audio> elements must have a captions track"
+        'aria-roles': {
+          description: 'Ensures all elements with a role attribute use a valid value',
+          help: 'ARIA roles used must conform to valid values'
+        },
+        'aria-valid-attr-value': {
+          description: 'Ensures all ARIA attributes have valid values',
+          help: 'ARIA attributes must conform to valid values'
+        },
+        'aria-valid-attr': {
+          description: 'Ensures attributes that begin with aria- are valid ARIA attributes',
+          help: 'ARIA attributes must conform to valid names'
+        },
+        'audio-caption': {
+          description: 'Ensures <audio> elements have captions',
+          help: '<audio> elements must have a captions track'
+        },
+        'autocomplete-valid': {
+          description: 'Ensure the autocomplete attribute is correct and suitable for the form field',
+          help: 'autocomplete attribute must be used correctly'
         },
         blink: {
-          description: "Ensures <blink> elements are not used",
-          help: "<blink> elements are deprecated and must not be used"
+          description: 'Ensures <blink> elements are not used',
+          help: '<blink> elements are deprecated and must not be used'
         },
-        "button-name": {
-          description: "Ensures buttons have discernible text",
-          help: "Buttons must have discernible text"
+        'button-name': {
+          description: 'Ensures buttons have discernible text',
+          help: 'Buttons must have discernible text'
         },
         bypass: {
-          description: "Ensures each page has at least one mechanism for a user to bypass navigation and jump straight to the content",
-          help: "Page must have means to bypass repeated blocks"
+          description: 'Ensures each page has at least one mechanism for a user to bypass navigation and jump straight to the content',
+          help: 'Page must have means to bypass repeated blocks'
         },
         checkboxgroup: {
-          description: 'Ensures related <input type="checkbox"> elements have a group and that that group designation is consistent',
-          help: "Checkbox inputs with the same name attribute value must be part of a group"
+          description: 'Ensures related <input type="checkbox"> elements have a group and that the group designation is consistent',
+          help: 'Checkbox inputs with the same name attribute value must be part of a group'
         },
-        "color-contrast": {
-          description: "Ensures the contrast between foreground and background colors meets WCAG 2 AA contrast ratio thresholds",
-          help: "Elements must have sufficient color contrast"
+        'color-contrast': {
+          description: 'Ensures the contrast between foreground and background colors meets WCAG 2 AA contrast ratio thresholds',
+          help: 'Elements must have sufficient color contrast'
         },
-        "definition-list": {
-          description: "Ensures <dl> elements are structured correctly",
-          help: "<dl> elements must only directly contain properly-ordered <dt> and <dd> groups, <script> or <template> elements"
+        'definition-list': {
+          description: 'Ensures <dl> elements are structured correctly',
+          help: '<dl> elements must only directly contain properly-ordered <dt> and <dd> groups, <script> or <template> elements'
         },
         dlitem: {
-          description: "Ensures <dt> and <dd> elements are contained by a <dl>",
-          help: "<dt> and <dd> elements must be contained by a <dl>"
+          description: 'Ensures <dt> and <dd> elements are contained by a <dl>',
+          help: '<dt> and <dd> elements must be contained by a <dl>'
         },
-        "document-title": {
-          description: "Ensures each HTML document contains a non-empty <title> element",
-          help: "Documents must have <title> element to aid in navigation"
+        'document-title': {
+          description: 'Ensures each HTML document contains a non-empty <title> element',
+          help: 'Documents must have <title> element to aid in navigation'
         },
-        "duplicate-id": {
-          description: "Ensures every id attribute value is unique",
-          help: "id attribute value must be unique"
+        'duplicate-id': {
+          description: 'Ensures every id attribute value is unique',
+          help: 'id attribute value must be unique'
         },
-        "empty-heading": {
-          description: "Ensures headings have discernible text",
-          help: "Headings must not be empty"
+        'empty-heading': {
+          description: 'Ensures headings have discernible text',
+          help: 'Headings must not be empty'
         },
-        "frame-title": {
-          description: "Ensures <iframe> and <frame> elements contain a unique and non-empty title attribute",
-          help: "Frames must have unique title attribute"
+        'focus-order-semantics': {
+          description: 'Ensures elements in the focus order have an appropriate role',
+          help: 'Elements in the focus order need a role appropriate for interactive content'
         },
-        "heading-order": {
-          description: "Ensures the order of headings is semantically correct",
-          help: "Heading levels should only increase by one"
+        'frame-tested': {
+          description: 'Ensures <iframe> and <frame> elements contain the axe-core script',
+          help: 'Frames must be tested with axe-core'
         },
-        "html-has-lang": {
-          description: "Ensures every HTML document has a lang attribute",
-          help: "<html> element must have a lang attribute"
+        'frame-title-unique': {
+          description: 'Ensures <iframe> and <frame> elements contain a unique title attribute',
+          help: 'Frames must have a unique title attribute'
         },
-        "html-lang-valid": {
-          description: "Ensures the lang attribute of the <html> element has a valid value",
-          help: "<html> element must have a valid value for the lang attribute"
+        'frame-title': {
+          description: 'Ensures <iframe> and <frame> elements contain a non-empty title attribute',
+          help: 'Frames must have title attribute'
         },
-        "image-alt": {
-          description: "Ensures <img> elements have alternate text or a role of none or presentation",
-          help: "Images must have alternate text"
+        'heading-order': {
+          description: 'Ensures the order of headings is semantically correct',
+          help: 'Heading levels should only increase by one'
         },
-        "image-redundant-alt": {
-          description: "Ensure button and link text is not repeated as image alternative",
-          help: "Text of buttons and links should not be repeated in the image alternative"
+        'hidden-content': {
+          description: 'Informs users about hidden content.',
+          help: 'Hidden content on the page cannot be analyzed'
         },
-        "input-image-alt": {
+        'html-has-lang': {
+          description: 'Ensures every HTML document has a lang attribute',
+          help: '<html> element must have a lang attribute'
+        },
+        'html-lang-valid': {
+          description: 'Ensures the lang attribute of the <html> element has a valid value',
+          help: '<html> element must have a valid value for the lang attribute'
+        },
+        'html-xml-lang-mismatch': {
+          description: 'Ensure that HTML elements with both valid lang and xml:lang attributes agree on the base language of the page',
+          help: 'HTML elements with lang and xml:lang must have the same base language'
+        },
+        'image-alt': {
+          description: 'Ensures <img> elements have alternate text or a role of none or presentation',
+          help: 'Images must have alternate text'
+        },
+        'image-redundant-alt': {
+          description: 'Ensure button and link text is not repeated as image alternative',
+          help: 'Text of buttons and links should not be repeated in the image alternative'
+        },
+        'input-image-alt': {
           description: 'Ensures <input type="image"> elements have alternate text',
-          help: "Image buttons must have alternate text"
+          help: 'Image buttons must have alternate text'
         },
-        "label-title-only": {
-          description: "Ensures that every form element is not solely labeled using the title or aria-describedby attributes",
-          help: "Form elements should have a visible label"
+        'label-title-only': {
+          description: 'Ensures that every form element is not solely labeled using the title or aria-describedby attributes',
+          help: 'Form elements should have a visible label'
         },
         label: {
-          description: "Ensures every form element has a label",
-          help: "Form elements must have labels"
+          description: 'Ensures every form element has a label',
+          help: 'Form elements must have labels'
         },
-        "layout-table": {
-          description: "Ensures presentational <table> elements do not use <th>, <caption> elements or the summary attribute",
-          help: "Layout tables must not use data table elements"
+        'landmark-banner-is-top-level': {
+          description: 'Ensures the banner landmark is at top level',
+          help: 'Banner landmark must not be contained in another landmark'
         },
-        "link-in-text-block": {
-          description: "Links can be distinguished without relying on color",
-          help: "Links must be distinguished from surrounding text in a way that does not rely on color"
+        'landmark-contentinfo-is-top-level': {
+          description: 'Ensures the contentinfo landmark is at top level',
+          help: 'Contentinfo landmark must not be contained in another landmark'
         },
-        "link-name": {
-          description: "Ensures links have discernible text",
-          help: "Links must have discernible text"
+        'landmark-main-is-top-level': {
+          description: 'Ensures the main landmark is at top level',
+          help: 'Main landmark must not be contained in another landmark'
+        },
+        'landmark-no-duplicate-banner': {
+          description: 'Ensures the page has at most one banner landmark',
+          help: 'Page must not have more than one banner landmark'
+        },
+        'landmark-no-duplicate-contentinfo': {
+          description: 'Ensures the page has at most one contentinfo landmark',
+          help: 'Page must not have more than one contentinfo landmark'
+        },
+        'landmark-one-main': {
+          description: 'Ensures the page has only one main landmark and each iframe in the page has at most one main landmark',
+          help: 'Page must have one main landmark'
+        },
+        'layout-table': {
+          description: 'Ensures presentational <table> elements do not use <th>, <caption> elements or the summary attribute',
+          help: 'Layout tables must not use data table elements'
+        },
+        'link-in-text-block': {
+          description: 'Links can be distinguished without relying on color',
+          help: 'Links must be distinguished from surrounding text in a way that does not rely on color'
+        },
+        'link-name': {
+          description: 'Ensures links have discernible text',
+          help: 'Links must have discernible text'
         },
         list: {
-          description: "Ensures that lists are structured correctly",
-          help: "<ul> and <ol> must only directly contain <li>, <script> or <template> elements"
+          description: 'Ensures that lists are structured correctly',
+          help: '<ul> and <ol> must only directly contain <li>, <script> or <template> elements'
         },
         listitem: {
-          description: "Ensures <li> elements are used semantically",
-          help: "<li> elements must be contained in a <ul> or <ol>"
+          description: 'Ensures <li> elements are used semantically',
+          help: '<li> elements must be contained in a <ul> or <ol>'
         },
         marquee: {
-          description: "Ensures <marquee> elements are not used",
-          help: "<marquee> elements are deprecated and must not be used"
+          description: 'Ensures <marquee> elements are not used',
+          help: '<marquee> elements are deprecated and must not be used'
         },
-        "meta-refresh": {
+        'meta-refresh': {
           description: 'Ensures <meta http-equiv="refresh"> is not used',
-          help: "Timed refresh must not exist"
+          help: 'Timed refresh must not exist'
         },
-        "meta-viewport-large": {
+        'meta-viewport-large': {
           description: 'Ensures <meta name="viewport"> can scale a significant amount',
-          help: "Users should be able to zoom and scale the text up to 500%"
+          help: 'Users should be able to zoom and scale the text up to 500%'
         },
-        "meta-viewport": {
+        'meta-viewport': {
           description: 'Ensures <meta name="viewport"> does not disable text scaling and zooming',
-          help: "Zooming and scaling must not be disabled"
+          help: 'Zooming and scaling must not be disabled'
         },
-        "object-alt": {
-          description: "Ensures <object> elements have alternate text",
-          help: "<object> elements must have alternate text"
+        'object-alt': {
+          description: 'Ensures <object> elements have alternate text',
+          help: '<object> elements must have alternate text'
+        },
+        'p-as-heading': {
+          description: 'Ensure p elements are not used to style headings',
+          help: 'Bold, italic text and font-size are not used to style p elements as a heading'
+        },
+        'page-has-heading-one': {
+          description: 'Ensure that the page, or at least one of its frames contains a level-one heading',
+          help: 'Page must contain a level-one heading'
         },
         radiogroup: {
           description: 'Ensures related <input type="radio"> elements have a group and that the group designation is consistent',
-          help: "Radio inputs with the same name attribute value must be part of a group"
+          help: 'Radio inputs with the same name attribute value must be part of a group'
         },
         region: {
-          description: "Ensures all content is contained within a landmark region",
-          help: "Content should be contained in a landmark region"
+          description: 'Ensures all page content is contained by landmarks',
+          help: 'All page content must be contained by landmarks'
         },
-        "scope-attr-valid": {
-          description: "Ensures the scope attribute is used correctly on tables",
-          help: "scope attribute should be used correctly"
+        'scope-attr-valid': {
+          description: 'Ensures the scope attribute is used correctly on tables',
+          help: 'scope attribute should be used correctly'
         },
-        "server-side-image-map": {
-          description: "Ensures that server-side image maps are not used",
-          help: "Server-side image maps must not be used"
+        'server-side-image-map': {
+          description: 'Ensures that server-side image maps are not used',
+          help: 'Server-side image maps must not be used'
         },
-        "skip-link": {
-          description: "Ensures the first link on the page is a skip link",
-          help: "The page should have a skip link as its first link"
+        'skip-link': {
+          description: 'Ensure all skip links have a focusable target',
+          help: 'The skip-link target should exist and be focusable'
         },
         tabindex: {
-          description: "Ensures tabindex attribute values are not greater than 0",
-          help: "Elements should not have tabindex greater than zero"
+          description: 'Ensures tabindex attribute values are not greater than 0',
+          help: 'Elements should not have tabindex greater than zero'
         },
-        "table-duplicate-name": {
-          description: "Ensure that tables do not have the same summary and caption",
-          help: "The <caption> element should not contain the same text as the summary attribute"
+        'table-duplicate-name': {
+          description: 'Ensure that tables do not have the same summary and caption',
+          help: 'The <caption> element should not contain the same text as the summary attribute'
         },
-        "table-fake-caption": {
-          description: "Ensure that tables with a caption use the <caption> element.",
-          help: "Data or header cells should not be used to give caption to a data table."
+        'table-fake-caption': {
+          description: 'Ensure that tables with a caption use the <caption> element.',
+          help: 'Data or header cells should not be used to give caption to a data table.'
         },
-        "td-has-header": {
-          description: "Ensure that each non-empty data cell in a large table has one or more table headers",
-          help: "All non-empty td element in table larger than 3 by 3 must have an associated table header"
+        'td-has-header': {
+          description: 'Ensure that each non-empty data cell in a large table has one or more table headers',
+          help: 'All non-empty td element in table larger than 3 by 3 must have an associated table header'
         },
-        "td-headers-attr": {
-          description: "Ensure that each cell in a table using the headers refers to another cell in that table",
-          help: "All cells in a table element that use the headers attribute must only refer to other cells of that same table"
+        'td-headers-attr': {
+          description: 'Ensure that each cell in a table using the headers refers to another cell in that table',
+          help: 'All cells in a table element that use the headers attribute must only refer to other cells of that same table'
         },
-        "th-has-data-cells": {
-          description: "Ensure that each table header in a data table refers to data cells",
-          help: "All th element and elements with role=columnheader/rowheader must data cells which it describes"
+        'th-has-data-cells': {
+          description: 'Ensure that each table header in a data table refers to data cells',
+          help: 'All th elements and elements with role=columnheader/rowheader must have data cells they describe'
         },
-        "valid-lang": {
-          description: "Ensures lang attributes have valid values",
-          help: "lang attribute must have a valid value"
+        'valid-lang': {
+          description: 'Ensures lang attributes have valid values',
+          help: 'lang attribute must have a valid value'
         },
-        "video-caption": {
-          description: "Ensures <video> elements have captions",
-          help: "<video> elements must have captions"
+        'video-caption': {
+          description: 'Ensures <video> elements have captions',
+          help: '<video> elements must have captions'
         },
-        "video-description": {
-          description: "Ensures <video> elements have audio descriptions",
-          help: "<video> elements must have an audio description track"
+        'video-description': {
+          description: 'Ensures <video> elements have audio descriptions',
+          help: '<video> elements must have an audio description track'
         }
       },
       checks: {
         accesskeys: {
-          impact: "critical",
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Accesskey attribute value is unique";
+              var out = 'Accesskey attribute value is unique';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Document has multiple elements with the same accesskey";
+              var out = 'Document has multiple elements with the same accesskey';
               return out;
             }
           }
         },
-        "non-empty-alt": {
-          impact: "critical",
+        'non-empty-alt': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element has a non-empty alt attribute";
+              var out = 'Element has a non-empty alt attribute';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element has no alt attribute or the alt attribute is empty";
+              var out = 'Element has no alt attribute or the alt attribute is empty';
               return out;
             }
           }
         },
-        "non-empty-title": {
-          impact: "critical",
+        'non-empty-title': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element has a title attribute";
+              var out = 'Element has a title attribute';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element has no title attribute or the title attribute is empty";
+              var out = 'Element has no title attribute or the title attribute is empty';
               return out;
             }
           }
         },
-        "aria-label": {
-          impact: "critical",
+        'aria-label': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "aria-label attribute exists and is not empty";
+              var out = 'aria-label attribute exists and is not empty';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "aria-label attribute does not exist or is empty";
+              var out = 'aria-label attribute does not exist or is empty';
               return out;
             }
           }
         },
-        "aria-labelledby": {
-          impact: "critical",
+        'aria-labelledby': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "aria-labelledby attribute exists and references elements that are visible to screen readers";
+              var out = 'aria-labelledby attribute exists and references elements that are visible to screen readers';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty or not visible";
+              var out = 'aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty';
               return out;
             }
           }
         },
-        "aria-allowed-attr": {
-          impact: "critical",
+        'aria-allowed-attr': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "ARIA attributes are used correctly for the defined role";
+              var out = 'ARIA attributes are used correctly for the defined role';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "ARIA attribute" + (it.data && it.data.length > 1 ? "s are" : " is") + " not allowed:";
+              var out = 'ARIA attribute' + (it.data && it.data.length > 1 ? 's are' : ' is') + ' not allowed:';
               var arr1 = it.data;
               if (arr1) {
                 var value, i1 = -1, l1 = arr1.length - 1;
                 while (i1 < l1) {
                   value = arr1[i1 += 1];
-                  out += " " + value;
+                  out += ' ' + value;
                 }
               }
               return out;
             }
           }
         },
-        "aria-required-attr": {
-          impact: "critical",
+        'aria-allowed-role': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "All required ARIA attributes are present";
+              var out = 'ARIA role is allowed for given element';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Required ARIA attribute" + (it.data && it.data.length > 1 ? "s" : "") + " not present:";
+              var out = 'role' + (it.data && it.data.length > 1 ? 's' : '') + ' ' + it.data.join(', ') + ' ' + (it.data && it.data.length > 1 ? 'are' : ' is') + ' not allowed for given element';
+              return out;
+            }
+          }
+        },
+        'implicit-role-fallback': {
+          impact: 'moderate',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Element’s implicit ARIA role is an appropriate fallback';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Element’s implicit ARIA role is not a good fallback for the (unsupported) role';
+              return out;
+            }
+          }
+        },
+        'aria-hidden-body': {
+          impact: 'critical',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'No aria-hidden attribute is present on document body';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'aria-hidden=true should not be present on the document body';
+              return out;
+            }
+          }
+        },
+        'aria-required-attr': {
+          impact: 'critical',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'All required ARIA attributes are present';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Required ARIA attribute' + (it.data && it.data.length > 1 ? 's' : '') + ' not present:';
               var arr1 = it.data;
               if (arr1) {
                 var value, i1 = -1, l1 = arr1.length - 1;
                 while (i1 < l1) {
                   value = arr1[i1 += 1];
-                  out += " " + value;
+                  out += ' ' + value;
                 }
               }
               return out;
             }
           }
         },
-        "aria-required-children": {
-          impact: "critical",
+        'aria-required-children': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Required ARIA children are present";
+              var out = 'Required ARIA children are present';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Required ARIA " + (it.data && it.data.length > 1 ? "children" : "child") + " role not present:";
+              var out = 'Required ARIA ' + (it.data && it.data.length > 1 ? 'children' : 'child') + ' role not present:';
               var arr1 = it.data;
               if (arr1) {
                 var value, i1 = -1, l1 = arr1.length - 1;
                 while (i1 < l1) {
                   value = arr1[i1 += 1];
-                  out += " " + value;
+                  out += ' ' + value;
+                }
+              }
+              return out;
+            },
+            incomplete: function anonymous(it) {
+              var out = 'Expecting ARIA ' + (it.data && it.data.length > 1 ? 'children' : 'child') + ' role to be added:';
+              var arr1 = it.data;
+              if (arr1) {
+                var value, i1 = -1, l1 = arr1.length - 1;
+                while (i1 < l1) {
+                  value = arr1[i1 += 1];
+                  out += ' ' + value;
                 }
               }
               return out;
             }
           }
         },
-        "aria-required-parent": {
-          impact: "critical",
+        'aria-required-parent': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Required ARIA parent role present";
+              var out = 'Required ARIA parent role present';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Required ARIA parent" + (it.data && it.data.length > 1 ? "s" : "") + " role not present:";
+              var out = 'Required ARIA parent' + (it.data && it.data.length > 1 ? 's' : '') + ' role not present:';
               var arr1 = it.data;
               if (arr1) {
                 var value, i1 = -1, l1 = arr1.length - 1;
                 while (i1 < l1) {
                   value = arr1[i1 += 1];
-                  out += " " + value;
+                  out += ' ' + value;
                 }
               }
               return out;
@@ -3174,67 +6051,102 @@ maxstatements: false, maxcomplexity: false */
           }
         },
         invalidrole: {
-          impact: "critical",
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "ARIA role is valid";
+              var out = 'ARIA role is valid';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Role must be one of the valid ARIA roles";
+              var out = 'Role must be one of the valid ARIA roles';
               return out;
             }
           }
         },
         abstractrole: {
-          impact: "serious",
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Abstract roles are not used";
+              var out = 'Abstract roles are not used';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Abstract roles cannot be directly used";
+              var out = 'Abstract roles cannot be directly used';
               return out;
             }
           }
         },
-        "aria-valid-attr-value": {
-          impact: "critical",
+        unsupportedrole: {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "ARIA attribute values are valid";
+              var out = 'ARIA role is supported';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Invalid ARIA attribute value" + (it.data && it.data.length > 1 ? "s" : "") + ":";
+              var out = 'The role used is not widely supported in assistive technologies';
+              return out;
+            }
+          }
+        },
+        'aria-valid-attr-value': {
+          impact: 'critical',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'ARIA attribute values are valid';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Invalid ARIA attribute value' + (it.data && it.data.length > 1 ? 's' : '') + ':';
               var arr1 = it.data;
               if (arr1) {
                 var value, i1 = -1, l1 = arr1.length - 1;
                 while (i1 < l1) {
                   value = arr1[i1 += 1];
-                  out += " " + value;
+                  out += ' ' + value;
                 }
               }
               return out;
             }
           }
         },
-        "aria-valid-attr": {
-          impact: "critical",
+        'aria-errormessage': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "ARIA attribute name" + (it.data && it.data.length > 1 ? "s" : "") + " are valid";
+              var out = 'Uses a supported aria-errormessage technique';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Invalid ARIA attribute name" + (it.data && it.data.length > 1 ? "s" : "") + ":";
+              var out = 'aria-errormessage value' + (it.data && it.data.length > 1 ? 's' : '') + ' ';
               var arr1 = it.data;
               if (arr1) {
                 var value, i1 = -1, l1 = arr1.length - 1;
                 while (i1 < l1) {
                   value = arr1[i1 += 1];
-                  out += " " + value;
+                  out += ' `' + value;
+                }
+              }
+              out += '` must use a technique to announce the message (e.g., aria-live, aria-describedby, role=alert, etc.)';
+              return out;
+            }
+          }
+        },
+        'aria-valid-attr': {
+          impact: 'critical',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'ARIA attribute name' + (it.data && it.data.length > 1 ? 's' : '') + ' are valid';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Invalid ARIA attribute name' + (it.data && it.data.length > 1 ? 's' : '') + ':';
+              var arr1 = it.data;
+              if (arr1) {
+                var value, i1 = -1, l1 = arr1.length - 1;
+                while (i1 < l1) {
+                  value = arr1[i1 += 1];
+                  out += ' ' + value;
                 }
               }
               return out;
@@ -3242,77 +6154,107 @@ maxstatements: false, maxcomplexity: false */
           }
         },
         caption: {
-          impact: "critical",
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "The multimedia element has a captions track";
+              var out = 'The multimedia element has a captions track';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "The multimedia element does not have a captions track";
+              var out = 'The multimedia element does not have a captions track';
+              return out;
+            },
+            incomplete: function anonymous(it) {
+              var out = 'A captions track for this element could not be found';
               return out;
             }
           }
         },
-        "is-on-screen": {
-          impact: "minor",
+        'autocomplete-valid': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element is not visible";
+              var out = 'the autocomplete attribute is correctly formatted';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element is visible";
+              var out = 'the autocomplete attribute is incorrectly formatted';
               return out;
             }
           }
         },
-        "non-empty-if-present": {
-          impact: "critical",
+        'autocomplete-appropriate': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element ";
+              var out = 'the autocomplete value is on an appropriate element';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'the autocomplete value is inappropriate for this type of input';
+              return out;
+            }
+          }
+        },
+        'is-on-screen': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Element is not visible';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Element is visible';
+              return out;
+            }
+          }
+        },
+        'non-empty-if-present': {
+          impact: 'critical',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Element ';
               if (it.data) {
-                out += "has a non-empty value attribute";
+                out += 'has a non-empty value attribute';
               } else {
-                out += "does not have a value attribute";
+                out += 'does not have a value attribute';
               }
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element has a value attribute and the value attribute is empty";
+              var out = 'Element has a value attribute and the value attribute is empty';
               return out;
             }
           }
         },
-        "non-empty-value": {
-          impact: "critical",
+        'non-empty-value': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element has a non-empty value attribute";
+              var out = 'Element has a non-empty value attribute';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element has no value attribute or the value attribute is empty";
+              var out = 'Element has no value attribute or the value attribute is empty';
               return out;
             }
           }
         },
-        "button-has-visible-text": {
-          impact: "critical",
+        'button-has-visible-text': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element has inner text that is visible to screen readers";
+              var out = 'Element has inner text that is visible to screen readers';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element does not have inner text that is visible to screen readers";
+              var out = 'Element does not have inner text that is visible to screen readers';
               return out;
             }
           }
         },
-        "role-presentation": {
-          impact: "moderate",
+        'role-presentation': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
               var out = 'Element\'s default semantics were overriden with role="presentation"';
@@ -3324,8 +6266,8 @@ maxstatements: false, maxcomplexity: false */
             }
           }
         },
-        "role-none": {
-          impact: "moderate",
+        'role-none': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
               var out = 'Element\'s default semantics were overriden with role="none"';
@@ -3337,60 +6279,60 @@ maxstatements: false, maxcomplexity: false */
             }
           }
         },
-        "focusable-no-name": {
-          impact: "serious",
+        'focusable-no-name': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element is not in tab order or has accessible text";
+              var out = 'Element is not in tab order or has accessible text';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element is in tab order and does not have accessible text";
+              var out = 'Element is in tab order and does not have accessible text';
               return out;
             }
           }
         },
-        "internal-link-present": {
-          impact: "critical",
+        'internal-link-present': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Valid skip link found";
+              var out = 'Valid skip link found';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "No valid skip link found";
+              var out = 'No valid skip link found';
               return out;
             }
           }
         },
-        "header-present": {
-          impact: "moderate",
+        'header-present': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Page has a header";
+              var out = 'Page has a header';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Page does not have a header";
+              var out = 'Page does not have a header';
               return out;
             }
           }
         },
         landmark: {
-          impact: "serious",
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Page has a landmark region";
+              var out = 'Page has a landmark region';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Page does not have a landmark region";
+              var out = 'Page does not have a landmark region';
               return out;
             }
           }
         },
-        "group-labelledby": {
-          impact: "critical",
+        'group-labelledby': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
               var out = 'All elements with the name "' + it.data.name + '" reference the same element with aria-labelledby';
@@ -3403,346 +6345,504 @@ maxstatements: false, maxcomplexity: false */
           }
         },
         fieldset: {
-          impact: "critical",
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element is contained in a fieldset";
+              var out = 'Element is contained in a fieldset';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "";
+              var out = '';
               var code = it.data && it.data.failureCode;
-              if (code === "no-legend") {
-                out += "Fieldset does not have a legend as its first child";
+              if (code === 'no-legend') {
+                out += 'Fieldset does not have a legend as its first child';
+              } else if (code === 'empty-legend') {
+                out += 'Legend does not have text that is visible to screen readers';
+              } else if (code === 'mixed-inputs') {
+                out += 'Fieldset contains unrelated inputs';
+              } else if (code === 'no-group-label') {
+                out += 'ARIA group does not have aria-label or aria-labelledby';
+              } else if (code === 'group-mixed-inputs') {
+                out += 'ARIA group contains unrelated inputs';
               } else {
-                if (code === "empty-legend") {
-                  out += "Legend does not have text that is visible to screen readers";
-                } else {
-                  if (code === "mixed-inputs") {
-                    out += "Fieldset contains unrelated inputs";
-                  } else {
-                    if (code === "no-group-label") {
-                      out += "ARIA group does not have aria-label or aria-labelledby";
-                    } else {
-                      if (code === "group-mixed-inputs") {
-                        out += "ARIA group contains unrelated inputs";
-                      } else {
-                        out += "Element does not have a containing fieldset or ARIA group";
-                      }
-                    }
-                  }
-                }
+                out += 'Element does not have a containing fieldset or ARIA group';
               }
               return out;
             }
           }
         },
-        "color-contrast": {
-          impact: "critical",
+        'color-contrast': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "";
-              if (it.data && it.data.contrastRatio) {
-                out += "Element has sufficient color contrast of " + it.data.contrastRatio;
-              } else {
-                out += "Unable to determine contrast ratio";
-              }
+              var out = 'Element has sufficient color contrast of ' + it.data.contrastRatio;
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element has insufficient color contrast of " + it.data.contrastRatio + " (foreground color: " + it.data.fgColor + ", background color: " + it.data.bgColor + ", font size: " + it.data.fontSize + ", font weight: " + it.data.fontWeight + ")";
+              var out = 'Element has insufficient color contrast of ' + it.data.contrastRatio + ' (foreground color: ' + it.data.fgColor + ', background color: ' + it.data.bgColor + ', font size: ' + it.data.fontSize + ', font weight: ' + it.data.fontWeight + '). Expected contrast ratio of ' + it.data.expectedContrastRatio;
+              return out;
+            },
+            incomplete: {
+              bgImage: 'Element\'s background color could not be determined due to a background image',
+              bgGradient: 'Element\'s background color could not be determined due to a background gradient',
+              imgNode: 'Element\'s background color could not be determined because element contains an image node',
+              bgOverlap: 'Element\'s background color could not be determined because it is overlapped by another element',
+              fgAlpha: 'Element\'s foreground color could not be determined because of alpha transparency',
+              elmPartiallyObscured: 'Element\'s background color could not be determined because it\'s partially obscured by another element',
+              elmPartiallyObscuring: 'Element\'s background color could not be determined because it partially overlaps other elements',
+              outsideViewport: 'Element\'s background color could not be determined because it\'s outside the viewport',
+              equalRatio: 'Element has a 1:1 contrast ratio with the background',
+              default: 'Unable to determine contrast ratio'
+            }
+          }
+        },
+        'structured-dlitems': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'When not empty, element has both <dt> and <dd> elements';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'When not empty, element does not have at least one <dt> element followed by at least one <dd> element';
               return out;
             }
           }
         },
-        "structured-dlitems": {
-          impact: "serious",
+        'only-dlitems': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "When not empty, element has both <dt> and <dd> elements";
+              var out = 'List element only has direct children that are allowed inside <dt> or <dd> elements';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "When not empty, element does not have at least one <dt> element followed by at least one <dd> element";
-              return out;
-            }
-          }
-        },
-        "only-dlitems": {
-          impact: "serious",
-          messages: {
-            pass: function anonymous(it) {
-              var out = "List element only has direct children that are allowed inside <dt> or <dd> elements";
-              return out;
-            },
-            fail: function anonymous(it) {
-              var out = "List element has direct children that are not allowed inside <dt> or <dd> elements";
+              var out = 'List element has direct children that are not allowed inside <dt> or <dd> elements';
               return out;
             }
           }
         },
         dlitem: {
-          impact: "serious",
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Description list item has a <dl> parent element";
+              var out = 'Description list item has a <dl> parent element';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Description list item does not have a <dl> parent element";
+              var out = 'Description list item does not have a <dl> parent element';
               return out;
             }
           }
         },
-        "doc-has-title": {
-          impact: "moderate",
+        'doc-has-title': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Document has a non-empty <title> element";
+              var out = 'Document has a non-empty <title> element';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Document does not have a non-empty <title> element";
+              var out = 'Document does not have a non-empty <title> element';
               return out;
             }
           }
         },
-        "duplicate-id": {
-          impact: "critical",
+        'duplicate-id': {
+          impact: 'moderate',
           messages: {
             pass: function anonymous(it) {
-              var out = "Document has no elements that share the same id attribute";
+              var out = 'Document has no elements that share the same id attribute';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Document has multiple elements with the same id attribute: " + it.data;
+              var out = 'Document has multiple elements with the same id attribute: ' + it.data;
               return out;
             }
           }
         },
-        "has-visible-text": {
-          impact: "critical",
+        'has-visible-text': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element has text that is visible to screen readers";
+              var out = 'Element has text that is visible to screen readers';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element does not have text that is visible to screen readers";
+              var out = 'Element does not have text that is visible to screen readers';
               return out;
             }
           }
         },
-        "unique-frame-title": {
-          impact: "serious",
+        'has-widget-role': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element's title attribute is unique";
+              var out = 'Element has a widget role.';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element's title attribute is not unique";
+              var out = 'Element does not have a widget role.';
               return out;
             }
           }
         },
-        "heading-order": {
-          impact: "minor",
+        'valid-scrollable-semantics': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Heading order valid";
+              var out = 'Element has valid semantics for an element in the focus order.';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Heading order invalid";
+              var out = 'Element has invalid semantics for an element in the focus order.';
               return out;
             }
           }
         },
-        "has-lang": {
-          impact: "serious",
+        'frame-tested': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "The <html> element has a lang attribute";
+              var out = 'The iframe was tested with axe-core';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "The <html> element does not have a lang attribute";
+              var out = 'The iframe could not be tested with axe-core';
+              return out;
+            },
+            incomplete: function anonymous(it) {
+              var out = 'The iframe still has to be tested with axe-core';
               return out;
             }
           }
         },
-        "valid-lang": {
-          impact: "serious",
+        'unique-frame-title': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Value of lang attribute is included in the list of valid languages";
+              var out = 'Element\'s title attribute is unique';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Value of lang attribute not included in the list of valid languages";
+              var out = 'Element\'s title attribute is not unique';
               return out;
             }
           }
         },
-        "has-alt": {
-          impact: "critical",
+        'heading-order': {
+          impact: 'moderate',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element has an alt attribute";
+              var out = 'Heading order valid';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element does not have an alt attribute";
+              var out = 'Heading order invalid';
               return out;
             }
           }
         },
-        "duplicate-img-label": {
-          impact: "minor",
+        'hidden-content': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element does not duplicate existing text in <img> alt text";
+              var out = 'All content on the page has been analyzed.';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element contains <img> element with alt text that duplicates existing text";
+              var out = 'There were problems analyzing the content on this page.';
+              return out;
+            },
+            incomplete: function anonymous(it) {
+              var out = 'There is hidden content on the page that was not analyzed. You will need to trigger the display of this content in order to analyze it.';
               return out;
             }
           }
         },
-        "title-only": {
-          impact: "serious",
+        'has-lang': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Form element does not solely use title attribute for its label";
+              var out = 'The <html> element has a lang attribute';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Only title used to generate label for form element";
+              var out = 'The <html> element does not have a lang attribute';
               return out;
             }
           }
         },
-        "implicit-label": {
-          impact: "critical",
+        'valid-lang': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Form element has an implicit (wrapped) <label>";
+              var out = 'Value of lang attribute is included in the list of valid languages';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Form element does not have an implicit (wrapped) <label>";
+              var out = 'Value of lang attribute not included in the list of valid languages';
               return out;
             }
           }
         },
-        "explicit-label": {
-          impact: "critical",
+        'xml-lang-mismatch': {
+          impact: 'moderate',
           messages: {
             pass: function anonymous(it) {
-              var out = "Form element has an explicit <label>";
+              var out = 'Lang and xml:lang attributes have the same base language';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Form element does not have an explicit <label>";
+              var out = 'Lang and xml:lang attributes do not have the same base language';
               return out;
             }
           }
         },
-        "help-same-as-label": {
-          impact: "minor",
+        'has-alt': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Help text (title or aria-describedby) does not duplicate label text";
+              var out = 'Element has an alt attribute';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Help text (title or aria-describedby) text is the same as the label text";
+              var out = 'Element does not have an alt attribute';
               return out;
             }
           }
         },
-        "multiple-label": {
-          impact: "serious",
+        'duplicate-img-label': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Form element does not have multiple <label> elements";
+              var out = 'Element does not duplicate existing text in <img> alt text';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Form element has multiple <label> elements";
+              var out = 'Element contains <img> element with alt text that duplicates existing text';
               return out;
             }
           }
         },
-        "has-th": {
-          impact: "serious",
+        'title-only': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Layout table does not use <th> elements";
+              var out = 'Form element does not solely use title attribute for its label';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Layout table uses <th> elements";
+              var out = 'Only title used to generate label for form element';
               return out;
             }
           }
         },
-        "has-caption": {
-          impact: "serious",
+        'implicit-label': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Layout table does not use <caption> element";
+              var out = 'Form element has an implicit (wrapped) <label>';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Layout table uses <caption> element";
+              var out = 'Form element does not have an implicit (wrapped) <label>';
               return out;
             }
           }
         },
-        "has-summary": {
-          impact: "serious",
+        'explicit-label': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Layout table does not use summary attribute";
+              var out = 'Form element has an explicit <label>';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Layout table uses summary attribute";
+              var out = 'Form element does not have an explicit <label>';
               return out;
             }
           }
         },
-        "link-in-text-block": {
-          impact: "critical",
+        'help-same-as-label': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Links can be distinguished from surrounding text in a way that does not rely on color";
+              var out = 'Help text (title or aria-describedby) does not duplicate label text';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Links can not be distinguished from surrounding text in a way that does not rely on color";
+              var out = 'Help text (title or aria-describedby) text is the same as the label text';
               return out;
             }
           }
         },
-        "only-listitems": {
-          impact: "serious",
+        'multiple-label': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "List element only has direct children that are allowed inside <li> elements";
+              var out = 'Form element does not have multiple <label> elements';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "List element has direct children that are not allowed inside <li> elements";
+              var out = 'Form element has multiple <label> elements';
+              return out;
+            }
+          }
+        },
+        'hidden-explicit-label': {
+          impact: 'critical',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Form element has a visible explicit <label>';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Form element has explicit <label> that is hidden';
+              return out;
+            }
+          }
+        },
+        'landmark-is-top-level': {
+          impact: 'moderate',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'The ' + it.data.role + ' landmark is at the top level.';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'The ' + it.data.role + ' landmark is contained in another landmark.';
+              return out;
+            }
+          }
+        },
+        'page-no-duplicate-banner': {
+          impact: 'moderate',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Document has no more than one banner landmark';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Document has more than one banner landmark';
+              return out;
+            }
+          }
+        },
+        'page-no-duplicate-contentinfo': {
+          impact: 'moderate',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Page does not have more than one contentinfo landmark';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Page has more than one contentinfo landmark';
+              return out;
+            }
+          }
+        },
+        'page-has-main': {
+          impact: 'moderate',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Page has at least one main landmark';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Page does not have a main landmark';
+              return out;
+            }
+          }
+        },
+        'page-no-duplicate-main': {
+          impact: 'moderate',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Page does not have more than one main landmark';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Page has more than one main landmark';
+              return out;
+            }
+          }
+        },
+        'has-th': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Layout table does not use <th> elements';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Layout table uses <th> elements';
+              return out;
+            }
+          }
+        },
+        'has-caption': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Layout table does not use <caption> element';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Layout table uses <caption> element';
+              return out;
+            }
+          }
+        },
+        'has-summary': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Layout table does not use summary attribute';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Layout table uses summary attribute';
+              return out;
+            }
+          }
+        },
+        'link-in-text-block': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Links can be distinguished from surrounding text in some way other than by color';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Links need to be distinguished from surrounding text in some way other than by color';
+              return out;
+            },
+            incomplete: {
+              bgContrast: 'Element\'s contrast ratio could not be determined. Check for a distinct hover/focus style',
+              bgImage: 'Element\'s contrast ratio could not be determined due to a background image',
+              bgGradient: 'Element\'s contrast ratio could not be determined due to a background gradient',
+              imgNode: 'Element\'s contrast ratio could not be determined because element contains an image node',
+              bgOverlap: 'Element\'s contrast ratio could not be determined because of element overlap',
+              default: 'Unable to determine contrast ratio'
+            }
+          }
+        },
+        'only-listitems': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'List element only has direct children that are allowed inside <li> elements';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'List element has direct children that are not allowed inside <li> elements';
               return out;
             }
           }
         },
         listitem: {
-          impact: "critical",
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
               var out = 'List item has a <ul>, <ol> or role="list" parent element';
@@ -3754,197 +6854,235 @@ maxstatements: false, maxcomplexity: false */
             }
           }
         },
-        "meta-refresh": {
-          impact: "critical",
+        'meta-refresh': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "<meta> tag does not immediately refresh the page";
+              var out = '<meta> tag does not immediately refresh the page';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "<meta> tag forces timed refresh of page";
+              var out = '<meta> tag forces timed refresh of page';
               return out;
             }
           }
         },
-        "meta-viewport-large": {
-          impact: "minor",
+        'meta-viewport-large': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "<meta> tag does not prevent significant zooming";
+              var out = '<meta> tag does not prevent significant zooming on mobile devices';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "<meta> tag limits zooming";
+              var out = '<meta> tag limits zooming on mobile devices';
               return out;
             }
           }
         },
-        "meta-viewport": {
-          impact: "critical",
+        'meta-viewport': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "<meta> tag does not disable zooming";
+              var out = '<meta> tag does not disable zooming on mobile devices';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "<meta> tag disables zooming";
+              var out = '' + it.data + ' on <meta> tag disables zooming on mobile devices';
+              return out;
+            }
+          }
+        },
+        'p-as-heading': {
+          impact: 'serious',
+          messages: {
+            pass: function anonymous(it) {
+              var out = '<p> elements are not styled as headings';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Heading elements should be used instead of styled p elements';
+              return out;
+            }
+          }
+        },
+        'page-has-heading-one': {
+          impact: 'moderate',
+          messages: {
+            pass: function anonymous(it) {
+              var out = 'Page has at least one level-one heading';
+              return out;
+            },
+            fail: function anonymous(it) {
+              var out = 'Page must have a level-one heading';
               return out;
             }
           }
         },
         region: {
-          impact: "moderate",
+          impact: 'moderate',
           messages: {
             pass: function anonymous(it) {
-              var out = "Content contained by ARIA landmark";
+              var out = 'All page content is contained by landmarks';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Content not contained by an ARIA landmark";
+              var out = 'Some page content is not contained by landmarks';
               return out;
             }
           }
         },
-        "html5-scope": {
-          impact: "serious",
+        'html5-scope': {
+          impact: 'moderate',
           messages: {
             pass: function anonymous(it) {
-              var out = "Scope attribute is only used on table header elements (<th>)";
+              var out = 'Scope attribute is only used on table header elements (<th>)';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "In HTML 5, scope attributes may only be used on table header elements (<th>)";
+              var out = 'In HTML 5, scope attributes may only be used on table header elements (<th>)';
               return out;
             }
           }
         },
-        "scope-value": {
-          impact: "critical",
+        'scope-value': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "Scope attribute is used correctly";
+              var out = 'Scope attribute is used correctly';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "The value of the scope attribute may only be 'row' or 'col'";
+              var out = 'The value of the scope attribute may only be \'row\' or \'col\'';
               return out;
             }
           }
         },
         exists: {
-          impact: "minor",
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element does not exist";
+              var out = 'Element does not exist';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element exists";
+              var out = 'Element exists';
               return out;
             }
           }
         },
-        "skip-link": {
-          impact: "critical",
+        'skip-link': {
+          impact: 'moderate',
           messages: {
             pass: function anonymous(it) {
-              var out = "Valid skip link found";
+              var out = 'Skip link target exists';
+              return out;
+            },
+            incomplete: function anonymous(it) {
+              var out = 'Skip link target should become visible on activation';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "No valid skip link found";
+              var out = 'No skip link target';
               return out;
             }
           }
         },
         tabindex: {
-          impact: "serious",
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "Element does not have a tabindex greater than 0";
+              var out = 'Element does not have a tabindex greater than 0';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Element has a tabindex greater than 0";
+              var out = 'Element has a tabindex greater than 0';
               return out;
             }
           }
         },
-        "same-caption-summary": {
-          impact: "moderate",
+        'same-caption-summary': {
+          impact: 'minor',
           messages: {
             pass: function anonymous(it) {
-              var out = "Content of summary attribute and <caption> are not duplicated";
+              var out = 'Content of summary attribute and <caption> are not duplicated';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Content of summary attribute and <caption> element are identical";
+              var out = 'Content of summary attribute and <caption> element are identical';
               return out;
             }
           }
         },
-        "caption-faked": {
-          impact: "critical",
+        'caption-faked': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "The first row of a table is not used as a caption";
+              var out = 'The first row of a table is not used as a caption';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "The first row of the table should be a caption instead of a table cell";
+              var out = 'The first row of the table should be a caption instead of a table cell';
               return out;
             }
           }
         },
-        "td-has-header": {
-          impact: "critical",
+        'td-has-header': {
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "All non-empty data cells have table headers";
+              var out = 'All non-empty data cells have table headers';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Some non-empty data cells do not have table headers";
+              var out = 'Some non-empty data cells do not have table headers';
               return out;
             }
           }
         },
-        "td-headers-attr": {
-          impact: "serious",
+        'td-headers-attr': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "The headers attribute is exclusively used to refer to other cells in the table";
+              var out = 'The headers attribute is exclusively used to refer to other cells in the table';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "The headers attribute is not exclusively used to refer to other cells in the table";
+              var out = 'The headers attribute is not exclusively used to refer to other cells in the table';
               return out;
             }
           }
         },
-        "th-has-data-cells": {
-          impact: "critical",
+        'th-has-data-cells': {
+          impact: 'serious',
           messages: {
             pass: function anonymous(it) {
-              var out = "All table header cells refer to data cells";
+              var out = 'All table header cells refer to data cells';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "Not all table header cells refer to data cells";
+              var out = 'Not all table header cells refer to data cells';
+              return out;
+            },
+            incomplete: function anonymous(it) {
+              var out = 'Table data cells are missing or empty';
               return out;
             }
           }
         },
         description: {
-          impact: "serious",
+          impact: 'critical',
           messages: {
             pass: function anonymous(it) {
-              var out = "The multimedia element has an audio description track";
+              var out = 'The multimedia element has an audio description track';
               return out;
             },
             fail: function anonymous(it) {
-              var out = "The multimedia element does not have an audio description track";
+              var out = 'The multimedia element does not have an audio description track';
+              return out;
+            },
+            incomplete: function anonymous(it) {
+              var out = 'An audio description track for this element could not be found';
               return out;
             }
           }
@@ -3953,13 +7091,13 @@ maxstatements: false, maxcomplexity: false */
       failureSummaries: {
         any: {
           failureMessage: function anonymous(it) {
-            var out = "Fix any of the following:";
+            var out = 'Fix any of the following:';
             var arr1 = it;
             if (arr1) {
               var value, i1 = -1, l1 = arr1.length - 1;
               while (i1 < l1) {
                 value = arr1[i1 += 1];
-                out += "\n  " + value.split("\n").join("\n  ");
+                out += '\n  ' + value.split('\n').join('\n  ');
               }
             }
             return out;
@@ -3967,476 +7105,44 @@ maxstatements: false, maxcomplexity: false */
         },
         none: {
           failureMessage: function anonymous(it) {
-            var out = "Fix all of the following:";
+            var out = 'Fix all of the following:';
             var arr1 = it;
             if (arr1) {
               var value, i1 = -1, l1 = arr1.length - 1;
               while (i1 < l1) {
                 value = arr1[i1 += 1];
-                out += "\n  " + value.split("\n").join("\n  ");
+                out += '\n  ' + value.split('\n').join('\n  ');
               }
             }
             return out;
           }
         }
+      },
+      incompleteFallbackMessage: function anonymous(it) {
+        var out = 'aXe couldn\'t tell the reason. Time to break out the element inspector!';
+        return out;
       }
     },
     rules: [ {
-      id: "accesskeys",
-      selector: "[accesskey]",
+      id: 'accesskeys',
+      selector: '[accesskey]',
       excludeHidden: false,
-      tags: [ "wcag2a", "wcag211" ],
+      tags: [ 'best-practice', 'cat.keyboard' ],
       all: [],
       any: [],
-      none: [ "accesskeys" ]
+      none: [ 'accesskeys' ]
     }, {
-      id: "area-alt",
-      selector: "map area[href]",
+      id: 'area-alt',
+      selector: 'map area[href]',
       excludeHidden: false,
-      tags: [ "wcag2a", "wcag111", "section508", "section508.22.a" ],
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag111', 'section508', 'section508.22.a' ],
       all: [],
-      any: [ "non-empty-alt", "non-empty-title", "aria-label", "aria-labelledby" ],
+      any: [ 'non-empty-alt', 'non-empty-title', 'aria-label', 'aria-labelledby' ],
       none: []
     }, {
-      id: "aria-allowed-attr",
-      tags: [ "wcag2a", "wcag411", "wcag412" ],
-      all: [],
-      any: [ "aria-allowed-attr" ],
-      none: []
-    }, {
-      id: "aria-required-attr",
-      selector: "[role]",
-      tags: [ "wcag2a", "wcag411", "wcag412" ],
-      all: [],
-      any: [ "aria-required-attr" ],
-      none: []
-    }, {
-      id: "aria-required-children",
-      selector: "[role]",
-      tags: [ "wcag2a", "wcag131" ],
-      all: [],
-      any: [ "aria-required-children" ],
-      none: []
-    }, {
-      id: "aria-required-parent",
-      selector: "[role]",
-      tags: [ "wcag2a", "wcag131" ],
-      all: [],
-      any: [ "aria-required-parent" ],
-      none: []
-    }, {
-      id: "aria-roles",
-      selector: "[role]",
-      tags: [ "wcag2a", "wcag131", "wcag411", "wcag412" ],
-      all: [],
-      any: [],
-      none: [ "invalidrole", "abstractrole" ]
-    }, {
-      id: "aria-valid-attr-value",
-      tags: [ "wcag2a", "wcag131", "wcag411", "wcag412" ],
-      all: [],
-      any: [ {
-        options: [],
-        id: "aria-valid-attr-value"
-      } ],
-      none: []
-    }, {
-      id: "aria-valid-attr",
-      tags: [ "wcag2a", "wcag411" ],
-      all: [],
-      any: [ {
-        options: [],
-        id: "aria-valid-attr"
-      } ],
-      none: []
-    }, {
-      id: "audio-caption",
-      selector: "audio",
-      excludeHidden: false,
-      tags: [ "wcag2a", "wcag122", "section508", "section508.22.a" ],
-      all: [],
-      any: [],
-      none: [ "caption" ]
-    }, {
-      id: "blink",
-      selector: "blink",
-      excludeHidden: false,
-      tags: [ "wcag2a", "wcag222", "section508", "section508.22.j" ],
-      all: [],
-      any: [],
-      none: [ "is-on-screen" ]
-    }, {
-      id: "button-name",
-      selector: 'button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]',
-      tags: [ "wcag2a", "wcag412", "section508", "section508.22.a" ],
-      all: [],
-      any: [ "non-empty-if-present", "non-empty-value", "button-has-visible-text", "aria-label", "aria-labelledby", "role-presentation", "role-none" ],
-      none: [ "focusable-no-name" ]
-    }, {
-      id: "bypass",
-      selector: "html",
-      pageLevel: true,
-      matches: function matches(node) {
-        return !!node.querySelector("a[href]");
-      },
-      tags: [ "wcag2a", "wcag241", "section508", "section508.22.o" ],
-      all: [],
-      any: [ "internal-link-present", "header-present", "landmark" ],
-      none: []
-    }, {
-      id: "checkboxgroup",
-      selector: "input[type=checkbox][name]",
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ "group-labelledby", "fieldset" ],
-      none: []
-    }, {
-      id: "color-contrast",
-      excludeHidden: false,
-      options: {
-        noScroll: false
-      },
-      selector: "*",
-      tags: [ "wcag2aa", "wcag143" ],
-      all: [],
-      any: [ "color-contrast" ],
-      none: []
-    }, {
-      id: "definition-list",
-      selector: "dl:not([role])",
-      tags: [ "wcag2a", "wcag131" ],
-      all: [],
-      any: [],
-      none: [ "structured-dlitems", "only-dlitems" ]
-    }, {
-      id: "dlitem",
-      selector: "dd:not([role]), dt:not([role])",
-      tags: [ "wcag2a", "wcag131" ],
-      all: [],
-      any: [ "dlitem" ],
-      none: []
-    }, {
-      id: "document-title",
-      selector: "html",
-      tags: [ "wcag2a", "wcag242" ],
-      all: [],
-      any: [ "doc-has-title" ],
-      none: []
-    }, {
-      id: "duplicate-id",
-      selector: "[id]",
-      excludeHidden: false,
-      tags: [ "wcag2a", "wcag411" ],
-      all: [],
-      any: [ "duplicate-id" ],
-      none: []
-    }, {
-      id: "empty-heading",
-      selector: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
-      enabled: true,
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ "has-visible-text", "role-presentation", "role-none" ],
-      none: []
-    }, {
-      id: "frame-title",
-      selector: "frame, iframe",
-      tags: [ "wcag2a", "wcag241", "section508", "section508.22.i" ],
-      all: [],
-      any: [ "non-empty-title" ],
-      none: [ "unique-frame-title" ]
-    }, {
-      id: "heading-order",
-      selector: "h1,h2,h3,h4,h5,h6,[role=heading]",
-      enabled: false,
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ "heading-order" ],
-      none: []
-    }, {
-      id: "html-has-lang",
-      selector: "html",
-      tags: [ "wcag2a", "wcag311" ],
-      all: [],
-      any: [ "has-lang" ],
-      none: []
-    }, {
-      id: "html-lang-valid",
-      selector: "html[lang]",
-      tags: [ "wcag2a", "wcag311" ],
-      all: [],
-      any: [],
-      none: [ {
-        options: [ "aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az", "ba", "be", "bg", "bh", "bi", "bm", "bn", "bo", "br", "bs", "ca", "ce", "ch", "co", "cr", "cs", "cu", "cv", "cy", "da", "de", "dv", "dz", "ee", "el", "en", "eo", "es", "et", "eu", "fa", "ff", "fi", "fj", "fo", "fr", "fy", "ga", "gd", "gl", "gn", "gu", "gv", "ha", "he", "hi", "ho", "hr", "ht", "hu", "hy", "hz", "ia", "id", "ie", "ig", "ii", "ik", "in", "io", "is", "it", "iu", "iw", "ja", "ji", "jv", "jw", "ka", "kg", "ki", "kj", "kk", "kl", "km", "kn", "ko", "kr", "ks", "ku", "kv", "kw", "ky", "la", "lb", "lg", "li", "ln", "lo", "lt", "lu", "lv", "mg", "mh", "mi", "mk", "ml", "mn", "mo", "mr", "ms", "mt", "my", "na", "nb", "nd", "ne", "ng", "nl", "nn", "no", "nr", "nv", "ny", "oc", "oj", "om", "or", "os", "pa", "pi", "pl", "ps", "pt", "qu", "rm", "rn", "ro", "ru", "rw", "sa", "sc", "sd", "se", "sg", "sh", "si", "sk", "sl", "sm", "sn", "so", "sq", "sr", "ss", "st", "su", "sv", "sw", "ta", "te", "tg", "th", "ti", "tk", "tl", "tn", "to", "tr", "ts", "tt", "tw", "ty", "ug", "uk", "ur", "uz", "ve", "vi", "vo", "wa", "wo", "xh", "yi", "yo", "za", "zh", "zu" ],
-        id: "valid-lang"
-      } ]
-    }, {
-      id: "image-alt",
-      selector: "img",
-      tags: [ "wcag2a", "wcag111", "section508", "section508.22.a" ],
-      all: [],
-      any: [ "has-alt", "aria-label", "aria-labelledby", "non-empty-title", "role-presentation", "role-none" ],
-      none: []
-    }, {
-      id: "image-redundant-alt",
-      selector: 'button, [role="button"], a[href], p, li, td, th',
-      tags: [ "best-practice" ],
-      all: [],
-      any: [],
-      none: [ "duplicate-img-label" ]
-    }, {
-      id: "input-image-alt",
-      selector: 'input[type="image"]',
-      tags: [ "wcag2a", "wcag111", "section508", "section508.22.a" ],
-      all: [],
-      any: [ "non-empty-alt", "aria-label", "aria-labelledby", "non-empty-title" ],
-      none: []
-    }, {
-      id: "label-title-only",
-      selector: "input:not([type='hidden']):not([type='image']):not([type='button']):not([type='submit']):not([type='reset']), select, textarea",
-      enabled: false,
-      tags: [ "best-practice" ],
-      all: [],
-      any: [],
-      none: [ "title-only" ]
-    }, {
-      id: "label",
-      selector: "input:not([type='hidden']):not([type='image']):not([type='button']):not([type='submit']):not([type='reset']), select, textarea",
-      tags: [ "wcag2a", "wcag332", "wcag131", "section508", "section508.22.n" ],
-      all: [],
-      any: [ "aria-label", "aria-labelledby", "implicit-label", "explicit-label", "non-empty-title" ],
-      none: [ "help-same-as-label", "multiple-label" ]
-    }, {
-      id: "layout-table",
-      selector: "table",
-      matches: function matches(node) {
-        return !axe.commons.table.isDataTable(node);
-      },
-      tags: [ "wcag2a", "wcag131" ],
-      all: [],
-      any: [],
-      none: [ "has-th", "has-caption", "has-summary" ]
-    }, {
-      id: "link-in-text-block",
-      selector: "a[href]:not([role]), *[role=link]",
-      matches: function matches(node) {
-        var text = axe.commons.text.sanitize(node.textContent);
-        if (!text) {
-          return false;
-        }
-        if (!axe.commons.dom.isVisible(node, false)) {
-          return false;
-        }
-        return axe.commons.dom.isInTextBlock(node);
-      },
-      excludeHidden: false,
-      enabled: false,
-      tags: [ "experimental", "wcag2a", "wcag141" ],
-      all: [ "link-in-text-block" ],
-      any: [],
-      none: []
-    }, {
-      id: "link-name",
-      selector: 'a[href]:not([role="button"]), [role=link][href]',
-      tags: [ "wcag2a", "wcag111", "wcag412", "section508", "section508.22.a" ],
-      all: [],
-      any: [ "has-visible-text", "aria-label", "aria-labelledby", "role-presentation", "role-none" ],
-      none: [ "focusable-no-name" ]
-    }, {
-      id: "list",
-      selector: "ul:not([role]), ol:not([role])",
-      tags: [ "wcag2a", "wcag131" ],
-      all: [],
-      any: [],
-      none: [ "only-listitems" ]
-    }, {
-      id: "listitem",
-      selector: "li:not([role])",
-      tags: [ "wcag2a", "wcag131" ],
-      all: [],
-      any: [ "listitem" ],
-      none: []
-    }, {
-      id: "marquee",
-      selector: "marquee",
-      excludeHidden: false,
-      tags: [ "wcag2a", "wcag222" ],
-      all: [],
-      any: [],
-      none: [ "is-on-screen" ]
-    }, {
-      id: "meta-refresh",
-      selector: 'meta[http-equiv="refresh"]',
-      excludeHidden: false,
-      tags: [ "wcag2a", "wcag2aaa", "wcag221", "wcag224", "wcag325" ],
-      all: [],
-      any: [ "meta-refresh" ],
-      none: []
-    }, {
-      id: "meta-viewport-large",
-      selector: 'meta[name="viewport"]',
-      excludeHidden: false,
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ {
-        options: {
-          scaleMinimum: 5,
-          lowerBound: 2
-        },
-        id: "meta-viewport-large"
-      } ],
-      none: []
-    }, {
-      id: "meta-viewport",
-      selector: 'meta[name="viewport"]',
-      excludeHidden: false,
-      tags: [ "wcag2aa", "wcag144" ],
-      all: [],
-      any: [ {
-        options: {
-          scaleMinimum: 2
-        },
-        id: "meta-viewport"
-      } ],
-      none: []
-    }, {
-      id: "object-alt",
-      selector: "object",
-      tags: [ "wcag2a", "wcag111", "section508", "section508.22.a" ],
-      all: [],
-      any: [ "has-visible-text", "aria-label", "aria-labelledby", "non-empty-title" ],
-      none: []
-    }, {
-      id: "radiogroup",
-      selector: "input[type=radio][name]",
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ "group-labelledby", "fieldset" ],
-      none: []
-    }, {
-      id: "region",
-      selector: "html",
-      pageLevel: true,
-      enabled: false,
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ "region" ],
-      none: []
-    }, {
-      id: "scope-attr-valid",
-      selector: "td[scope], th[scope]",
-      enabled: true,
-      tags: [ "best-practice" ],
-      all: [ "html5-scope", "scope-value" ],
-      any: [],
-      none: []
-    }, {
-      id: "server-side-image-map",
-      selector: "img[ismap]",
-      tags: [ "wcag2a", "wcag211", "section508", "section508.22.f" ],
-      all: [],
-      any: [],
-      none: [ "exists" ]
-    }, {
-      id: "skip-link",
-      selector: "a[href]",
-      pageLevel: true,
-      enabled: false,
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ "skip-link" ],
-      none: []
-    }, {
-      id: "tabindex",
-      selector: "[tabindex]",
-      tags: [ "best-practice" ],
-      all: [],
-      any: [ "tabindex" ],
-      none: []
-    }, {
-      id: "table-duplicate-name",
-      selector: "table",
-      tags: [ "best-practice" ],
-      all: [],
-      any: [],
-      none: [ "same-caption-summary" ]
-    }, {
-      id: "table-fake-caption",
-      selector: "table",
-      matches: function matches(node) {
-        return axe.commons.table.isDataTable(node);
-      },
-      tags: [ "experimental", "wcag2a", "wcag131", "section508", "section508.22.g" ],
-      all: [ "caption-faked" ],
-      any: [],
-      none: []
-    }, {
-      id: "td-has-header",
-      selector: "table",
-      matches: function matches(node) {
-        if (axe.commons.table.isDataTable(node)) {
-          var tableArray = axe.commons.table.toArray(node);
-          return tableArray.length >= 3 && tableArray[0].length >= 3 && tableArray[1].length >= 3 && tableArray[2].length >= 3;
-        }
-        return false;
-      },
-      tags: [ "experimental", "wcag2a", "wcag131", "section508", "section508.22.g" ],
-      all: [ "td-has-header" ],
-      any: [],
-      none: []
-    }, {
-      id: "td-headers-attr",
-      selector: "table",
-      tags: [ "wcag2a", "wcag131", "section508", "section508.22.g" ],
-      all: [ "td-headers-attr" ],
-      any: [],
-      none: []
-    }, {
-      id: "th-has-data-cells",
-      selector: "table",
-      matches: function matches(node) {
-        return axe.commons.table.isDataTable(node);
-      },
-      tags: [ "wcag2a", "wcag131", "section508", "section508.22.g" ],
-      all: [ "th-has-data-cells" ],
-      any: [],
-      none: []
-    }, {
-      id: "valid-lang",
-      selector: "[lang]:not(html), [xml\\:lang]:not(html)",
-      tags: [ "wcag2aa", "wcag312" ],
-      all: [],
-      any: [],
-      none: [ {
-        options: [ "aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az", "ba", "be", "bg", "bh", "bi", "bm", "bn", "bo", "br", "bs", "ca", "ce", "ch", "co", "cr", "cs", "cu", "cv", "cy", "da", "de", "dv", "dz", "ee", "el", "en", "eo", "es", "et", "eu", "fa", "ff", "fi", "fj", "fo", "fr", "fy", "ga", "gd", "gl", "gn", "gu", "gv", "ha", "he", "hi", "ho", "hr", "ht", "hu", "hy", "hz", "ia", "id", "ie", "ig", "ii", "ik", "in", "io", "is", "it", "iu", "iw", "ja", "ji", "jv", "jw", "ka", "kg", "ki", "kj", "kk", "kl", "km", "kn", "ko", "kr", "ks", "ku", "kv", "kw", "ky", "la", "lb", "lg", "li", "ln", "lo", "lt", "lu", "lv", "mg", "mh", "mi", "mk", "ml", "mn", "mo", "mr", "ms", "mt", "my", "na", "nb", "nd", "ne", "ng", "nl", "nn", "no", "nr", "nv", "ny", "oc", "oj", "om", "or", "os", "pa", "pi", "pl", "ps", "pt", "qu", "rm", "rn", "ro", "ru", "rw", "sa", "sc", "sd", "se", "sg", "sh", "si", "sk", "sl", "sm", "sn", "so", "sq", "sr", "ss", "st", "su", "sv", "sw", "ta", "te", "tg", "th", "ti", "tk", "tl", "tn", "to", "tr", "ts", "tt", "tw", "ty", "ug", "uk", "ur", "uz", "ve", "vi", "vo", "wa", "wo", "xh", "yi", "yo", "za", "zh", "zu" ],
-        id: "valid-lang"
-      } ]
-    }, {
-      id: "video-caption",
-      selector: "video",
-      excludeHidden: false,
-      tags: [ "wcag2a", "wcag122", "wcag123", "section508", "section508.22.a" ],
-      all: [],
-      any: [],
-      none: [ "caption" ]
-    }, {
-      id: "video-description",
-      selector: "video",
-      excludeHidden: false,
-      tags: [ "wcag2aa", "wcag125", "section508", "section508.22.b" ],
-      all: [],
-      any: [],
-      none: [ "description" ]
-    } ],
-    checks: [ {
-      id: "abstractrole",
-      evaluate: function evaluate(node, options) {
-        return axe.commons.aria.getRoleType(node.getAttribute("role")) === "abstract";
-      }
-    }, {
-      id: "aria-allowed-attr",
-      matches: function matches(node) {
-        var role = node.getAttribute("role");
+      id: 'aria-allowed-attr',
+      matches: function matches(node, virtualNode) {
+        var role = node.getAttribute('role');
         if (!role) {
           role = axe.commons.aria.implicitRole(node);
         }
@@ -4454,18 +7160,854 @@ maxstatements: false, maxcomplexity: false */
         }
         return false;
       },
-      evaluate: function evaluate(node, options) {
+      tags: [ 'cat.aria', 'wcag2a', 'wcag412' ],
+      all: [],
+      any: [ 'aria-allowed-attr' ],
+      none: []
+    }, {
+      id: 'aria-allowed-role',
+      excludeHidden: false,
+      selector: '[role]',
+      tags: [ 'cat.aria', 'best-practice' ],
+      all: [],
+      any: [ {
+        options: {
+          allowImplicit: true,
+          ignoredTags: []
+        },
+        id: 'aria-allowed-role'
+      } ],
+      none: []
+    }, {
+      id: 'aria-dpub-role-fallback',
+      selector: '[role]',
+      matches: function matches(node, virtualNode) {
+        var role = node.getAttribute('role');
+        return [ 'doc-backlink', 'doc-biblioentry', 'doc-biblioref', 'doc-cover', 'doc-endnote', 'doc-glossref', 'doc-noteref' ].includes(role);
+      },
+      tags: [ 'cat.aria', 'wcag2a', 'wcag131' ],
+      all: [ 'implicit-role-fallback' ],
+      any: [],
+      none: []
+    }, {
+      id: 'aria-hidden-body',
+      selector: 'body',
+      excludeHidden: false,
+      tags: [ 'cat.aria', 'wcag2a', 'wcag412' ],
+      all: [],
+      any: [ 'aria-hidden-body' ],
+      none: []
+    }, {
+      id: 'aria-required-attr',
+      selector: '[role]',
+      tags: [ 'cat.aria', 'wcag2a', 'wcag412' ],
+      all: [],
+      any: [ 'aria-required-attr' ],
+      none: []
+    }, {
+      id: 'aria-required-children',
+      selector: '[role]',
+      tags: [ 'cat.aria', 'wcag2a', 'wcag131' ],
+      all: [],
+      any: [ {
+        options: {
+          reviewEmpty: [ 'listbox' ]
+        },
+        id: 'aria-required-children'
+      } ],
+      none: []
+    }, {
+      id: 'aria-required-parent',
+      selector: '[role]',
+      tags: [ 'cat.aria', 'wcag2a', 'wcag131' ],
+      all: [],
+      any: [ 'aria-required-parent' ],
+      none: []
+    }, {
+      id: 'aria-roles',
+      selector: '[role]',
+      tags: [ 'cat.aria', 'wcag2a', 'wcag412' ],
+      all: [],
+      any: [],
+      none: [ 'invalidrole', 'abstractrole', 'unsupportedrole' ]
+    }, {
+      id: 'aria-valid-attr-value',
+      matches: function matches(node, virtualNode) {
+        var aria = /^aria-/;
+        if (node.hasAttributes()) {
+          var attrs = node.attributes;
+          for (var i = 0, l = attrs.length; i < l; i++) {
+            if (aria.test(attrs[i].name)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      tags: [ 'cat.aria', 'wcag2a', 'wcag412' ],
+      all: [ {
+        options: [],
+        id: 'aria-valid-attr-value'
+      }, 'aria-errormessage' ],
+      any: [],
+      none: []
+    }, {
+      id: 'aria-valid-attr',
+      matches: function matches(node, virtualNode) {
+        var aria = /^aria-/;
+        if (node.hasAttributes()) {
+          var attrs = node.attributes;
+          for (var i = 0, l = attrs.length; i < l; i++) {
+            if (aria.test(attrs[i].name)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      tags: [ 'cat.aria', 'wcag2a', 'wcag412' ],
+      all: [],
+      any: [ {
+        options: [],
+        id: 'aria-valid-attr'
+      } ],
+      none: []
+    }, {
+      id: 'audio-caption',
+      selector: 'audio',
+      excludeHidden: false,
+      tags: [ 'cat.time-and-media', 'wcag2a', 'wcag121', 'section508', 'section508.22.a' ],
+      all: [],
+      any: [],
+      none: [ 'caption' ]
+    }, {
+      id: 'autocomplete-valid',
+      matches: function matches(node, virtualNode) {
+        var _axe$commons = axe.commons, text = _axe$commons.text, aria = _axe$commons.aria, dom = _axe$commons.dom;
+        var autocomplete = node.getAttribute('autocomplete');
+        if (!autocomplete || text.sanitize(autocomplete) === '') {
+          return false;
+        }
+        var nodeName = node.nodeName.toUpperCase();
+        if ([ 'TEXTAREA', 'INPUT', 'SELECT' ].includes(nodeName) === false) {
+          return false;
+        }
+        var excludedInputTypes = [ 'submit', 'reset', 'button', 'hidden' ];
+        if (nodeName === 'INPUT' && excludedInputTypes.includes(node.type)) {
+          return false;
+        }
+        var ariaDisabled = node.getAttribute('aria-disabled') || 'false';
+        if (node.disabled || ariaDisabled.toLowerCase() === 'true') {
+          return false;
+        }
+        var role = node.getAttribute('role');
+        var tabIndex = node.getAttribute('tabindex');
+        if (tabIndex === '-1' && role) {
+          var roleDef = aria.lookupTable.role[role];
+          if (roleDef === undefined || roleDef.type !== 'widget') {
+            return false;
+          }
+        }
+        if (tabIndex === '-1' && !dom.isVisible(node, false) && !dom.isVisible(node, true)) {
+          return false;
+        }
+        return true;
+      },
+      tags: [ 'cat.forms', 'wcag21aa', 'wcag135' ],
+      all: [ 'autocomplete-valid', 'autocomplete-appropriate' ],
+      any: [],
+      none: []
+    }, {
+      id: 'blink',
+      selector: 'blink',
+      excludeHidden: false,
+      tags: [ 'cat.time-and-media', 'wcag2a', 'wcag222', 'section508', 'section508.22.j' ],
+      all: [],
+      any: [],
+      none: [ 'is-on-screen' ]
+    }, {
+      id: 'button-name',
+      selector: 'button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]',
+      tags: [ 'cat.name-role-value', 'wcag2a', 'wcag412', 'section508', 'section508.22.a' ],
+      all: [],
+      any: [ 'non-empty-if-present', 'non-empty-value', 'button-has-visible-text', 'aria-label', 'aria-labelledby', 'role-presentation', 'role-none', 'non-empty-title' ],
+      none: [ 'focusable-no-name' ]
+    }, {
+      id: 'bypass',
+      selector: 'html',
+      pageLevel: true,
+      matches: function matches(node, virtualNode) {
+        return !!node.querySelector('a[href]');
+      },
+      tags: [ 'cat.keyboard', 'wcag2a', 'wcag241', 'section508', 'section508.22.o' ],
+      all: [],
+      any: [ 'internal-link-present', 'header-present', 'landmark' ],
+      none: []
+    }, {
+      id: 'checkboxgroup',
+      selector: 'input[type=checkbox][name]',
+      tags: [ 'cat.forms', 'best-practice' ],
+      all: [],
+      any: [ 'group-labelledby', 'fieldset' ],
+      none: []
+    }, {
+      id: 'color-contrast',
+      matches: function matches(node, virtualNode) {
+        var nodeName = node.nodeName.toUpperCase(), nodeType = node.type;
+        if (node.getAttribute('aria-disabled') === 'true' || axe.commons.dom.findUpVirtual(virtualNode, '[aria-disabled="true"]')) {
+          return false;
+        }
+        if (nodeName === 'INPUT') {
+          return [ 'hidden', 'range', 'color', 'checkbox', 'radio', 'image' ].indexOf(nodeType) === -1 && !node.disabled;
+        }
+        if (nodeName === 'SELECT') {
+          return !!node.options.length && !node.disabled;
+        }
+        if (nodeName === 'TEXTAREA') {
+          return !node.disabled;
+        }
+        if (nodeName === 'OPTION') {
+          return false;
+        }
+        if (nodeName === 'BUTTON' && node.disabled || axe.commons.dom.findUpVirtual(virtualNode, 'button[disabled]')) {
+          return false;
+        }
+        if (nodeName === 'FIELDSET' && node.disabled || axe.commons.dom.findUpVirtual(virtualNode, 'fieldset[disabled]')) {
+          return false;
+        }
+        var nodeParentLabel = axe.commons.dom.findUpVirtual(virtualNode, 'label');
+        if (nodeName === 'LABEL' || nodeParentLabel) {
+          var relevantNode = node;
+          var relevantVirtualNode = virtualNode;
+          if (nodeParentLabel) {
+            relevantNode = nodeParentLabel;
+            relevantVirtualNode = axe.utils.getNodeFromTree(axe._tree[0], nodeParentLabel);
+          }
+          var doc = axe.commons.dom.getRootNode(relevantNode);
+          var candidate = relevantNode.htmlFor && doc.getElementById(relevantNode.htmlFor);
+          if (candidate && candidate.disabled) {
+            return false;
+          }
+          var candidate = axe.utils.querySelectorAll(relevantVirtualNode, 'input:not([type="hidden"]):not([type="image"])' + ':not([type="button"]):not([type="submit"]):not([type="reset"]), select, textarea');
+          if (candidate.length && candidate[0].actualNode.disabled) {
+            return false;
+          }
+        }
+        if (node.getAttribute('id')) {
+          var id = axe.commons.utils.escapeSelector(node.getAttribute('id'));
+          var _doc = axe.commons.dom.getRootNode(node);
+          var candidate = _doc.querySelector('[aria-labelledby~=' + id + ']');
+          if (candidate && candidate.disabled) {
+            return false;
+          }
+        }
+        if (axe.commons.text.visibleVirtual(virtualNode, false, true) === '') {
+          return false;
+        }
+        var range = document.createRange(), childNodes = virtualNode.children, length = childNodes.length, child, index;
+        for (index = 0; index < length; index++) {
+          child = childNodes[index];
+          if (child.actualNode.nodeType === 3 && axe.commons.text.sanitize(child.actualNode.nodeValue) !== '') {
+            range.selectNodeContents(child.actualNode);
+          }
+        }
+        var rects = range.getClientRects();
+        length = rects.length;
+        for (index = 0; index < length; index++) {
+          if (axe.commons.dom.visuallyOverlaps(rects[index], node)) {
+            return true;
+          }
+        }
+        return false;
+      },
+      excludeHidden: false,
+      options: {
+        noScroll: false
+      },
+      tags: [ 'cat.color', 'wcag2aa', 'wcag143' ],
+      all: [],
+      any: [ 'color-contrast' ],
+      none: []
+    }, {
+      id: 'definition-list',
+      selector: 'dl',
+      matches: function matches(node, virtualNode) {
+        return !node.getAttribute('role');
+      },
+      tags: [ 'cat.structure', 'wcag2a', 'wcag131' ],
+      all: [],
+      any: [],
+      none: [ 'structured-dlitems', 'only-dlitems' ]
+    }, {
+      id: 'dlitem',
+      selector: 'dd, dt',
+      matches: function matches(node, virtualNode) {
+        return !node.getAttribute('role');
+      },
+      tags: [ 'cat.structure', 'wcag2a', 'wcag131' ],
+      all: [],
+      any: [ 'dlitem' ],
+      none: []
+    }, {
+      id: 'document-title',
+      selector: 'html',
+      matches: function matches(node, virtualNode) {
+        return node.ownerDocument.defaultView.self === node.ownerDocument.defaultView.top;
+      },
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag242' ],
+      all: [],
+      any: [ 'doc-has-title' ],
+      none: []
+    }, {
+      id: 'duplicate-id',
+      selector: '[id]',
+      excludeHidden: false,
+      tags: [ 'cat.parsing', 'wcag2a', 'wcag411' ],
+      all: [],
+      any: [ 'duplicate-id' ],
+      none: []
+    }, {
+      id: 'empty-heading',
+      selector: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
+      matches: function matches(node, virtualNode) {
+        var explicitRoles = void 0;
+        if (node.hasAttribute('role')) {
+          explicitRoles = node.getAttribute('role').split(/\s+/i).filter(axe.commons.aria.isValidRole);
+        }
+        if (explicitRoles && explicitRoles.length > 0) {
+          return explicitRoles.includes('heading');
+        } else {
+          return axe.commons.aria.implicitRole(node) === 'heading';
+        }
+      },
+      tags: [ 'cat.name-role-value', 'best-practice' ],
+      all: [],
+      any: [ 'has-visible-text' ],
+      none: []
+    }, {
+      id: 'focus-order-semantics',
+      selector: 'div, h1, h2, h3, h4, h5, h6, [role=heading], p, span',
+      matches: function matches(node, virtualNode) {
+        return axe.commons.dom.insertedIntoFocusOrder(node);
+      },
+      tags: [ 'cat.keyboard', 'best-practice', 'experimental' ],
+      all: [],
+      any: [ {
+        options: [],
+        id: 'has-widget-role'
+      }, {
+        options: [],
+        id: 'valid-scrollable-semantics'
+      } ],
+      none: []
+    }, {
+      id: 'frame-tested',
+      selector: 'frame, iframe',
+      tags: [ 'cat.structure', 'review-item' ],
+      all: [ {
+        options: {
+          isViolation: false
+        },
+        id: 'frame-tested'
+      } ],
+      any: [],
+      none: []
+    }, {
+      id: 'frame-title-unique',
+      selector: 'frame[title], iframe[title]',
+      matches: function matches(node, virtualNode) {
+        var title = node.getAttribute('title');
+        return !!(title ? axe.commons.text.sanitize(title).trim() : '');
+      },
+      tags: [ 'cat.text-alternatives', 'best-practice' ],
+      all: [],
+      any: [],
+      none: [ 'unique-frame-title' ]
+    }, {
+      id: 'frame-title',
+      selector: 'frame, iframe',
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag241', 'wcag412', 'section508', 'section508.22.i' ],
+      all: [],
+      any: [ 'aria-label', 'aria-labelledby', 'non-empty-title', 'role-presentation', 'role-none' ],
+      none: []
+    }, {
+      id: 'heading-order',
+      selector: 'h1, h2, h3, h4, h5, h6, [role=heading]',
+      matches: function matches(node, virtualNode) {
+        var explicitRoles = void 0;
+        if (node.hasAttribute('role')) {
+          explicitRoles = node.getAttribute('role').split(/\s+/i).filter(axe.commons.aria.isValidRole);
+        }
+        if (explicitRoles && explicitRoles.length > 0) {
+          return explicitRoles.includes('heading');
+        } else {
+          return axe.commons.aria.implicitRole(node) === 'heading';
+        }
+      },
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [],
+      any: [ 'heading-order' ],
+      none: []
+    }, {
+      id: 'hidden-content',
+      selector: '*',
+      excludeHidden: false,
+      tags: [ 'cat.structure', 'experimental', 'review-item' ],
+      all: [],
+      any: [ 'hidden-content' ],
+      none: []
+    }, {
+      id: 'html-has-lang',
+      selector: 'html',
+      tags: [ 'cat.language', 'wcag2a', 'wcag311' ],
+      all: [],
+      any: [ 'has-lang' ],
+      none: []
+    }, {
+      id: 'html-lang-valid',
+      selector: 'html[lang]',
+      tags: [ 'cat.language', 'wcag2a', 'wcag311' ],
+      all: [],
+      any: [],
+      none: [ 'valid-lang' ]
+    }, {
+      id: 'html-xml-lang-mismatch',
+      selector: 'html[lang][xml\\:lang]',
+      matches: function matches(node, virtualNode) {
+        var getBaseLang = axe.commons.utils.getBaseLang;
+        var primaryLangValue = getBaseLang(node.getAttribute('lang'));
+        var primaryXmlLangValue = getBaseLang(node.getAttribute('xml:lang'));
+        return axe.utils.validLangs().includes(primaryLangValue) && axe.utils.validLangs().includes(primaryXmlLangValue);
+      },
+      tags: [ 'cat.language', 'wcag2a', 'wcag311' ],
+      all: [ 'xml-lang-mismatch' ],
+      any: [],
+      none: []
+    }, {
+      id: 'image-alt',
+      selector: 'img, [role=\'img\']:not(svg)',
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag111', 'section508', 'section508.22.a' ],
+      all: [],
+      any: [ 'has-alt', 'aria-label', 'aria-labelledby', 'non-empty-title', 'role-presentation', 'role-none' ],
+      none: []
+    }, {
+      id: 'image-redundant-alt',
+      selector: 'button, [role="button"], a[href], p, li, td, th',
+      tags: [ 'cat.text-alternatives', 'best-practice' ],
+      all: [],
+      any: [],
+      none: [ 'duplicate-img-label' ]
+    }, {
+      id: 'input-image-alt',
+      selector: 'input[type="image"]',
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag111', 'section508', 'section508.22.a' ],
+      all: [],
+      any: [ 'non-empty-alt', 'aria-label', 'aria-labelledby', 'non-empty-title' ],
+      none: []
+    }, {
+      id: 'label-title-only',
+      selector: 'input, select, textarea',
+      matches: function matches(node, virtualNode) {
+        if (node.nodeName.toLowerCase() !== 'input' || node.hasAttribute('type') === false) {
+          return true;
+        }
+        var type = node.getAttribute('type').toLowerCase();
+        return [ 'hidden', 'image', 'button', 'submit', 'reset' ].includes(type) === false;
+      },
+      tags: [ 'cat.forms', 'best-practice' ],
+      all: [],
+      any: [],
+      none: [ 'title-only' ]
+    }, {
+      id: 'label',
+      selector: 'input, select, textarea',
+      matches: function matches(node, virtualNode) {
+        if (node.nodeName.toLowerCase() !== 'input' || node.hasAttribute('type') === false) {
+          return true;
+        }
+        var type = node.getAttribute('type').toLowerCase();
+        return [ 'hidden', 'image', 'button', 'submit', 'reset' ].includes(type) === false;
+      },
+      tags: [ 'cat.forms', 'wcag2a', 'wcag332', 'wcag131', 'section508', 'section508.22.n' ],
+      all: [],
+      any: [ 'aria-label', 'aria-labelledby', 'implicit-label', 'explicit-label', 'non-empty-title' ],
+      none: [ 'help-same-as-label', 'multiple-label', 'hidden-explicit-label' ]
+    }, {
+      id: 'landmark-banner-is-top-level',
+      selector: 'header:not([role]), [role=banner]',
+      matches: function matches(node, virtualNode) {
+        var nativeScopeFilter = 'article, aside, main, nav, section';
+        return node.hasAttribute('role') || !axe.commons.dom.findUpVirtual(virtualNode, nativeScopeFilter);
+      },
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [],
+      any: [ 'landmark-is-top-level' ],
+      none: []
+    }, {
+      id: 'landmark-contentinfo-is-top-level',
+      selector: 'footer:not([role]), [role=contentinfo]',
+      matches: function matches(node, virtualNode) {
+        var nativeScopeFilter = 'article, aside, main, nav, section';
+        return node.hasAttribute('role') || !axe.commons.dom.findUpVirtual(virtualNode, nativeScopeFilter);
+      },
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [],
+      any: [ 'landmark-is-top-level' ],
+      none: []
+    }, {
+      id: 'landmark-main-is-top-level',
+      selector: 'main:not([role]), [role=main]',
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [],
+      any: [ 'landmark-is-top-level' ],
+      none: []
+    }, {
+      id: 'landmark-no-duplicate-banner',
+      selector: 'html',
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [],
+      any: [ {
+        options: {
+          selector: 'header:not([role]), [role=banner]',
+          nativeScopeFilter: 'article, aside, main, nav, section'
+        },
+        id: 'page-no-duplicate-banner'
+      } ],
+      none: []
+    }, {
+      id: 'landmark-no-duplicate-contentinfo',
+      selector: 'html',
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [],
+      any: [ {
+        options: {
+          selector: 'footer:not([role]), [role=contentinfo]',
+          nativeScopeFilter: 'article, aside, main, nav, section'
+        },
+        id: 'page-no-duplicate-contentinfo'
+      } ],
+      none: []
+    }, {
+      id: 'landmark-one-main',
+      selector: 'html',
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [ {
+        options: {
+          selector: 'main:not([role]), [role=\'main\']'
+        },
+        id: 'page-has-main'
+      }, {
+        options: {
+          selector: 'main:not([role]), [role=\'main\']'
+        },
+        id: 'page-no-duplicate-main'
+      } ],
+      any: [],
+      none: []
+    }, {
+      id: 'layout-table',
+      selector: 'table',
+      matches: function matches(node, virtualNode) {
+        var role = (node.getAttribute('role') || '').toLowerCase();
+        return !((role === 'presentation' || role === 'none') && !axe.commons.dom.isFocusable(node)) && !axe.commons.table.isDataTable(node);
+      },
+      tags: [ 'cat.semantics', 'wcag2a', 'wcag131' ],
+      all: [],
+      any: [],
+      none: [ 'has-th', 'has-caption', 'has-summary' ]
+    }, {
+      id: 'link-in-text-block',
+      selector: 'a[href], [role=link]',
+      matches: function matches(node, virtualNode) {
+        var text = axe.commons.text.sanitize(node.textContent);
+        var role = node.getAttribute('role');
+        if (role && role !== 'link') {
+          return false;
+        }
+        if (!text) {
+          return false;
+        }
+        if (!axe.commons.dom.isVisible(node, false)) {
+          return false;
+        }
+        return axe.commons.dom.isInTextBlock(node);
+      },
+      excludeHidden: false,
+      tags: [ 'cat.color', 'experimental', 'wcag2a', 'wcag141' ],
+      all: [ 'link-in-text-block' ],
+      any: [],
+      none: []
+    }, {
+      id: 'link-name',
+      selector: 'a[href], [role=link][href]',
+      matches: function matches(node, virtualNode) {
+        return node.getAttribute('role') !== 'button';
+      },
+      tags: [ 'cat.name-role-value', 'wcag2a', 'wcag412', 'wcag244', 'section508', 'section508.22.a' ],
+      all: [],
+      any: [ 'has-visible-text', 'aria-label', 'aria-labelledby', 'role-presentation', 'role-none' ],
+      none: [ 'focusable-no-name' ]
+    }, {
+      id: 'list',
+      selector: 'ul, ol',
+      matches: function matches(node, virtualNode) {
+        return !node.getAttribute('role');
+      },
+      tags: [ 'cat.structure', 'wcag2a', 'wcag131' ],
+      all: [],
+      any: [],
+      none: [ 'only-listitems' ]
+    }, {
+      id: 'listitem',
+      selector: 'li',
+      matches: function matches(node, virtualNode) {
+        return !node.getAttribute('role');
+      },
+      tags: [ 'cat.structure', 'wcag2a', 'wcag131' ],
+      all: [],
+      any: [ 'listitem' ],
+      none: []
+    }, {
+      id: 'marquee',
+      selector: 'marquee',
+      excludeHidden: false,
+      tags: [ 'cat.parsing', 'wcag2a', 'wcag222' ],
+      all: [],
+      any: [],
+      none: [ 'is-on-screen' ]
+    }, {
+      id: 'meta-refresh',
+      selector: 'meta[http-equiv="refresh"]',
+      excludeHidden: false,
+      tags: [ 'cat.time', 'wcag2a', 'wcag2aaa', 'wcag221', 'wcag224', 'wcag325' ],
+      all: [],
+      any: [ 'meta-refresh' ],
+      none: []
+    }, {
+      id: 'meta-viewport-large',
+      selector: 'meta[name="viewport"]',
+      excludeHidden: false,
+      tags: [ 'cat.sensory-and-visual-cues', 'best-practice' ],
+      all: [],
+      any: [ {
+        options: {
+          scaleMinimum: 5,
+          lowerBound: 2
+        },
+        id: 'meta-viewport-large'
+      } ],
+      none: []
+    }, {
+      id: 'meta-viewport',
+      selector: 'meta[name="viewport"]',
+      excludeHidden: false,
+      tags: [ 'cat.sensory-and-visual-cues', 'wcag2aa', 'wcag144' ],
+      all: [],
+      any: [ {
+        options: {
+          scaleMinimum: 2
+        },
+        id: 'meta-viewport'
+      } ],
+      none: []
+    }, {
+      id: 'object-alt',
+      selector: 'object',
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag111', 'section508', 'section508.22.a' ],
+      all: [],
+      any: [ 'has-visible-text', 'aria-label', 'aria-labelledby', 'non-empty-title' ],
+      none: []
+    }, {
+      id: 'p-as-heading',
+      selector: 'p',
+      matches: function matches(node, virtualNode) {
+        var children = Array.from(node.parentNode.childNodes);
+        var nodeText = node.textContent.trim();
+        var isSentence = /[.!?:;](?![.!?:;])/g;
+        if (nodeText.length === 0 || (nodeText.match(isSentence) || []).length >= 2) {
+          return false;
+        }
+        var siblingsAfter = children.slice(children.indexOf(node) + 1).filter(function(elm) {
+          return elm.nodeName.toUpperCase() === 'P' && elm.textContent.trim() !== '';
+        });
+        return siblingsAfter.length !== 0;
+      },
+      tags: [ 'cat.semantics', 'wcag2a', 'wcag131', 'experimental' ],
+      all: [ {
+        options: {
+          margins: [ {
+            weight: 150,
+            italic: true
+          }, {
+            weight: 150,
+            size: 1.15
+          }, {
+            italic: true,
+            size: 1.15
+          }, {
+            size: 1.4
+          } ]
+        },
+        id: 'p-as-heading'
+      } ],
+      any: [],
+      none: []
+    }, {
+      id: 'page-has-heading-one',
+      selector: 'html',
+      tags: [ 'cat.semantics', 'best-practice' ],
+      all: [ {
+        options: {
+          selector: 'h1:not([role]), [role="heading"][aria-level="1"]'
+        },
+        id: 'page-has-heading-one'
+      } ],
+      any: [],
+      none: []
+    }, {
+      id: 'radiogroup',
+      selector: 'input[type=radio][name]',
+      tags: [ 'cat.forms', 'best-practice' ],
+      all: [],
+      any: [ 'group-labelledby', 'fieldset' ],
+      none: []
+    }, {
+      id: 'region',
+      selector: 'html',
+      pageLevel: true,
+      tags: [ 'cat.keyboard', 'best-practice' ],
+      all: [],
+      any: [ 'region' ],
+      none: []
+    }, {
+      id: 'scope-attr-valid',
+      selector: 'td[scope], th[scope]',
+      tags: [ 'cat.tables', 'best-practice' ],
+      all: [ 'html5-scope', 'scope-value' ],
+      any: [],
+      none: []
+    }, {
+      id: 'server-side-image-map',
+      selector: 'img[ismap]',
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag211', 'section508', 'section508.22.f' ],
+      all: [],
+      any: [],
+      none: [ 'exists' ]
+    }, {
+      id: 'skip-link',
+      selector: 'a[href]',
+      matches: function matches(node, virtualNode) {
+        return /^#[^/!]/.test(node.getAttribute('href'));
+      },
+      tags: [ 'cat.keyboard', 'best-practice' ],
+      all: [],
+      any: [ 'skip-link' ],
+      none: []
+    }, {
+      id: 'tabindex',
+      selector: '[tabindex]',
+      tags: [ 'cat.keyboard', 'best-practice' ],
+      all: [],
+      any: [ 'tabindex' ],
+      none: []
+    }, {
+      id: 'table-duplicate-name',
+      selector: 'table',
+      tags: [ 'cat.tables', 'best-practice' ],
+      all: [],
+      any: [],
+      none: [ 'same-caption-summary' ]
+    }, {
+      id: 'table-fake-caption',
+      selector: 'table',
+      matches: function matches(node, virtualNode) {
+        return axe.commons.table.isDataTable(node);
+      },
+      tags: [ 'cat.tables', 'experimental', 'wcag2a', 'wcag131', 'section508', 'section508.22.g' ],
+      all: [ 'caption-faked' ],
+      any: [],
+      none: []
+    }, {
+      id: 'td-has-header',
+      selector: 'table',
+      matches: function matches(node, virtualNode) {
+        if (axe.commons.table.isDataTable(node)) {
+          var tableArray = axe.commons.table.toArray(node);
+          return tableArray.length >= 3 && tableArray[0].length >= 3 && tableArray[1].length >= 3 && tableArray[2].length >= 3;
+        }
+        return false;
+      },
+      tags: [ 'cat.tables', 'experimental', 'wcag2a', 'wcag131', 'section508', 'section508.22.g' ],
+      all: [ 'td-has-header' ],
+      any: [],
+      none: []
+    }, {
+      id: 'td-headers-attr',
+      selector: 'table',
+      tags: [ 'cat.tables', 'wcag2a', 'wcag131', 'section508', 'section508.22.g' ],
+      all: [ 'td-headers-attr' ],
+      any: [],
+      none: []
+    }, {
+      id: 'th-has-data-cells',
+      selector: 'table',
+      matches: function matches(node, virtualNode) {
+        return axe.commons.table.isDataTable(node);
+      },
+      tags: [ 'cat.tables', 'wcag2a', 'wcag131', 'section508', 'section508.22.g' ],
+      all: [ 'th-has-data-cells' ],
+      any: [],
+      none: []
+    }, {
+      id: 'valid-lang',
+      selector: '[lang], [xml\\:lang]',
+      matches: function matches(node, virtualNode) {
+        return node.nodeName.toLowerCase() !== 'html';
+      },
+      tags: [ 'cat.language', 'wcag2aa', 'wcag312' ],
+      all: [],
+      any: [],
+      none: [ 'valid-lang' ]
+    }, {
+      id: 'video-caption',
+      selector: 'video',
+      excludeHidden: false,
+      tags: [ 'cat.text-alternatives', 'wcag2a', 'wcag122', 'section508', 'section508.22.a' ],
+      all: [],
+      any: [],
+      none: [ 'caption' ]
+    }, {
+      id: 'video-description',
+      selector: 'video',
+      excludeHidden: false,
+      tags: [ 'cat.text-alternatives', 'wcag2aa', 'wcag125', 'section508', 'section508.22.b' ],
+      all: [],
+      any: [],
+      none: [ 'description' ]
+    } ],
+    checks: [ {
+      id: 'abstractrole',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return axe.commons.aria.getRoleType(node.getAttribute('role')) === 'abstract';
+      }
+    }, {
+      id: 'aria-allowed-attr',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        options = options || {};
         var invalid = [];
-        var attr, attrName, allowed, role = node.getAttribute("role"), attrs = node.attributes;
+        var attr, attrName, allowed, role = node.getAttribute('role'), attrs = node.attributes;
         if (!role) {
           role = axe.commons.aria.implicitRole(node);
         }
         allowed = axe.commons.aria.allowedAttr(role);
+        if (Array.isArray(options[role])) {
+          allowed = axe.utils.uniqueArray(options[role].concat(allowed));
+        }
         if (role && allowed) {
           for (var i = 0, l = attrs.length; i < l; i++) {
             attr = attrs[i];
             attrName = attr.name;
-            if (axe.commons.aria.validateAttr(attrName) && allowed.indexOf(attrName) === -1) {
+            if (axe.commons.aria.validateAttr(attrName) && !allowed.includes(attrName)) {
               invalid.push(attrName + '="' + attr.nodeValue + '"');
             }
           }
@@ -4477,16 +8019,89 @@ maxstatements: false, maxcomplexity: false */
         return true;
       }
     }, {
-      id: "invalidrole",
-      evaluate: function evaluate(node, options) {
-        return !axe.commons.aria.isValidRole(node.getAttribute("role"));
+      id: 'aria-allowed-role',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var _ref = options || {}, _ref$allowImplicit = _ref.allowImplicit, allowImplicit = _ref$allowImplicit === undefined ? true : _ref$allowImplicit, _ref$ignoredTags = _ref.ignoredTags, ignoredTags = _ref$ignoredTags === undefined ? [] : _ref$ignoredTags;
+        var tagName = node.nodeName.toUpperCase();
+        if (ignoredTags.map(function(t) {
+          return t.toUpperCase();
+        }).includes(tagName)) {
+          return true;
+        }
+        var unallowedRoles = axe.commons.aria.getElementUnallowedRoles(node, allowImplicit);
+        if (unallowedRoles.length) {
+          this.data(unallowedRoles);
+          return false;
+        }
+        return true;
+      },
+      options: {
+        allowImplicit: true,
+        ignoredTags: []
       }
     }, {
-      id: "aria-required-attr",
-      evaluate: function evaluate(node, options) {
+      id: 'aria-hidden-body',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return node.getAttribute('aria-hidden') !== 'true';
+      }
+    }, {
+      id: 'aria-errormessage',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        options = Array.isArray(options) ? options : [];
+        var attr = node.getAttribute('aria-errormessage'), hasAttr = node.hasAttribute('aria-errormessage');
+        var doc = axe.commons.dom.getRootNode(node);
+        function validateAttrValue() {
+          var idref = attr && doc.getElementById(attr);
+          if (idref) {
+            return idref.getAttribute('role') === 'alert' || idref.getAttribute('aria-live') === 'assertive' || axe.utils.tokenList(node.getAttribute('aria-describedby') || '').indexOf(attr) > -1;
+          }
+        }
+        if (options.indexOf(attr) === -1 && hasAttr) {
+          if (!validateAttrValue()) {
+            this.data(axe.utils.tokenList(attr));
+            return false;
+          }
+        }
+        return true;
+      }
+    }, {
+      id: 'has-widget-role',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var role = node.getAttribute('role');
+        if (role === null) {
+          return false;
+        }
+        var roleType = axe.commons.aria.getRoleType(role);
+        return roleType === 'widget' || roleType === 'composite';
+      },
+      options: []
+    }, {
+      id: 'implicit-role-fallback',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var role = node.getAttribute('role');
+        if (role === null || !axe.commons.aria.isValidRole(role)) {
+          return true;
+        }
+        var roleType = axe.commons.aria.getRoleType(role);
+        return axe.commons.aria.implicitRole(node) === roleType;
+      }
+    }, {
+      id: 'invalidrole',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return !axe.commons.aria.isValidRole(node.getAttribute('role'), {
+          allowAbstract: true
+        });
+      }
+    }, {
+      id: 'aria-required-attr',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        options = options || {};
         var missing = [];
         if (node.hasAttributes()) {
-          var attr, role = node.getAttribute("role"), required = axe.commons.aria.requiredAttr(role);
+          var attr, role = node.getAttribute('role'), required = axe.commons.aria.requiredAttr(role);
+          if (Array.isArray(options[role])) {
+            required = axe.utils.uniqueArray(options[role], required);
+          }
           if (role && required) {
             for (var i = 0, l = required.length; i < l; i++) {
               attr = required[i];
@@ -4503,10 +8118,14 @@ maxstatements: false, maxcomplexity: false */
         return true;
       }
     }, {
-      id: "aria-required-children",
-      evaluate: function evaluate(node, options) {
-        var requiredOwned = axe.commons.aria.requiredOwned, implicitNodes = axe.commons.aria.implicitNodes, matchesSelector = axe.commons.utils.matchesSelector, idrefs = axe.commons.dom.idrefs;
-        function owns(node, role, ariaOwned) {
+      id: 'aria-required-children',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var requiredOwned = axe.commons.aria.requiredOwned;
+        var implicitNodes = axe.commons.aria.implicitNodes;
+        var matchesSelector = axe.commons.utils.matchesSelector;
+        var idrefs = axe.commons.dom.idrefs;
+        var reviewEmpty = options && Array.isArray(options.reviewEmpty) ? options.reviewEmpty : [];
+        function owns(node, virtualTree, role, ariaOwned) {
           if (node === null) {
             return false;
           }
@@ -4514,8 +8133,8 @@ maxstatements: false, maxcomplexity: false */
           if (implicit) {
             selector = selector.concat(implicit);
           }
-          selector = selector.join(",");
-          return ariaOwned ? matchesSelector(node, selector) || !!node.querySelector(selector) : !!node.querySelector(selector);
+          selector = selector.join(',');
+          return ariaOwned ? matchesSelector(node, selector) || !!axe.utils.querySelectorAll(virtualTree, selector)[0] : !!axe.utils.querySelectorAll(virtualTree, selector)[0];
         }
         function ariaOwns(nodes, role) {
           var index, length;
@@ -4523,17 +8142,18 @@ maxstatements: false, maxcomplexity: false */
             if (nodes[index] === null) {
               continue;
             }
-            if (owns(nodes[index], role, true)) {
+            var virtualTree = axe.utils.getNodeFromTree(axe._tree[0], nodes[index]);
+            if (owns(nodes[index], virtualTree, role, true)) {
               return true;
             }
           }
           return false;
         }
-        function missingRequiredChildren(node, childRoles, all) {
-          var i, l = childRoles.length, missing = [], ownedElements = idrefs(node, "aria-owns");
+        function missingRequiredChildren(node, childRoles, all, role) {
+          var i, l = childRoles.length, missing = [], ownedElements = idrefs(node, 'aria-owns');
           for (i = 0; i < l; i++) {
             var r = childRoles[i];
-            if (owns(node, r) || ariaOwns(ownedElements, r)) {
+            if (owns(node, virtualNode, r) || ariaOwns(ownedElements, r)) {
               if (!all) {
                 return null;
               }
@@ -4541,6 +8161,18 @@ maxstatements: false, maxcomplexity: false */
               if (all) {
                 missing.push(r);
               }
+            }
+          }
+          if (role === 'combobox') {
+            var textboxIndex = missing.indexOf('textbox');
+            var textTypeInputs = [ 'text', 'search', 'email', 'url', 'tel' ];
+            if (textboxIndex >= 0 && node.tagName === 'INPUT' && textTypeInputs.includes(node.type)) {
+              missing.splice(textboxIndex, 1);
+            }
+            var listboxIndex = missing.indexOf('listbox');
+            var expanded = node.getAttribute('aria-expanded');
+            if (listboxIndex >= 0 && (!expanded || expanded === 'false')) {
+              missing.splice(listboxIndex, 1);
             }
           }
           if (missing.length) {
@@ -4551,7 +8183,7 @@ maxstatements: false, maxcomplexity: false */
           }
           return null;
         }
-        var role = node.getAttribute("role");
+        var role = node.getAttribute('role');
         var required = requiredOwned(role);
         if (!required) {
           return true;
@@ -4562,22 +8194,29 @@ maxstatements: false, maxcomplexity: false */
           var all = true;
           childRoles = required.all;
         }
-        var missing = missingRequiredChildren(node, childRoles, all);
+        var missing = missingRequiredChildren(node, childRoles, all, role);
         if (!missing) {
           return true;
         }
         this.data(missing);
-        return false;
+        if (reviewEmpty.includes(role)) {
+          return undefined;
+        } else {
+          return false;
+        }
+      },
+      options: {
+        reviewEmpty: [ 'listbox' ]
       }
     }, {
-      id: "aria-required-parent",
-      evaluate: function evaluate(node, options) {
+      id: 'aria-required-parent',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         function getSelector(role) {
           var impliedNative = axe.commons.aria.implicitNodes(role) || [];
-          return impliedNative.concat('[role="' + role + '"]').join(",");
+          return impliedNative.concat('[role="' + role + '"]').join(',');
         }
-        function getMissingContext(element, requiredContext, includeElement) {
-          var index, length, role = element.getAttribute("role"), missing = [];
+        function getMissingContext(virtualNode, requiredContext, includeElement) {
+          var index, length, role = virtualNode.actualNode.getAttribute('role'), missing = [];
           if (!requiredContext) {
             requiredContext = axe.commons.aria.requiredContext(role);
           }
@@ -4585,11 +8224,10 @@ maxstatements: false, maxcomplexity: false */
             return null;
           }
           for (index = 0, length = requiredContext.length; index < length; index++) {
-            if (includeElement && axe.utils.matchesSelector(element, getSelector(requiredContext[index]))) {
+            if (includeElement && axe.utils.matchesSelector(virtualNode.actualNode, getSelector(requiredContext[index]))) {
               return null;
             }
-            if (axe.commons.dom.findUp(element, getSelector(requiredContext[index]))) {
-              //if one matches, it passes
+            if (axe.commons.dom.findUpVirtual(virtualNode, getSelector(requiredContext[index]))) {
               return null;
             } else {
               missing.push(requiredContext[index]);
@@ -4600,24 +8238,26 @@ maxstatements: false, maxcomplexity: false */
         function getAriaOwners(element) {
           var owners = [], o = null;
           while (element) {
-            if (element.id) {
-              o = document.querySelector("[aria-owns~=" + axe.commons.utils.escapeSelector(element.id) + "]");
+            if (element.getAttribute('id')) {
+              var id = axe.commons.utils.escapeSelector(element.getAttribute('id'));
+              var doc = axe.commons.dom.getRootNode(element);
+              o = doc.querySelector('[aria-owns~=' + id + ']');
               if (o) {
                 owners.push(o);
               }
             }
-            element = element.parentNode;
+            element = element.parentElement;
           }
           return owners.length ? owners : null;
         }
-        var missingParents = getMissingContext(node);
+        var missingParents = getMissingContext(virtualNode);
         if (!missingParents) {
           return true;
         }
         var owners = getAriaOwners(node);
         if (owners) {
           for (var i = 0, l = owners.length; i < l; i++) {
-            missingParents = getMissingContext(owners[i], missingParents, true);
+            missingParents = getMissingContext(axe.utils.getNodeFromTree(axe._tree[0], owners[i]), missingParents, true);
             if (!missingParents) {
               return true;
             }
@@ -4627,28 +8267,26 @@ maxstatements: false, maxcomplexity: false */
         return false;
       }
     }, {
-      id: "aria-valid-attr-value",
-      matches: function matches(node) {
-        var aria = /^aria-/;
-        if (node.hasAttributes()) {
-          var attrs = node.attributes;
-          for (var i = 0, l = attrs.length; i < l; i++) {
-            if (aria.test(attrs[i].name)) {
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      evaluate: function evaluate(node, options) {
+      id: 'unsupportedrole',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return !axe.commons.aria.isValidRole(node.getAttribute('role'), {
+          flagUnsupported: true
+        });
+      }
+    }, {
+      id: 'aria-valid-attr-value',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         options = Array.isArray(options) ? options : [];
         var invalid = [], aria = /^aria-/;
         var attr, attrName, attrs = node.attributes;
+        var skipAttrs = [ 'aria-errormessage' ];
         for (var i = 0, l = attrs.length; i < l; i++) {
           attr = attrs[i];
           attrName = attr.name;
-          if (options.indexOf(attrName) === -1 && aria.test(attrName) && !axe.commons.aria.validateAttrValue(node, attrName)) {
-            invalid.push(attrName + '="' + attr.nodeValue + '"');
+          if (!skipAttrs.includes(attrName)) {
+            if (options.indexOf(attrName) === -1 && aria.test(attrName) && !axe.commons.aria.validateAttrValue(node, attrName)) {
+              invalid.push(attrName + '="' + attr.nodeValue + '"');
+            }
           }
         }
         if (invalid.length) {
@@ -4659,20 +8297,8 @@ maxstatements: false, maxcomplexity: false */
       },
       options: []
     }, {
-      id: "aria-valid-attr",
-      matches: function matches(node) {
-        var aria = /^aria-/;
-        if (node.hasAttributes()) {
-          var attrs = node.attributes;
-          for (var i = 0, l = attrs.length; i < l; i++) {
-            if (aria.test(attrs[i].name)) {
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      evaluate: function evaluate(node, options) {
+      id: 'aria-valid-attr',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         options = Array.isArray(options) ? options : [];
         var invalid = [], aria = /^aria-/;
         var attr, attrs = node.attributes;
@@ -4690,176 +8316,238 @@ maxstatements: false, maxcomplexity: false */
       },
       options: []
     }, {
-      id: "color-contrast",
-      matches: function matches(node) {
-        var nodeName = node.nodeName.toUpperCase(), nodeType = node.type, doc = document;
-        if (node.getAttribute("aria-disabled") === "true") {
-          return false;
+      id: 'valid-scrollable-semantics',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var VALID_TAG_NAMES_FOR_SCROLLABLE_REGIONS = {
+          ARTICLE: true,
+          ASIDE: true,
+          NAV: true,
+          SECTION: true
+        };
+        var VALID_ROLES_FOR_SCROLLABLE_REGIONS = {
+          application: true,
+          banner: false,
+          complementary: true,
+          contentinfo: true,
+          form: true,
+          main: true,
+          navigation: true,
+          region: true,
+          search: false
+        };
+        function validScrollableTagName(node) {
+          var tagName = node.tagName.toUpperCase();
+          return VALID_TAG_NAMES_FOR_SCROLLABLE_REGIONS[tagName] || false;
         }
-        if (nodeName === "INPUT") {
-          return [ "hidden", "range", "color", "checkbox", "radio", "image" ].indexOf(nodeType) === -1 && !node.disabled;
-        }
-        if (nodeName === "SELECT") {
-          return !!node.options.length && !node.disabled;
-        }
-        if (nodeName === "TEXTAREA") {
-          return !node.disabled;
-        }
-        if (nodeName === "OPTION") {
-          return false;
-        }
-        if (nodeName === "BUTTON" && node.disabled) {
-          return false;
-        }
-        // check if the element is a label for a disabled control
-        if (nodeName === "LABEL") {
-          // explicit label of disabled input
-          var candidate = node.htmlFor && doc.getElementById(node.htmlFor);
-          if (candidate && candidate.disabled) {
+        function validScrollableRole(node) {
+          var role = node.getAttribute('role');
+          if (!role) {
             return false;
           }
-          var candidate = node.querySelector('input:not([type="hidden"]):not([type="image"])' + ':not([type="button"]):not([type="submit"]):not([type="reset"]), select, textarea');
-          if (candidate && candidate.disabled) {
-            return false;
-          }
+          return VALID_ROLES_FOR_SCROLLABLE_REGIONS[role.toLowerCase()] || false;
         }
-        // label of disabled control associated w/ aria-labelledby
-        if (node.id) {
-          var candidate = doc.querySelector("[aria-labelledby~=" + axe.commons.utils.escapeSelector(node.id) + "]");
-          if (candidate && candidate.disabled) {
-            return false;
-          }
+        function validScrollableSemantics(node) {
+          return validScrollableRole(node) || validScrollableTagName(node);
         }
-        if (axe.commons.text.visible(node, false, true) === "") {
-          return false;
-        }
-        var range = document.createRange(), childNodes = node.childNodes, length = childNodes.length, child, index;
-        for (index = 0; index < length; index++) {
-          child = childNodes[index];
-          if (child.nodeType === 3 && axe.commons.text.sanitize(child.nodeValue) !== "") {
-            range.selectNodeContents(child);
-          }
-        }
-        var rects = range.getClientRects();
-        length = rects.length;
-        for (index = 0; index < length; index++) {
-          //check to see if the rectangle impinges
-          if (axe.commons.dom.visuallyOverlaps(rects[index], node)) {
-            return true;
-          }
-        }
-        return false;
+        return validScrollableSemantics(node);
       },
-      evaluate: function evaluate(node, options) {
+      options: []
+    }, {
+      id: 'color-contrast',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         if (!axe.commons.dom.isVisible(node, false)) {
           return true;
         }
         var noScroll = !!(options || {}).noScroll;
         var bgNodes = [], bgColor = axe.commons.color.getBackgroundColor(node, bgNodes, noScroll), fgColor = axe.commons.color.getForegroundColor(node, noScroll);
-        //We don't know, so we'll pass it provisionally
-        if (fgColor === null || bgColor === null) {
-          return true;
-        }
         var nodeStyle = window.getComputedStyle(node);
-        var fontSize = parseFloat(nodeStyle.getPropertyValue("font-size"));
-        var fontWeight = nodeStyle.getPropertyValue("font-weight");
-        var bold = [ "bold", "bolder", "600", "700", "800", "900" ].indexOf(fontWeight) !== -1;
+        var fontSize = parseFloat(nodeStyle.getPropertyValue('font-size'));
+        var fontWeight = nodeStyle.getPropertyValue('font-weight');
+        var bold = [ 'bold', 'bolder', '600', '700', '800', '900' ].indexOf(fontWeight) !== -1;
         var cr = axe.commons.color.hasValidContrastRatio(bgColor, fgColor, fontSize, bold);
-        this.data({
-          fgColor: fgColor.toHexString(),
-          bgColor: bgColor.toHexString(),
-          contrastRatio: cr.contrastRatio.toFixed(2),
-          fontSize: (fontSize * 72 / 96).toFixed(1) + "pt",
-          fontWeight: bold ? "bold" : "normal"
-        });
-        if (!cr.isValid) {
+        var truncatedResult = Math.floor(cr.contrastRatio * 100) / 100;
+        var missing;
+        if (bgColor === null) {
+          missing = axe.commons.color.incompleteData.get('bgColor');
+        }
+        var equalRatio = false;
+        if (truncatedResult === 1) {
+          equalRatio = true;
+          missing = axe.commons.color.incompleteData.set('bgColor', 'equalRatio');
+        }
+        var data = {
+          fgColor: fgColor ? fgColor.toHexString() : undefined,
+          bgColor: bgColor ? bgColor.toHexString() : undefined,
+          contrastRatio: cr ? truncatedResult : undefined,
+          fontSize: (fontSize * 72 / 96).toFixed(1) + 'pt',
+          fontWeight: bold ? 'bold' : 'normal',
+          missingData: missing,
+          expectedContrastRatio: cr.expectedContrastRatio + ':1'
+        };
+        this.data(data);
+        if (fgColor === null || bgColor === null || equalRatio) {
+          missing = null;
+          axe.commons.color.incompleteData.clear();
+          this.relatedNodes(bgNodes);
+          return undefined;
+        } else if (!cr.isValid) {
           this.relatedNodes(bgNodes);
         }
         return cr.isValid;
       }
     }, {
-      id: "link-in-text-block",
-      evaluate: function evaluate(node, options) {
-        /* global axe*/ var color = axe.commons.color;
+      id: 'link-in-text-block',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var _axe$commons2 = axe.commons, color = _axe$commons2.color, dom = _axe$commons2.dom;
         function getContrast(color1, color2) {
           var c1lum = color1.getRelativeLuminance();
           var c2lum = color2.getRelativeLuminance();
           return (Math.max(c1lum, c2lum) + .05) / (Math.min(c1lum, c2lum) + .05);
         }
-        var blockLike = [ "block", "list-item", "table", "flex", "grid", "inline-block" ];
+        var blockLike = [ 'block', 'list-item', 'table', 'flex', 'grid', 'inline-block' ];
         function isBlock(elm) {
-          var display = window.getComputedStyle(elm).getPropertyValue("display");
-          return blockLike.indexOf(display) !== -1 || display.substr(0, 6) === "table-";
+          var display = window.getComputedStyle(elm).getPropertyValue('display');
+          return blockLike.indexOf(display) !== -1 || display.substr(0, 6) === 'table-';
         }
         if (isBlock(node)) {
           return false;
         }
-        var parentBlock = node.parentNode;
+        var parentBlock = dom.getComposedParent(node);
         while (parentBlock.nodeType === 1 && !isBlock(parentBlock)) {
-          parentBlock = parentBlock.parentNode;
+          parentBlock = dom.getComposedParent(parentBlock);
         }
-        // TODO: Check the :visited state of the link
+        this.relatedNodes([ parentBlock ]);
         if (color.elementIsDistinct(node, parentBlock)) {
           return true;
         } else {
-          // Check if contrast of foreground is sufficient
           var nodeColor, parentColor;
           nodeColor = color.getForegroundColor(node);
           parentColor = color.getForegroundColor(parentBlock);
-          if (!nodeColor || !parentColor || getContrast(nodeColor, parentColor) >= 3) {
-            return true;
+          if (!nodeColor || !parentColor) {
+            return undefined;
           }
-          // Check if contrast of background is sufficient
+          var contrast = getContrast(nodeColor, parentColor);
+          if (contrast === 1) {
+            return true;
+          } else if (contrast >= 3) {
+            axe.commons.color.incompleteData.set('fgColor', 'bgContrast');
+            this.data({
+              missingData: axe.commons.color.incompleteData.get('fgColor')
+            });
+            axe.commons.color.incompleteData.clear();
+            return undefined;
+          }
           nodeColor = color.getBackgroundColor(node);
           parentColor = color.getBackgroundColor(parentBlock);
           if (!nodeColor || !parentColor || getContrast(nodeColor, parentColor) >= 3) {
-            return true;
+            var reason = void 0;
+            if (!nodeColor || !parentColor) {
+              reason = axe.commons.color.incompleteData.get('bgColor');
+            } else {
+              reason = 'bgContrast';
+            }
+            axe.commons.color.incompleteData.set('fgColor', reason);
+            this.data({
+              missingData: axe.commons.color.incompleteData.get('fgColor')
+            });
+            axe.commons.color.incompleteData.clear();
+            return undefined;
           }
         }
-        // TODO: We should check the focus / hover style too
         return false;
       }
     }, {
-      id: "fieldset",
-      evaluate: function evaluate(node, options) {
+      id: 'autocomplete-appropriate',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (node.nodeName.toUpperCase() !== 'INPUT') {
+          return true;
+        }
+        var number = [ 'text', 'search', 'number' ];
+        var url = [ 'text', 'search', 'url' ];
+        var allowedTypesMap = {
+          bday: [ 'text', 'search', 'date' ],
+          email: [ 'text', 'search', 'email' ],
+          'cc-exp': [ 'text', 'search', 'month' ],
+          'street-address': [],
+          tel: [ 'text', 'search', 'tel' ],
+          'cc-exp-month': number,
+          'cc-exp-year': number,
+          'transaction-amount': number,
+          'bday-day': number,
+          'bday-month': number,
+          'bday-year': number,
+          'new-password': [ 'text', 'search', 'password' ],
+          'current-password': [ 'text', 'search', 'password' ],
+          url: url,
+          photo: url,
+          impp: url
+        };
+        if ((typeof options === 'undefined' ? 'undefined' : _typeof(options)) === 'object') {
+          Object.keys(options).forEach(function(key) {
+            if (!allowedTypesMap[key]) {
+              allowedTypesMap[key] = [];
+            }
+            allowedTypesMap[key] = allowedTypesMap[key].concat(options[key]);
+          });
+        }
+        var autocomplete = node.getAttribute('autocomplete');
+        var autocompleteTerms = autocomplete.split(/\s+/g).map(function(term) {
+          return term.toLowerCase();
+        });
+        var purposeTerm = autocompleteTerms[autocompleteTerms.length - 1];
+        var allowedTypes = allowedTypesMap[purposeTerm];
+        if (typeof allowedTypes === 'undefined') {
+          return node.type === 'text';
+        }
+        return allowedTypes.includes(node.type);
+      }
+    }, {
+      id: 'autocomplete-valid',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var autocomplete = node.getAttribute('autocomplete') || '';
+        return axe.commons.text.isValidAutocomplete(autocomplete, options);
+      }
+    }, {
+      id: 'fieldset',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         var failureCode, self = this;
         function getUnrelatedElements(parent, name) {
           return axe.commons.utils.toArray(parent.querySelectorAll('select,textarea,button,input:not([name="' + name + '"]):not([type="hidden"])'));
         }
         function checkFieldset(group, name) {
           var firstNode = group.firstElementChild;
-          if (!firstNode || firstNode.nodeName.toUpperCase() !== "LEGEND") {
+          if (!firstNode || firstNode.nodeName.toUpperCase() !== 'LEGEND') {
             self.relatedNodes([ group ]);
-            failureCode = "no-legend";
+            failureCode = 'no-legend';
             return false;
           }
           if (!axe.commons.text.accessibleText(firstNode)) {
             self.relatedNodes([ firstNode ]);
-            failureCode = "empty-legend";
+            failureCode = 'empty-legend';
             return false;
           }
           var otherElements = getUnrelatedElements(group, name);
           if (otherElements.length) {
             self.relatedNodes(otherElements);
-            failureCode = "mixed-inputs";
+            failureCode = 'mixed-inputs';
             return false;
           }
           return true;
         }
         function checkARIAGroup(group, name) {
-          var hasLabelledByText = axe.commons.dom.idrefs(group, "aria-labelledby").some(function(element) {
+          var hasLabelledByText = axe.commons.dom.idrefs(group, 'aria-labelledby').some(function(element) {
             return element && axe.commons.text.accessibleText(element);
           });
-          var ariaLabel = group.getAttribute("aria-label");
+          var ariaLabel = group.getAttribute('aria-label');
           if (!hasLabelledByText && !(ariaLabel && axe.commons.text.sanitize(ariaLabel))) {
             self.relatedNodes(group);
-            failureCode = "no-group-label";
+            failureCode = 'no-group-label';
             return false;
           }
           var otherElements = getUnrelatedElements(group, name);
           if (otherElements.length) {
             self.relatedNodes(otherElements);
-            failureCode = "group-mixed-inputs";
+            failureCode = 'group-mixed-inputs';
             return false;
           }
           return true;
@@ -4869,26 +8557,30 @@ maxstatements: false, maxcomplexity: false */
             return candidate !== current;
           });
         }
-        function runCheck(element) {
-          var name = axe.commons.utils.escapeSelector(node.name);
-          var matchingNodes = document.querySelectorAll('input[type="' + axe.commons.utils.escapeSelector(node.type) + '"][name="' + name + '"]');
+        function runCheck(virtualNode) {
+          var name = axe.commons.utils.escapeSelector(virtualNode.actualNode.name);
+          var root = axe.commons.dom.getRootNode(virtualNode.actualNode);
+          var matchingNodes = root.querySelectorAll('input[type="' + axe.commons.utils.escapeSelector(virtualNode.actualNode.type) + '"][name="' + name + '"]');
           if (matchingNodes.length < 2) {
             return true;
           }
-          var fieldset = axe.commons.dom.findUp(element, "fieldset");
-          var group = axe.commons.dom.findUp(element, '[role="group"]' + (node.type === "radio" ? ',[role="radiogroup"]' : ""));
+          var fieldset = axe.commons.dom.findUpVirtual(virtualNode, 'fieldset');
+          var group = axe.commons.dom.findUpVirtual(virtualNode, '[role="group"]' + (virtualNode.actualNode.type === 'radio' ? ',[role="radiogroup"]' : ''));
           if (!group && !fieldset) {
-            failureCode = "no-group";
-            self.relatedNodes(spliceCurrentNode(matchingNodes, element));
+            failureCode = 'no-group';
+            self.relatedNodes(spliceCurrentNode(matchingNodes, virtualNode.actualNode));
             return false;
+          } else if (fieldset) {
+            return checkFieldset(fieldset, name);
+          } else {
+            return checkARIAGroup(group, name);
           }
-          return fieldset ? checkFieldset(fieldset, name) : checkARIAGroup(group, name);
         }
         var data = {
-          name: node.getAttribute("name"),
-          type: node.getAttribute("type")
+          name: node.getAttribute('name'),
+          type: node.getAttribute('type')
         };
-        var result = runCheck(node);
+        var result = runCheck(virtualNode);
         if (!result) {
           data.failureCode = failureCode;
         }
@@ -4898,7 +8590,6 @@ maxstatements: false, maxcomplexity: false */
       after: function after(results, options) {
         var seen = {};
         return results.filter(function(result) {
-          // passes can pass through
           if (result.result) {
             return true;
           }
@@ -4921,27 +8612,27 @@ maxstatements: false, maxcomplexity: false */
         });
       }
     }, {
-      id: "group-labelledby",
-      evaluate: function evaluate(node, options) {
+      id: 'group-labelledby',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         this.data({
-          name: node.getAttribute("name"),
-          type: node.getAttribute("type")
+          name: node.getAttribute('name'),
+          type: node.getAttribute('type')
         });
-        var matchingNodes = document.querySelectorAll('input[type="' + axe.commons.utils.escapeSelector(node.type) + '"][name="' + axe.commons.utils.escapeSelector(node.name) + '"]');
+        var doc = axe.commons.dom.getRootNode(node);
+        var matchingNodes = doc.querySelectorAll('input[type="' + axe.commons.utils.escapeSelector(node.type) + '"][name="' + axe.commons.utils.escapeSelector(node.name) + '"]');
         if (matchingNodes.length <= 1) {
           return true;
         }
-        // Check to see if there's an aria-labelledby value that all nodes have in common
         return [].map.call(matchingNodes, function(m) {
-          var l = m.getAttribute("aria-labelledby");
+          var l = m.getAttribute('aria-labelledby');
           return l ? l.split(/\s+/) : [];
         }).reduce(function(prev, curr) {
           return prev.filter(function(n) {
-            return curr.indexOf(n) !== -1;
+            return curr.includes(n);
           });
         }).filter(function(n) {
-          var labelNode = document.getElementById(n);
-          return labelNode && axe.commons.text.accessibleText(labelNode);
+          var labelNode = doc.getElementById(n);
+          return labelNode && axe.commons.text.accessibleText(labelNode, true);
         }).length !== 0;
       },
       after: function after(results, options) {
@@ -4959,10 +8650,10 @@ maxstatements: false, maxcomplexity: false */
         });
       }
     }, {
-      id: "accesskeys",
-      evaluate: function evaluate(node, options) {
+      id: 'accesskeys',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         if (axe.commons.dom.isVisible(node, false)) {
-          this.data(node.getAttribute("accesskey"));
+          this.data(node.getAttribute('accesskey'));
           this.relatedNodes([ node ]);
         }
         return true;
@@ -4987,80 +8678,241 @@ maxstatements: false, maxcomplexity: false */
         });
       }
     }, {
-      id: "focusable-no-name",
-      evaluate: function evaluate(node, options) {
-        var tabIndex = node.getAttribute("tabindex"), isFocusable = axe.commons.dom.isFocusable(node) && tabIndex > -1;
-        if (!isFocusable) {
+      id: 'focusable-no-name',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var tabIndex = node.getAttribute('tabindex'), inFocusOrder = axe.commons.dom.isFocusable(node) && tabIndex > -1;
+        if (!inFocusOrder) {
           return false;
         }
-        return !axe.commons.text.accessibleText(node);
+        return !axe.commons.text.accessibleTextVirtual(virtualNode);
       }
     }, {
-      id: "tabindex",
-      evaluate: function evaluate(node, options) {
+      id: 'landmark-is-top-level',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var landmarks = axe.commons.aria.getRolesByType('landmark');
+        var parent = axe.commons.dom.getComposedParent(node);
+        this.data({
+          role: node.getAttribute('role') || axe.commons.aria.implicitRole(node)
+        });
+        while (parent) {
+          var role = parent.getAttribute('role');
+          if (!role && parent.tagName.toLowerCase() !== 'form') {
+            role = axe.commons.aria.implicitRole(parent);
+          }
+          if (role && landmarks.includes(role)) {
+            return false;
+          }
+          parent = axe.commons.dom.getComposedParent(parent);
+        }
+        return true;
+      }
+    }, {
+      id: 'page-has-heading-one',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (!options || !options.selector || typeof options.selector !== 'string') {
+          throw new TypeError('visible-in-page requires options.selector to be a string');
+        }
+        var matchingElms = axe.utils.querySelectorAll(virtualNode, options.selector);
+        this.relatedNodes(matchingElms.map(function(vNode) {
+          return vNode.actualNode;
+        }));
+        return matchingElms.length > 0;
+      },
+      after: function after(results, options) {
+        var elmUsedAnywhere = results.some(function(frameResult) {
+          return frameResult.result === true;
+        });
+        if (elmUsedAnywhere) {
+          results.forEach(function(result) {
+            result.result = true;
+          });
+        }
+        return results;
+      },
+      options: {
+        selector: 'h1:not([role]), [role="heading"][aria-level="1"]'
+      }
+    }, {
+      id: 'page-has-main',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (!options || !options.selector || typeof options.selector !== 'string') {
+          throw new TypeError('visible-in-page requires options.selector to be a string');
+        }
+        var matchingElms = axe.utils.querySelectorAll(virtualNode, options.selector);
+        this.relatedNodes(matchingElms.map(function(vNode) {
+          return vNode.actualNode;
+        }));
+        return matchingElms.length > 0;
+      },
+      after: function after(results, options) {
+        var elmUsedAnywhere = results.some(function(frameResult) {
+          return frameResult.result === true;
+        });
+        if (elmUsedAnywhere) {
+          results.forEach(function(result) {
+            result.result = true;
+          });
+        }
+        return results;
+      },
+      options: {
+        selector: 'main:not([role]), [role=\'main\']'
+      }
+    }, {
+      id: 'page-no-duplicate-banner',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (!options || !options.selector || typeof options.selector !== 'string') {
+          throw new TypeError('visible-in-page requires options.selector to be a string');
+        }
+        var elms = axe.utils.querySelectorAll(virtualNode, options.selector);
+        if (typeof options.nativeScopeFilter === 'string') {
+          elms = elms.filter(function(elm) {
+            return elm.actualNode.hasAttribute('role') || !axe.commons.dom.findUpVirtual(elm, options.nativeScopeFilter);
+          });
+        }
+        this.relatedNodes(elms.map(function(elm) {
+          return elm.actualNode;
+        }));
+        return elms.length <= 1;
+      },
+      options: {
+        selector: 'header:not([role]), [role=banner]',
+        nativeScopeFilter: 'article, aside, main, nav, section'
+      }
+    }, {
+      id: 'page-no-duplicate-contentinfo',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (!options || !options.selector || typeof options.selector !== 'string') {
+          throw new TypeError('visible-in-page requires options.selector to be a string');
+        }
+        var elms = axe.utils.querySelectorAll(virtualNode, options.selector);
+        if (typeof options.nativeScopeFilter === 'string') {
+          elms = elms.filter(function(elm) {
+            return elm.actualNode.hasAttribute('role') || !axe.commons.dom.findUpVirtual(elm, options.nativeScopeFilter);
+          });
+        }
+        this.relatedNodes(elms.map(function(elm) {
+          return elm.actualNode;
+        }));
+        return elms.length <= 1;
+      },
+      options: {
+        selector: 'footer:not([role]), [role=contentinfo]',
+        nativeScopeFilter: 'article, aside, main, nav, section'
+      }
+    }, {
+      id: 'page-no-duplicate-main',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (!options || !options.selector || typeof options.selector !== 'string') {
+          throw new TypeError('visible-in-page requires options.selector to be a string');
+        }
+        var elms = axe.utils.querySelectorAll(virtualNode, options.selector);
+        if (typeof options.nativeScopeFilter === 'string') {
+          elms = elms.filter(function(elm) {
+            return elm.actualNode.hasAttribute('role') || !axe.commons.dom.findUpVirtual(elm, options.nativeScopeFilter);
+          });
+        }
+        this.relatedNodes(elms.map(function(elm) {
+          return elm.actualNode;
+        }));
+        return elms.length <= 1;
+      },
+      options: {
+        selector: 'main:not([role]), [role=\'main\']'
+      }
+    }, {
+      id: 'tabindex',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         return node.tabIndex <= 0;
       }
     }, {
-      id: "duplicate-img-label",
-      evaluate: function evaluate(node, options) {
-        var imgs = node.querySelectorAll("img");
-        var text = axe.commons.text.visible(node, true).toLowerCase();
-        if (text === "") {
+      id: 'duplicate-img-label',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var text = axe.commons.text.visibleVirtual(virtualNode, true).toLowerCase();
+        if (text === '') {
           return false;
         }
-        for (var i = 0, len = imgs.length; i < len; i++) {
-          var img = imgs[i];
-          var imgAlt = axe.commons.text.accessibleText(img).toLowerCase();
-          if (imgAlt === text && img.getAttribute("role") !== "presentation" && axe.commons.dom.isVisible(img)) {
-            return true;
+        var images = axe.utils.querySelectorAll(virtualNode, 'img').filter(function(_ref2) {
+          var actualNode = _ref2.actualNode;
+          return axe.commons.dom.isVisible(actualNode) && ![ 'none', 'presentation' ].includes(actualNode.getAttribute('role'));
+        });
+        return images.some(function(img) {
+          return text === axe.commons.text.accessibleTextVirtual(img).toLowerCase();
+        });
+      }
+    }, {
+      id: 'explicit-label',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (node.getAttribute('id')) {
+          var root = axe.commons.dom.getRootNode(node);
+          var id = axe.commons.utils.escapeSelector(node.getAttribute('id'));
+          var label = root.querySelector('label[for="' + id + '"]');
+          if (label) {
+            if (!axe.commons.dom.isVisible(label)) {
+              return true;
+            } else {
+              return !!axe.commons.text.accessibleText(label);
+            }
           }
         }
         return false;
       }
     }, {
-      id: "explicit-label",
-      evaluate: function evaluate(node, options) {
-        var label = document.querySelector('label[for="' + axe.commons.utils.escapeSelector(node.id) + '"]');
-        if (label) {
-          return !!axe.commons.text.accessibleText(label);
-        }
-        return false;
-      },
-      selector: "[id]"
-    }, {
-      id: "help-same-as-label",
-      evaluate: function evaluate(node, options) {
-        var labelText = axe.commons.text.label(node), check = node.getAttribute("title");
+      id: 'help-same-as-label',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var labelText = axe.commons.text.labelVirtual(virtualNode), check = node.getAttribute('title');
         if (!labelText) {
           return false;
         }
         if (!check) {
-          check = "";
-          if (node.getAttribute("aria-describedby")) {
-            var ref = axe.commons.dom.idrefs(node, "aria-describedby");
+          check = '';
+          if (node.getAttribute('aria-describedby')) {
+            var ref = axe.commons.dom.idrefs(node, 'aria-describedby');
             check = ref.map(function(thing) {
-              return thing ? axe.commons.text.accessibleText(thing) : "";
-            }).join("");
+              return thing ? axe.commons.text.accessibleText(thing) : '';
+            }).join('');
           }
         }
         return axe.commons.text.sanitize(check) === axe.commons.text.sanitize(labelText);
       },
       enabled: false
     }, {
-      id: "implicit-label",
-      evaluate: function evaluate(node, options) {
-        var label = axe.commons.dom.findUp(node, "label");
-        if (label) {
-          return !!axe.commons.text.accessibleText(label);
+      id: 'hidden-explicit-label',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        if (node.getAttribute('id')) {
+          var root = axe.commons.dom.getRootNode(node);
+          var id = axe.commons.utils.escapeSelector(node.getAttribute('id'));
+          var label = root.querySelector('label[for="' + id + '"]');
+          if (label && !axe.commons.dom.isVisible(label)) {
+            return true;
+          }
         }
         return false;
       }
     }, {
-      id: "multiple-label",
-      evaluate: function evaluate(node, options) {
-        var labels = [].slice.call(document.querySelectorAll('label[for="' + axe.commons.utils.escapeSelector(node.id) + '"]')), parent = node.parentNode;
+      id: 'implicit-label',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var label = axe.commons.dom.findUpVirtual(virtualNode, 'label');
+        if (label) {
+          return !!axe.commons.text.accessibleTextVirtual(label);
+        }
+        return false;
+      }
+    }, {
+      id: 'multiple-label',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var id = axe.commons.utils.escapeSelector(node.getAttribute('id'));
+        var labels = Array.from(document.querySelectorAll('label[for="' + id + '"]'));
+        var parent = node.parentNode;
+        if (labels.length) {
+          labels = labels.filter(function(label, index) {
+            if (index === 0 && !axe.commons.dom.isVisible(label, true) || axe.commons.dom.isVisible(label, true)) {
+              return label;
+            }
+          });
+        }
         while (parent) {
-          if (parent.tagName === "LABEL" && labels.indexOf(parent) === -1) {
+          if (parent.tagName === 'LABEL' && labels.indexOf(parent) === -1) {
             labels.push(parent);
           }
           parent = parent.parentNode;
@@ -5069,34 +8921,28 @@ maxstatements: false, maxcomplexity: false */
         return labels.length > 1;
       }
     }, {
-      id: "title-only",
-      evaluate: function evaluate(node, options) {
-        var labelText = axe.commons.text.label(node);
-        return !labelText && !!(node.getAttribute("title") || node.getAttribute("aria-describedby"));
+      id: 'title-only',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var labelText = axe.commons.text.labelVirtual(virtualNode);
+        return !labelText && !!(node.getAttribute('title') || node.getAttribute('aria-describedby'));
       }
     }, {
-      id: "has-lang",
-      evaluate: function evaluate(node, options) {
-        return !!(node.getAttribute("lang") || node.getAttribute("xml:lang") || "").trim();
+      id: 'has-lang',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return !!(node.getAttribute('lang') || node.getAttribute('xml:lang') || '').trim();
       }
     }, {
-      id: "valid-lang",
-      options: [ "aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az", "ba", "be", "bg", "bh", "bi", "bm", "bn", "bo", "br", "bs", "ca", "ce", "ch", "co", "cr", "cs", "cu", "cv", "cy", "da", "de", "dv", "dz", "ee", "el", "en", "eo", "es", "et", "eu", "fa", "ff", "fi", "fj", "fo", "fr", "fy", "ga", "gd", "gl", "gn", "gu", "gv", "ha", "he", "hi", "ho", "hr", "ht", "hu", "hy", "hz", "ia", "id", "ie", "ig", "ii", "ik", "in", "io", "is", "it", "iu", "iw", "ja", "ji", "jv", "jw", "ka", "kg", "ki", "kj", "kk", "kl", "km", "kn", "ko", "kr", "ks", "ku", "kv", "kw", "ky", "la", "lb", "lg", "li", "ln", "lo", "lt", "lu", "lv", "mg", "mh", "mi", "mk", "ml", "mn", "mo", "mr", "ms", "mt", "my", "na", "nb", "nd", "ne", "ng", "nl", "nn", "no", "nr", "nv", "ny", "oc", "oj", "om", "or", "os", "pa", "pi", "pl", "ps", "pt", "qu", "rm", "rn", "ro", "ru", "rw", "sa", "sc", "sd", "se", "sg", "sh", "si", "sk", "sl", "sm", "sn", "so", "sq", "sr", "ss", "st", "su", "sv", "sw", "ta", "te", "tg", "th", "ti", "tk", "tl", "tn", "to", "tr", "ts", "tt", "tw", "ty", "ug", "uk", "ur", "uz", "ve", "vi", "vo", "wa", "wo", "xh", "yi", "yo", "za", "zh", "zu" ],
-      evaluate: function evaluate(node, options) {
-        function getBaseLang(lang) {
-          return lang.trim().split("-")[0].toLowerCase();
-        }
+      id: 'valid-lang',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         var langs, invalid;
-        langs = (options || []).map(getBaseLang);
-        invalid = [ "lang", "xml:lang" ].reduce(function(invalid, langAttr) {
+        langs = (options ? options : axe.commons.utils.validLangs()).map(axe.commons.utils.getBaseLang);
+        invalid = [ 'lang', 'xml:lang' ].reduce(function(invalid, langAttr) {
           var langVal = node.getAttribute(langAttr);
-          if (typeof langVal !== "string") {
+          if (typeof langVal !== 'string') {
             return invalid;
           }
-          var baselangVal = getBaseLang(langVal);
-          // Edge sets lang to an empty string when xml:lang is set
-          // so we need to ignore empty strings here
-          if (baselangVal !== "" && langs.indexOf(baselangVal) === -1) {
+          var baselangVal = axe.commons.utils.getBaseLang(langVal);
+          if (baselangVal !== '' && langs.indexOf(baselangVal) === -1) {
             invalid.push(langAttr + '="' + node.getAttribute(langAttr) + '"');
           }
           return invalid;
@@ -5108,124 +8954,230 @@ maxstatements: false, maxcomplexity: false */
         return false;
       }
     }, {
-      id: "dlitem",
-      evaluate: function evaluate(node, options) {
-        return node.parentNode.tagName === "DL";
+      id: 'xml-lang-mismatch',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var getBaseLang = axe.commons.utils.getBaseLang;
+        var primaryLangValue = getBaseLang(node.getAttribute('lang'));
+        var primaryXmlLangValue = getBaseLang(node.getAttribute('xml:lang'));
+        return primaryLangValue === primaryXmlLangValue;
       }
     }, {
-      id: "has-listitem",
-      evaluate: function evaluate(node, options) {
-        var children = node.children;
-        if (children.length === 0) {
+      id: 'dlitem',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var parent = axe.commons.dom.getComposedParent(node);
+        var parentTagName = parent.nodeName.toUpperCase();
+        if (parentTagName !== 'DL') {
+          return false;
+        }
+        var parentRole = (parent.getAttribute('role') || '').toLowerCase();
+        if (!parentRole || !axe.commons.aria.isValidRole(parentRole)) {
           return true;
         }
-        for (var i = 0; i < children.length; i++) {
-          if (children[i].nodeName.toUpperCase() === "LI") {
-            return false;
-          }
-        }
-        return true;
-      }
-    }, {
-      id: "listitem",
-      evaluate: function evaluate(node, options) {
-        if ([ "UL", "OL" ].indexOf(node.parentNode.nodeName.toUpperCase()) !== -1) {
+        if (parentRole === 'list') {
           return true;
         }
-        return node.parentNode.getAttribute("role") === "list";
+        return false;
       }
     }, {
-      id: "only-dlitems",
-      evaluate: function evaluate(node, options) {
-        var child, nodeName, bad = [], children = node.childNodes, permitted = [ "STYLE", "META", "LINK", "MAP", "AREA", "SCRIPT", "DATALIST", "TEMPLATE" ], hasNonEmptyTextNode = false;
-        for (var i = 0; i < children.length; i++) {
-          child = children[i];
-          var nodeName = child.nodeName.toUpperCase();
-          if (child.nodeType === 1 && nodeName !== "DT" && nodeName !== "DD" && permitted.indexOf(nodeName) === -1) {
-            bad.push(child);
-          } else {
-            if (child.nodeType === 3 && child.nodeValue.trim() !== "") {
-              hasNonEmptyTextNode = true;
+      id: 'has-listitem',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return virtualNode.children.every(function(_ref3) {
+          var actualNode = _ref3.actualNode;
+          return actualNode.nodeName.toUpperCase() !== 'LI';
+        });
+      }
+    }, {
+      id: 'listitem',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var parent = axe.commons.dom.getComposedParent(node);
+        if (!parent) {
+          return undefined;
+        }
+        var parentTagName = parent.nodeName.toUpperCase();
+        var parentRole = (parent.getAttribute('role') || '').toLowerCase();
+        if (parentRole === 'list') {
+          return true;
+        }
+        if (parentRole && axe.commons.aria.isValidRole(parentRole)) {
+          return false;
+        }
+        return [ 'UL', 'OL' ].includes(parentTagName);
+      }
+    }, {
+      id: 'only-dlitems',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var ALLOWED_TAGS = [ 'STYLE', 'META', 'LINK', 'MAP', 'AREA', 'SCRIPT', 'DATALIST', 'TEMPLATE' ];
+        var ALLOWED_ROLES = [ 'definition', 'term', 'list' ];
+        var base = {
+          badNodes: [],
+          hasNonEmptyTextNode: false
+        };
+        var result = virtualNode.children.reduce(function(out, childNode) {
+          var actualNode = childNode.actualNode;
+          var tagName = actualNode.nodeName.toUpperCase();
+          if (actualNode.nodeType === 1 && !ALLOWED_TAGS.includes(tagName)) {
+            var role = (actualNode.getAttribute('role') || '').toLowerCase();
+            if (tagName !== 'DT' && tagName !== 'DD' || role) {
+              if (!ALLOWED_ROLES.includes(role)) {
+                out.badNodes.push(actualNode);
+              }
+            }
+          } else if (actualNode.nodeType === 3 && actualNode.nodeValue.trim() !== '') {
+            out.hasNonEmptyTextNode = true;
+          }
+          return out;
+        }, base);
+        if (result.badNodes.length) {
+          this.relatedNodes(result.badNodes);
+        }
+        return !!result.badNodes.length || result.hasNonEmptyTextNode;
+      }
+    }, {
+      id: 'only-listitems',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var ALLOWED_TAGS = [ 'STYLE', 'META', 'LINK', 'MAP', 'AREA', 'SCRIPT', 'DATALIST', 'TEMPLATE' ];
+        var getIsListItemRole = function getIsListItemRole(role, tagName) {
+          return role === 'listitem' || tagName === 'LI' && !role;
+        };
+        var getHasListItem = function getHasListItem(hasListItem, tagName, isListItemRole) {
+          return hasListItem || tagName === 'LI' && isListItemRole || isListItemRole;
+        };
+        var base = {
+          badNodes: [],
+          isEmpty: true,
+          hasNonEmptyTextNode: false,
+          hasListItem: false,
+          liItemsWithRole: 0
+        };
+        var out = virtualNode.children.reduce(function(out, _ref4) {
+          var actualNode = _ref4.actualNode;
+          var tagName = actualNode.nodeName.toUpperCase();
+          if (actualNode.nodeType === 1) {
+            if (!ALLOWED_TAGS.includes(tagName)) {
+              var role = (actualNode.getAttribute('role') || '').toLowerCase();
+              var isListItemRole = getIsListItemRole(role, tagName);
+              out.hasListItem = getHasListItem(out.hasListItem, tagName, isListItemRole);
+              if (isListItemRole) {
+                out.isEmpty = false;
+              }
+              if (tagName === 'LI' && !isListItemRole) {
+                out.liItemsWithRole++;
+              }
+              if (tagName !== 'LI' && !isListItemRole) {
+                out.badNodes.push(actualNode);
+              }
             }
           }
-        }
-        if (bad.length) {
-          this.relatedNodes(bad);
-        }
-        var retVal = !!bad.length || hasNonEmptyTextNode;
-        return retVal;
-      }
-    }, {
-      id: "only-listitems",
-      evaluate: function evaluate(node, options) {
-        var child, nodeName, bad = [], children = node.childNodes, permitted = [ "STYLE", "META", "LINK", "MAP", "AREA", "SCRIPT", "DATALIST", "TEMPLATE" ], hasNonEmptyTextNode = false;
-        for (var i = 0; i < children.length; i++) {
-          child = children[i];
-          nodeName = child.nodeName.toUpperCase();
-          if (child.nodeType === 1 && nodeName !== "LI" && permitted.indexOf(nodeName) === -1) {
-            bad.push(child);
-          } else {
-            if (child.nodeType === 3 && child.nodeValue.trim() !== "") {
-              hasNonEmptyTextNode = true;
+          if (actualNode.nodeType === 3) {
+            if (actualNode.nodeValue.trim() !== '') {
+              out.hasNonEmptyTextNode = true;
             }
           }
+          return out;
+        }, base);
+        var virtualNodeChildrenOfTypeLi = virtualNode.children.filter(function(_ref5) {
+          var actualNode = _ref5.actualNode;
+          return actualNode.nodeName.toUpperCase() === 'LI';
+        });
+        var allLiItemsHaveRole = out.liItemsWithRole > 0 && virtualNodeChildrenOfTypeLi.length === out.liItemsWithRole;
+        if (out.badNodes.length) {
+          this.relatedNodes(out.badNodes);
         }
-        if (bad.length) {
-          this.relatedNodes(bad);
-        }
-        return !!bad.length || hasNonEmptyTextNode;
+        var isInvalidListItem = !(out.hasListItem || out.isEmpty && !allLiItemsHaveRole);
+        return isInvalidListItem || !!out.badNodes.length || out.hasNonEmptyTextNode;
       }
     }, {
-      id: "structured-dlitems",
-      evaluate: function evaluate(node, options) {
-        var children = node.children;
+      id: 'structured-dlitems',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var children = virtualNode.children;
         if (!children || !children.length) {
           return false;
         }
         var hasDt = false, hasDd = false, nodeName;
         for (var i = 0; i < children.length; i++) {
-          nodeName = children[i].nodeName.toUpperCase();
-          if (nodeName === "DT") {
+          nodeName = children[i].actualNode.nodeName.toUpperCase();
+          if (nodeName === 'DT') {
             hasDt = true;
           }
-          if (hasDt && nodeName === "DD") {
+          if (hasDt && nodeName === 'DD') {
             return false;
           }
-          if (nodeName === "DD") {
+          if (nodeName === 'DD') {
             hasDd = true;
           }
         }
         return hasDt || hasDd;
       }
     }, {
-      id: "caption",
-      evaluate: function evaluate(node, options) {
-        return !node.querySelector("track[kind=captions]");
+      id: 'caption',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var tracks = axe.utils.querySelectorAll(virtualNode, 'track');
+        if (tracks.length) {
+          return !tracks.some(function(_ref6) {
+            var actualNode = _ref6.actualNode;
+            return (actualNode.getAttribute('kind') || '').toLowerCase() === 'captions';
+          });
+        }
+        return undefined;
       }
     }, {
-      id: "description",
-      evaluate: function evaluate(node, options) {
-        return !node.querySelector("track[kind=descriptions]");
+      id: 'description',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var tracks = axe.utils.querySelectorAll(virtualNode, 'track');
+        if (tracks.length) {
+          var out = !tracks.some(function(_ref7) {
+            var actualNode = _ref7.actualNode;
+            return (actualNode.getAttribute('kind') || '').toLowerCase() === 'descriptions';
+          });
+          return out;
+        }
+        return undefined;
       }
     }, {
-      id: "meta-viewport-large",
-      evaluate: function evaluate(node, options) {
+      id: 'frame-tested',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var resolve = this.async();
+        var _Object$assign = Object.assign({
+          isViolation: false,
+          timeout: 500
+        }, options), isViolation = _Object$assign.isViolation, timeout = _Object$assign.timeout;
+        var timer = setTimeout(function() {
+          timer = setTimeout(function() {
+            timer = null;
+            resolve(isViolation ? false : undefined);
+          }, 0);
+        }, timeout);
+        axe.utils.respondable(node.contentWindow, 'axe.ping', null, undefined, function() {
+          if (timer !== null) {
+            clearTimeout(timer);
+            resolve(true);
+          }
+        });
+      },
+      options: {
+        isViolation: false
+      }
+    }, {
+      id: 'meta-viewport-large',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         options = options || {};
-        var params, content = node.getAttribute("content") || "", parsedParams = content.split(/[;,]/), result = {}, minimum = options.scaleMinimum || 2, lowerBound = options.lowerBound || false;
+        var params, content = node.getAttribute('content') || '', parsedParams = content.split(/[;,]/), result = {}, minimum = options.scaleMinimum || 2, lowerBound = options.lowerBound || false;
         for (var i = 0, l = parsedParams.length; i < l; i++) {
-          params = parsedParams[i].split("=");
+          params = parsedParams[i].split('=');
           var key = params.shift().toLowerCase();
           if (key && params.length) {
             result[key.trim()] = params.shift().trim().toLowerCase();
           }
         }
-        if (lowerBound && result["maximum-scale"] && parseFloat(result["maximum-scale"]) < lowerBound) {
+        if (lowerBound && result['maximum-scale'] && parseFloat(result['maximum-scale']) < lowerBound) {
           return true;
         }
-        if (!lowerBound && result["user-scalable"] === "no") {
+        if (!lowerBound && result['user-scalable'] === 'no') {
+          this.data('user-scalable=no');
           return false;
         }
-        if (result["maximum-scale"] && parseFloat(result["maximum-scale"]) < minimum) {
+        if (result['maximum-scale'] && parseFloat(result['maximum-scale']) < minimum) {
+          this.data('maximum-scale');
           return false;
         }
         return true;
@@ -5235,24 +9187,26 @@ maxstatements: false, maxcomplexity: false */
         lowerBound: 2
       }
     }, {
-      id: "meta-viewport",
-      evaluate: function evaluate(node, options) {
+      id: 'meta-viewport',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         options = options || {};
-        var params, content = node.getAttribute("content") || "", parsedParams = content.split(/[;,]/), result = {}, minimum = options.scaleMinimum || 2, lowerBound = options.lowerBound || false;
+        var params, content = node.getAttribute('content') || '', parsedParams = content.split(/[;,]/), result = {}, minimum = options.scaleMinimum || 2, lowerBound = options.lowerBound || false;
         for (var i = 0, l = parsedParams.length; i < l; i++) {
-          params = parsedParams[i].split("=");
+          params = parsedParams[i].split('=');
           var key = params.shift().toLowerCase();
           if (key && params.length) {
             result[key.trim()] = params.shift().trim().toLowerCase();
           }
         }
-        if (lowerBound && result["maximum-scale"] && parseFloat(result["maximum-scale"]) < lowerBound) {
+        if (lowerBound && result['maximum-scale'] && parseFloat(result['maximum-scale']) < lowerBound) {
           return true;
         }
-        if (!lowerBound && result["user-scalable"] === "no") {
+        if (!lowerBound && result['user-scalable'] === 'no') {
+          this.data('user-scalable=no');
           return false;
         }
-        if (result["maximum-scale"] && parseFloat(result["maximum-scale"]) < minimum) {
+        if (result['maximum-scale'] && parseFloat(result['maximum-scale']) < minimum) {
+          this.data('maximum-scale');
           return false;
         }
         return true;
@@ -5261,15 +9215,14 @@ maxstatements: false, maxcomplexity: false */
         scaleMinimum: 2
       }
     }, {
-      id: "header-present",
-      selector: "html",
-      evaluate: function evaluate(node, options) {
-        return !!node.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]');
+      id: 'header-present',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return !!axe.utils.querySelectorAll(virtualNode, 'h1, h2, h3, h4, h5, h6, [role="heading"]')[0];
       }
     }, {
-      id: "heading-order",
-      evaluate: function evaluate(node, options) {
-        var ariaHeadingLevel = node.getAttribute("aria-level");
+      id: 'heading-order',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var ariaHeadingLevel = node.getAttribute('aria-level');
         if (ariaHeadingLevel !== null) {
           this.data(parseInt(ariaHeadingLevel, 10));
           return true;
@@ -5295,78 +9248,187 @@ maxstatements: false, maxcomplexity: false */
         return results;
       }
     }, {
-      id: "internal-link-present",
-      selector: "html",
-      evaluate: function evaluate(node, options) {
-        return !!node.querySelector('a[href^="#"]');
+      id: 'internal-link-present',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var links = axe.utils.querySelectorAll(virtualNode, 'a[href]');
+        return links.some(function(vLink) {
+          return /^#[^/!]/.test(vLink.actualNode.getAttribute('href'));
+        });
       }
     }, {
-      id: "landmark",
-      selector: "html",
-      evaluate: function evaluate(node, options) {
-        return !!node.querySelector('[role="main"]');
+      id: 'landmark',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return axe.utils.querySelectorAll(virtualNode, 'main, [role="main"]').length > 0;
       }
     }, {
-      id: "meta-refresh",
-      evaluate: function evaluate(node, options) {
-        var content = node.getAttribute("content") || "", parsedParams = content.split(/[;,]/);
-        return content === "" || parsedParams[0] === "0";
+      id: 'meta-refresh',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var content = node.getAttribute('content') || '', parsedParams = content.split(/[;,]/);
+        return content === '' || parsedParams[0] === '0';
       }
     }, {
-      id: "region",
-      evaluate: function evaluate(node, options) {
-        //jshint latedef: false
-        var landmarkRoles = axe.commons.aria.getRolesByType("landmark"), firstLink = node.querySelector("a[href]");
-        function isSkipLink(n) {
-          return firstLink && axe.commons.dom.isFocusable(axe.commons.dom.getElementByReference(firstLink, "href")) && firstLink === n;
-        }
-        function isLandmark(n) {
-          var role = n.getAttribute("role");
-          return role && landmarkRoles.indexOf(role) !== -1;
-        }
-        function checkRegion(n) {
-          if (isLandmark(n)) {
-            return null;
+      id: 'p-as-heading',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var siblings = Array.from(node.parentNode.children);
+        var currentIndex = siblings.indexOf(node);
+        options = options || {};
+        var margins = options.margins || [];
+        var nextSibling = siblings.slice(currentIndex + 1).find(function(elm) {
+          return elm.nodeName.toUpperCase() === 'P';
+        });
+        var prevSibling = siblings.slice(0, currentIndex).reverse().find(function(elm) {
+          return elm.nodeName.toUpperCase() === 'P';
+        });
+        function getTextContainer(elm) {
+          var nextNode = elm;
+          var outerText = elm.textContent.trim();
+          var innerText = outerText;
+          while (innerText === outerText && nextNode !== undefined) {
+            var i = -1;
+            elm = nextNode;
+            if (elm.children.length === 0) {
+              return elm;
+            }
+            do {
+              i++;
+              innerText = elm.children[i].textContent.trim();
+            } while (innerText === '' && i + 1 < elm.children.length);
+            nextNode = elm.children[i];
           }
-          if (isSkipLink(n)) {
-            return getViolatingChildren(n);
-          }
-          if (axe.commons.dom.isVisible(n, true) && (axe.commons.text.visible(n, true, true) || axe.commons.dom.isVisualContent(n))) {
-            return n;
-          }
-          return getViolatingChildren(n);
+          return elm;
         }
-        function getViolatingChildren(n) {
-          var children = axe.commons.utils.toArray(n.children);
-          if (children.length === 0) {
+        function normalizeFontWeight(weight) {
+          switch (weight) {
+           case 'lighter':
+            return 100;
+
+           case 'normal':
+            return 400;
+
+           case 'bold':
+            return 700;
+
+           case 'bolder':
+            return 900;
+          }
+          weight = parseInt(weight);
+          return !isNaN(weight) ? weight : 400;
+        }
+        function getStyleValues(node) {
+          var style = window.getComputedStyle(getTextContainer(node));
+          return {
+            fontWeight: normalizeFontWeight(style.getPropertyValue('font-weight')),
+            fontSize: parseInt(style.getPropertyValue('font-size')),
+            isItalic: style.getPropertyValue('font-style') === 'italic'
+          };
+        }
+        function isHeaderStyle(styleA, styleB, margins) {
+          return margins.reduce(function(out, margin) {
+            return out || (!margin.size || styleA.fontSize / margin.size > styleB.fontSize) && (!margin.weight || styleA.fontWeight - margin.weight > styleB.fontWeight) && (!margin.italic || styleA.isItalic && !styleB.isItalic);
+          }, false);
+        }
+        var currStyle = getStyleValues(node);
+        var nextStyle = nextSibling ? getStyleValues(nextSibling) : null;
+        var prevStyle = prevSibling ? getStyleValues(prevSibling) : null;
+        if (!nextStyle || !isHeaderStyle(currStyle, nextStyle, margins)) {
+          return true;
+        }
+        var blockquote = axe.commons.dom.findUpVirtual(virtualNode, 'blockquote');
+        if (blockquote && blockquote.nodeName.toUpperCase() === 'BLOCKQUOTE') {
+          return undefined;
+        }
+        if (prevStyle && !isHeaderStyle(currStyle, prevStyle, margins)) {
+          return undefined;
+        }
+        return false;
+      },
+      options: {
+        margins: [ {
+          weight: 150,
+          italic: true
+        }, {
+          weight: 150,
+          size: 1.15
+        }, {
+          italic: true,
+          size: 1.15
+        }, {
+          size: 1.4
+        } ]
+      }
+    }, {
+      id: 'region',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var _axe$commons3 = axe.commons, dom = _axe$commons3.dom, aria = _axe$commons3.aria;
+        function getSkiplink(virtualNode) {
+          var firstLink = axe.utils.querySelectorAll(virtualNode, 'a[href]')[0];
+          if (firstLink && axe.commons.dom.getElementByReference(firstLink.actualNode, 'href')) {
+            return firstLink.actualNode;
+          }
+        }
+        var skipLink = getSkiplink(virtualNode);
+        var landmarkRoles = aria.getRolesByType('landmark');
+        var implicitLandmarks = landmarkRoles.reduce(function(arr, role) {
+          return arr.concat(aria.implicitNodes(role));
+        }, []).filter(function(r) {
+          return r !== null;
+        });
+        function isSkipLink(vNode) {
+          return skipLink && skipLink === vNode.actualNode;
+        }
+        function isLandmark(virtualNode) {
+          var node = virtualNode.actualNode;
+          var explictRole = (node.getAttribute('role') || '').trim().toLowerCase();
+          if (explictRole) {
+            return landmarkRoles.includes(explictRole);
+          } else {
+            return implicitLandmarks.some(function(implicitSelector) {
+              var matches = axe.utils.matchesSelector(node, implicitSelector);
+              if (node.tagName.toLowerCase() === 'form') {
+                var titleAttr = node.getAttribute('title');
+                var title = titleAttr && titleAttr.trim() !== '' ? axe.commons.text.sanitize(titleAttr) : null;
+                return matches && (!!aria.labelVirtual(virtualNode) || !!title);
+              }
+              return matches;
+            });
+          }
+        }
+        function findRegionlessElms(virtualNode) {
+          var node = virtualNode.actualNode;
+          if (isLandmark(virtualNode) || isSkipLink(virtualNode) || !dom.isVisible(node, true)) {
             return [];
+          } else if (dom.hasContent(node, true)) {
+            return [ node ];
+          } else {
+            return virtualNode.children.filter(function(_ref8) {
+              var actualNode = _ref8.actualNode;
+              return actualNode.nodeType === 1;
+            }).map(findRegionlessElms).reduce(function(a, b) {
+              return a.concat(b);
+            }, []);
           }
-          return children.map(checkRegion).filter(function(c) {
-            return c !== null;
-          }).reduce(function(a, b) {
-            return a.concat(b);
-          }, []);
         }
-        var v = getViolatingChildren(node);
-        this.relatedNodes(v);
-        return !v.length;
+        var regionlessNodes = findRegionlessElms(virtualNode);
+        this.relatedNodes(regionlessNodes);
+        return regionlessNodes.length === 0;
       },
       after: function after(results, options) {
         return [ results[0] ];
       }
     }, {
-      id: "skip-link",
-      selector: "a[href]",
-      evaluate: function evaluate(node, options) {
-        return axe.commons.dom.isFocusable(axe.commons.dom.getElementByReference(node, "href"));
-      },
-      after: function after(results, options) {
-        return [ results[0] ];
+      id: 'skip-link',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var target = axe.commons.dom.getElementByReference(node, 'href');
+        if (target) {
+          return axe.commons.dom.isVisible(target, true) || undefined;
+        }
+        return false;
       }
     }, {
-      id: "unique-frame-title",
-      evaluate: function evaluate(node, options) {
-        this.data(node.title);
+      id: 'unique-frame-title',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var title = axe.commons.text.sanitize(node.title).trim().toLowerCase();
+        this.data(title);
         return true;
       },
       after: function after(results, options) {
@@ -5374,61 +9436,61 @@ maxstatements: false, maxcomplexity: false */
         results.forEach(function(r) {
           titles[r.data] = titles[r.data] !== undefined ? ++titles[r.data] : 0;
         });
-        return results.filter(function(r) {
-          return !!titles[r.data];
+        results.forEach(function(r) {
+          r.result = !!titles[r.data];
+        });
+        return results;
+      }
+    }, {
+      id: 'aria-label',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var label = node.getAttribute('aria-label');
+        return !!(label ? axe.commons.text.sanitize(label).trim() : '');
+      }
+    }, {
+      id: 'aria-labelledby',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var getIdRefs = axe.commons.dom.idrefs;
+        return getIdRefs(node, 'aria-labelledby').some(function(elm) {
+          return elm && axe.commons.text.accessibleText(elm, true);
         });
       }
     }, {
-      id: "aria-label",
-      evaluate: function evaluate(node, options) {
-        var label = node.getAttribute("aria-label");
-        return !!(label ? axe.commons.text.sanitize(label).trim() : "");
-      }
-    }, {
-      id: "aria-labelledby",
-      evaluate: function evaluate(node, options) {
-        var results = axe.commons.dom.idrefs(node, "aria-labelledby");
-        var element, i, l = results.length;
-        for (i = 0; i < l; i++) {
-          element = results[i];
-          if (element && axe.commons.text.accessibleText(element, true)) {
-            return true;
-          }
+      id: 'button-has-visible-text',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var nodeName = node.nodeName.toUpperCase();
+        var role = node.getAttribute('role');
+        var label = void 0;
+        if (nodeName === 'BUTTON' || role === 'button' && nodeName !== 'INPUT') {
+          label = axe.commons.text.accessibleTextVirtual(virtualNode);
+          this.data(label);
+          return !!label;
+        } else {
+          return false;
         }
-        return false;
       }
     }, {
-      id: "button-has-visible-text",
-      evaluate: function evaluate(node, options) {
-        return axe.commons.text.accessibleText(node).length > 0;
-      },
-      selector: 'button, [role="button"]:not(input)'
-    }, {
-      id: "doc-has-title",
-      evaluate: function evaluate(node, options) {
+      id: 'doc-has-title',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         var title = document.title;
-        return !!(title ? axe.commons.text.sanitize(title).trim() : "");
+        return !!(title ? axe.commons.text.sanitize(title).trim() : '');
       }
     }, {
-      id: "duplicate-id",
-      evaluate: function evaluate(node, options) {
-        // Since empty ID's are not meaningful and are ignored by Edge, we'll
-        // let those pass.
-        if (!node.id.trim()) {
+      id: 'duplicate-id',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var id = node.getAttribute('id').trim();
+        if (!id) {
           return true;
         }
-        var matchingNodes = document.querySelectorAll('[id="' + axe.commons.utils.escapeSelector(node.id) + '"]');
-        var related = [];
-        for (var i = 0; i < matchingNodes.length; i++) {
-          if (matchingNodes[i] !== node) {
-            related.push(matchingNodes[i]);
-          }
+        var root = axe.commons.dom.getRootNode(node);
+        var matchingNodes = Array.from(root.querySelectorAll('[id="' + axe.commons.utils.escapeSelector(id) + '"]')).filter(function(foundNode) {
+          return foundNode !== node;
+        });
+        if (matchingNodes.length) {
+          this.relatedNodes(matchingNodes);
         }
-        if (related.length) {
-          this.relatedNodes(related);
-        }
-        this.data(node.getAttribute("id"));
-        return matchingNodes.length <= 1;
+        this.data(id);
+        return matchingNodes.length === 0;
       },
       after: function after(results, options) {
         var uniqueIds = [];
@@ -5441,67 +9503,70 @@ maxstatements: false, maxcomplexity: false */
         });
       }
     }, {
-      id: "exists",
-      evaluate: function evaluate(node, options) {
+      id: 'exists',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         return true;
       }
     }, {
-      id: "has-alt",
-      evaluate: function evaluate(node, options) {
-        return node.hasAttribute("alt");
+      id: 'has-alt',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var nn = node.nodeName.toLowerCase();
+        return node.hasAttribute('alt') && (nn === 'img' || nn === 'input' || nn === 'area');
       }
     }, {
-      id: "has-visible-text",
-      evaluate: function evaluate(node, options) {
-        return axe.commons.text.accessibleText(node).length > 0;
+      id: 'has-visible-text',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return axe.commons.text.accessibleTextVirtual(virtualNode).length > 0;
       }
     }, {
-      id: "is-on-screen",
-      evaluate: function evaluate(node, options) {
-        // From a visual perspective
+      id: 'is-on-screen',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         return axe.commons.dom.isVisible(node, false) && !axe.commons.dom.isOffscreen(node);
       }
     }, {
-      id: "non-empty-alt",
-      evaluate: function evaluate(node, options) {
-        var label = node.getAttribute("alt");
-        return !!(label ? axe.commons.text.sanitize(label).trim() : "");
+      id: 'non-empty-alt',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var label = node.getAttribute('alt');
+        return !!(label ? axe.commons.text.sanitize(label).trim() : '');
       }
     }, {
-      id: "non-empty-if-present",
-      evaluate: function evaluate(node, options) {
-        var label = node.getAttribute("value");
+      id: 'non-empty-if-present',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var nodeName = node.nodeName.toUpperCase();
+        var type = (node.getAttribute('type') || '').toLowerCase();
+        var label = node.getAttribute('value');
         this.data(label);
-        return label === null || axe.commons.text.sanitize(label).trim() !== "";
-      },
-      selector: '[type="submit"], [type="reset"]'
-    }, {
-      id: "non-empty-title",
-      evaluate: function evaluate(node, options) {
-        var title = node.getAttribute("title");
-        return !!(title ? axe.commons.text.sanitize(title).trim() : "");
+        if (nodeName === 'INPUT' && [ 'submit', 'reset' ].includes(type)) {
+          return label === null;
+        }
+        return false;
       }
     }, {
-      id: "non-empty-value",
-      evaluate: function evaluate(node, options) {
-        var label = node.getAttribute("value");
-        return !!(label ? axe.commons.text.sanitize(label).trim() : "");
-      },
-      selector: '[type="button"]'
-    }, {
-      id: "role-none",
-      evaluate: function evaluate(node, options) {
-        return node.getAttribute("role") === "none";
+      id: 'non-empty-title',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var title = node.getAttribute('title');
+        return !!(title ? axe.commons.text.sanitize(title).trim() : '');
       }
     }, {
-      id: "role-presentation",
-      evaluate: function evaluate(node, options) {
-        return node.getAttribute("role") === "presentation";
+      id: 'non-empty-value',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var label = node.getAttribute('value');
+        return !!(label ? axe.commons.text.sanitize(label).trim() : '');
       }
     }, {
-      id: "caption-faked",
-      evaluate: function evaluate(node, options) {
-        var table = axe.commons.table.toArray(node);
+      id: 'role-none',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return node.getAttribute('role') === 'none';
+      }
+    }, {
+      id: 'role-presentation',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return node.getAttribute('role') === 'presentation';
+      }
+    }, {
+      id: 'caption-faked',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var table = axe.commons.table.toGrid(node);
         var firstRow = table[0];
         if (table.length <= 1 || firstRow.length <= 1 || node.rows.length <= 1) {
           return true;
@@ -5511,24 +9576,24 @@ maxstatements: false, maxcomplexity: false */
         }, false);
       }
     }, {
-      id: "has-caption",
-      evaluate: function evaluate(node, options) {
+      id: 'has-caption',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         return !!node.caption;
       }
     }, {
-      id: "has-summary",
-      evaluate: function evaluate(node, options) {
+      id: 'has-summary',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         return !!node.summary;
       }
     }, {
-      id: "has-th",
-      evaluate: function evaluate(node, options) {
+      id: 'has-th',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         var row, cell, badCells = [];
         for (var rowIndex = 0, rowLength = node.rows.length; rowIndex < rowLength; rowIndex++) {
           row = node.rows[rowIndex];
           for (var cellIndex = 0, cellLength = row.cells.length; cellIndex < cellLength; cellIndex++) {
             cell = row.cells[cellIndex];
-            if (cell.nodeName.toUpperCase() === "TH" || [ "rowheader", "columnheader" ].indexOf(cell.getAttribute("role")) !== -1) {
+            if (cell.nodeName.toUpperCase() === 'TH' || [ 'rowheader', 'columnheader' ].indexOf(cell.getAttribute('role')) !== -1) {
               badCells.push(cell);
             }
           }
@@ -5540,45 +9605,42 @@ maxstatements: false, maxcomplexity: false */
         return false;
       }
     }, {
-      id: "html5-scope",
-      evaluate: function evaluate(node, options) {
+      id: 'html5-scope',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         if (!axe.commons.dom.isHTML5(document)) {
-          return false;
+          return true;
         }
-        return node.nodeName.toUpperCase() === "TH";
+        return node.nodeName.toUpperCase() === 'TH';
       }
     }, {
-      id: "same-caption-summary",
-      selector: "table",
-      evaluate: function evaluate(node, options) {
-        return !!(node.summary && node.caption) && node.summary === axe.commons.text.accessibleText(node.caption);
+      id: 'same-caption-summary',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        return !!(node.summary && node.caption) && node.summary.toLowerCase() === axe.commons.text.accessibleText(node.caption).toLowerCase();
       }
     }, {
-      id: "scope-value",
-      evaluate: function evaluate(node, options) {
+      id: 'scope-value',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         options = options || {};
-        var value = node.getAttribute("scope").toLowerCase();
-        var validVals = [ "row", "col", "rowgroup", "colgroup" ] || options.values;
+        var value = node.getAttribute('scope').toLowerCase();
+        var validVals = [ 'row', 'col', 'rowgroup', 'colgroup' ] || options.values;
         return validVals.indexOf(value) !== -1;
       }
     }, {
-      id: "td-has-header",
-      evaluate: function evaluate(node, options) {
-        var row, cell, badCells = [];
-        for (var rowIndex = 0, rowLength = node.rows.length; rowIndex < rowLength; rowIndex++) {
-          row = node.rows[rowIndex];
-          for (var cellIndex = 0, cellLength = row.cells.length; cellIndex < cellLength; cellIndex++) {
-            cell = row.cells[cellIndex];
-            if (cell.textContent.trim() !== "" && axe.commons.table.isDataCell(cell) && !axe.commons.aria.label(cell)) {
-              var headers = axe.commons.table.getHeaders(cell).reduce(function(out, header) {
-                return out || header !== null && !!header.textContent.trim();
-              }, false);
-              if (!headers) {
-                badCells.push(cell);
-              }
+      id: 'td-has-header',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var tableUtils = axe.commons.table;
+        var badCells = [];
+        var cells = tableUtils.getAllCells(node);
+        cells.forEach(function(cell) {
+          if (axe.commons.dom.hasContent(cell) && tableUtils.isDataCell(cell) && !axe.commons.aria.label(cell)) {
+            var hasHeaders = tableUtils.getHeaders(cell).some(function(header) {
+              return header !== null && !!axe.commons.dom.hasContent(header);
+            });
+            if (!hasHeaders) {
+              badCells.push(cell);
             }
           }
-        }
+        });
         if (badCells.length) {
           this.relatedNodes(badCells);
           return false;
@@ -5586,8 +9648,8 @@ maxstatements: false, maxcomplexity: false */
         return true;
       }
     }, {
-      id: "td-headers-attr",
-      evaluate: function evaluate(node, options) {
+      id: 'td-headers-attr',
+      evaluate: function evaluate(node, options, virtualNode, context) {
         var cells = [];
         for (var rowIndex = 0, rowLength = node.rows.length; rowIndex < rowLength; rowIndex++) {
           var row = node.rows[rowIndex];
@@ -5596,15 +9658,14 @@ maxstatements: false, maxcomplexity: false */
           }
         }
         var ids = cells.reduce(function(ids, cell) {
-          if (cell.id) {
-            ids.push(cell.id);
+          if (cell.getAttribute('id')) {
+            ids.push(cell.getAttribute('id'));
           }
           return ids;
         }, []);
         var badCells = cells.reduce(function(badCells, cell) {
           var isSelf, notOfTable;
-          // Get a list all the values of the headers attribute
-          var headers = (cell.getAttribute("headers") || "").split(/\s/).reduce(function(headers, header) {
+          var headers = (cell.getAttribute('headers') || '').split(/\s/).reduce(function(headers, header) {
             header = header.trim();
             if (header) {
               headers.push(header);
@@ -5612,11 +9673,9 @@ maxstatements: false, maxcomplexity: false */
             return headers;
           }, []);
           if (headers.length !== 0) {
-            // Check if the cell's id is in this list
-            if (cell.id) {
-              isSelf = headers.indexOf(cell.id.trim()) !== -1;
+            if (cell.getAttribute('id')) {
+              isSelf = headers.indexOf(cell.getAttribute('id').trim()) !== -1;
             }
-            // Check if the headers are of cells inside the table
             notOfTable = headers.reduce(function(fail, header) {
               return fail || ids.indexOf(header) === -1;
             }, false);
@@ -5634,1072 +9693,2095 @@ maxstatements: false, maxcomplexity: false */
         }
       }
     }, {
-      id: "th-has-data-cells",
-      evaluate: function evaluate(node, options) {
-        var cells = [];
+      id: 'th-has-data-cells',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var tableUtils = axe.commons.table;
+        var cells = tableUtils.getAllCells(node);
         var checkResult = this;
-        /**
- * Traverses a table in a given direction, passing it to the callback
- * @param  {array}    table    A matrix of the table obtained using axe.commons.table.toArray
- * @param  {object}   start    x/y coordinate: {x: 0, y: 0};
- * @param  {object}   dir      Direction that will be added recursively {x: 1, y: 0};
- * @param  {Function} callback Function to which each cell will be passed
- * @return {nodeElemtn}        If the callback returns true, the traversal will end and the cell will be returned
- */
-        function traverseTable(table, dir, start, callback) {
-          "use strict";
-          if (typeof start === "function") {
-            callback = start;
-            start = {
-              x: 0,
-              y: 0
-            };
-          }
-          if (typeof dir === "string") {
-            switch (dir) {
-             case "left":
-              dir = {
-                x: -1,
-                y: 0
-              };
-              break;
-
-             case "up":
-              dir = {
-                x: 0,
-                y: -1
-              };
-              break;
-
-             case "right":
-              dir = {
-                x: 1,
-                y: 0
-              };
-              break;
-
-             case "down":
-              dir = {
-                x: 0,
-                y: 1
-              };
-              break;
-            }
-          }
-          var cell = table[start.y] ? table[start.y][start.x] : undefined;
-          if (!cell) {
-            return;
-          }
-          if (callback(cell) === true) {
-            return cell;
-          }
-          return traverseTable(table, dir, {
-            x: start.x + dir.x,
-            y: start.y + dir.y
-          }, callback);
-        }
-        // Get all the cells
-        for (var rowIndex = 0, rowLength = node.rows.length; rowIndex < rowLength; rowIndex++) {
-          for (var cellIndex = 0, cellLength = node.rows[rowIndex].cells.length; cellIndex < cellLength; cellIndex++) {
-            cells.push(node.rows[rowIndex].cells[cellIndex]);
-          }
-        }
-        // Get a list of all headers reffed to in this rule
         var reffedHeaders = [];
         cells.forEach(function(cell) {
-          var headers = cell.getAttribute("headers");
+          var headers = cell.getAttribute('headers');
           if (headers) {
             reffedHeaders = reffedHeaders.concat(headers.split(/\s+/));
           }
-          var ariaLabel = cell.getAttribute("aria-labelledby");
+          var ariaLabel = cell.getAttribute('aria-labelledby');
           if (ariaLabel) {
             reffedHeaders = reffedHeaders.concat(ariaLabel.split(/\s+/));
           }
         });
-        // Get all the headers
         var headers = cells.filter(function(cell) {
-          if (axe.commons.text.sanitize(cell.textContent) === "") {
+          if (axe.commons.text.sanitize(cell.textContent) === '') {
             return false;
           }
-          return cell.nodeName.toUpperCase() === "TH" || [ "rowheader", "columnheader" ].indexOf(cell.getAttribute("role")) !== -1;
+          return cell.nodeName.toUpperCase() === 'TH' || [ 'rowheader', 'columnheader' ].indexOf(cell.getAttribute('role')) !== -1;
         });
-        var tableMatrix;
-        // Look for all the bad headers
-        return headers.reduce(function(res, header) {
-          if (header.id && reffedHeaders.indexOf(header.id) !== -1) {
+        var tableGrid = tableUtils.toGrid(node);
+        var out = headers.reduce(function(res, header) {
+          if (header.getAttribute('id') && reffedHeaders.includes(header.getAttribute('id'))) {
             return !res ? res : true;
           }
           var hasCell = false;
-          var pos = axe.commons.table.getCellPosition(header);
-          // Only get the matrix once we need it
-          tableMatrix = tableMatrix ? tableMatrix : axe.commons.table.toArray(node);
-          // Look for any data cells or row headers that this might refer to
-          if (axe.commons.table.isColumnHeader(header)) {
-            pos.y += 1;
-            hasCell = !!traverseTable(tableMatrix, "down", pos, function(cell) {
-              return !axe.commons.table.isColumnHeader(cell);
-            });
-          } else {
-            if (axe.commons.table.isRowHeader(header)) {
-              pos.x += 1;
-              hasCell = !!traverseTable(tableMatrix, "right", pos, function(cell) {
-                return !axe.commons.table.isRowHeader(cell);
-              });
-            }
+          var pos = tableUtils.getCellPosition(header, tableGrid);
+          if (tableUtils.isColumnHeader(header)) {
+            hasCell = tableUtils.traverse('down', pos, tableGrid).reduce(function(out, cell) {
+              return out || axe.commons.dom.hasContent(cell) && !tableUtils.isColumnHeader(cell);
+            }, false);
           }
-          // report the node as having failed
+          if (!hasCell && tableUtils.isRowHeader(header)) {
+            hasCell = tableUtils.traverse('right', pos, tableGrid).reduce(function(out, cell) {
+              return out || axe.commons.dom.hasContent(cell) && !tableUtils.isRowHeader(cell);
+            }, false);
+          }
           if (!hasCell) {
             checkResult.relatedNodes(header);
           }
-          return !res ? res : hasCell;
+          return res && hasCell;
         }, true);
+        return out ? true : undefined;
+      }
+    }, {
+      id: 'hidden-content',
+      evaluate: function evaluate(node, options, virtualNode, context) {
+        var whitelist = [ 'SCRIPT', 'HEAD', 'TITLE', 'NOSCRIPT', 'STYLE', 'TEMPLATE' ];
+        if (!whitelist.includes(node.tagName.toUpperCase()) && axe.commons.dom.hasContentVirtual(virtualNode)) {
+          var styles = window.getComputedStyle(node);
+          if (styles.getPropertyValue('display') === 'none') {
+            return undefined;
+          } else if (styles.getPropertyValue('visibility') === 'hidden') {
+            var parent = axe.commons.dom.getComposedParent(node);
+            var parentStyle = parent && window.getComputedStyle(parent);
+            if (!parentStyle || parentStyle.getPropertyValue('visibility') !== 'hidden') {
+              return undefined;
+            }
+          }
+        }
+        return true;
       }
     } ],
     commons: function() {
-      /*exported commons */ var commons = {};
-      var aria = commons.aria = {}, lookupTables = aria._lut = {};
-      lookupTables.attributes = {
-        "aria-activedescendant": {
-          type: "idref"
+      var commons = {};
+      var aria = commons.aria = {}, lookupTable = aria.lookupTable = {};
+      lookupTable.attributes = {
+        'aria-activedescendant': {
+          type: 'idref'
         },
-        "aria-atomic": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-atomic': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-autocomplete": {
-          type: "nmtoken",
-          values: [ "inline", "list", "both", "none" ]
+        'aria-autocomplete': {
+          type: 'nmtoken',
+          values: [ 'inline', 'list', 'both', 'none' ]
         },
-        "aria-busy": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-busy': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-checked": {
-          type: "nmtoken",
-          values: [ "true", "false", "mixed", "undefined" ]
+        'aria-checked': {
+          type: 'nmtoken',
+          values: [ 'true', 'false', 'mixed', 'undefined' ]
         },
-        "aria-colcount": {
-          type: "int"
+        'aria-colcount': {
+          type: 'int'
         },
-        "aria-colindex": {
-          type: "int"
+        'aria-colindex': {
+          type: 'int'
         },
-        "aria-colspan": {
-          type: "int"
+        'aria-colspan': {
+          type: 'int'
         },
-        "aria-controls": {
-          type: "idrefs"
+        'aria-controls': {
+          type: 'idrefs'
         },
-        "aria-describedby": {
-          type: "idrefs"
+        'aria-current': {
+          type: 'nmtoken',
+          values: [ 'page', 'step', 'location', 'date', 'time', 'true', 'false' ]
         },
-        "aria-disabled": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-describedby': {
+          type: 'idrefs'
         },
-        "aria-dropeffect": {
-          type: "nmtokens",
-          values: [ "copy", "move", "reference", "execute", "popup", "none" ]
+        'aria-disabled': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-expanded": {
-          type: "nmtoken",
-          values: [ "true", "false", "undefined" ]
+        'aria-dropeffect': {
+          type: 'nmtokens',
+          values: [ 'copy', 'move', 'reference', 'execute', 'popup', 'none' ]
         },
-        "aria-flowto": {
-          type: "idrefs"
+        'aria-errormessage': {
+          type: 'idref'
         },
-        "aria-grabbed": {
-          type: "nmtoken",
-          values: [ "true", "false", "undefined" ]
+        'aria-expanded': {
+          type: 'nmtoken',
+          values: [ 'true', 'false', 'undefined' ]
         },
-        "aria-haspopup": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-flowto': {
+          type: 'idrefs'
         },
-        "aria-hidden": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-grabbed': {
+          type: 'nmtoken',
+          values: [ 'true', 'false', 'undefined' ]
         },
-        "aria-invalid": {
-          type: "nmtoken",
-          values: [ "true", "false", "spelling", "grammar" ]
+        'aria-haspopup': {
+          type: 'nmtoken',
+          values: [ 'true', 'false', 'menu', 'listbox', 'tree', 'grid', 'dialog' ]
         },
-        "aria-label": {
-          type: "string"
+        'aria-hidden': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-labelledby": {
-          type: "idrefs"
+        'aria-invalid': {
+          type: 'nmtoken',
+          values: [ 'true', 'false', 'spelling', 'grammar' ]
         },
-        "aria-level": {
-          type: "int"
+        'aria-keyshortcuts': {
+          type: 'string'
         },
-        "aria-live": {
-          type: "nmtoken",
-          values: [ "off", "polite", "assertive" ]
+        'aria-label': {
+          type: 'string'
         },
-        "aria-multiline": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-labelledby': {
+          type: 'idrefs'
         },
-        "aria-multiselectable": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-level': {
+          type: 'int'
         },
-        "aria-orientation": {
-          type: "nmtoken",
-          values: [ "horizontal", "vertical" ]
+        'aria-live': {
+          type: 'nmtoken',
+          values: [ 'off', 'polite', 'assertive' ]
         },
-        "aria-owns": {
-          type: "idrefs"
+        'aria-modal': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-posinset": {
-          type: "int"
+        'aria-multiline': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-pressed": {
-          type: "nmtoken",
-          values: [ "true", "false", "mixed", "undefined" ]
+        'aria-multiselectable': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-readonly": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-orientation': {
+          type: 'nmtoken',
+          values: [ 'horizontal', 'vertical' ]
         },
-        "aria-relevant": {
-          type: "nmtokens",
-          values: [ "additions", "removals", "text", "all" ]
+        'aria-owns': {
+          type: 'idrefs'
         },
-        "aria-required": {
-          type: "boolean",
-          values: [ "true", "false" ]
+        'aria-placeholder': {
+          type: 'string'
         },
-        "aria-rowcount": {
-          type: "int"
+        'aria-posinset': {
+          type: 'int'
         },
-        "aria-rowindex": {
-          type: "int"
+        'aria-pressed': {
+          type: 'nmtoken',
+          values: [ 'true', 'false', 'mixed', 'undefined' ]
         },
-        "aria-rowspan": {
-          type: "int"
+        'aria-readonly': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-selected": {
-          type: "nmtoken",
-          values: [ "true", "false", "undefined" ]
+        'aria-relevant': {
+          type: 'nmtokens',
+          values: [ 'additions', 'removals', 'text', 'all' ]
         },
-        "aria-setsize": {
-          type: "int"
+        'aria-required': {
+          type: 'boolean',
+          values: [ 'true', 'false' ]
         },
-        "aria-sort": {
-          type: "nmtoken",
-          values: [ "ascending", "descending", "other", "none" ]
+        'aria-rowcount': {
+          type: 'int'
         },
-        "aria-valuemax": {
-          type: "decimal"
+        'aria-rowindex': {
+          type: 'int'
         },
-        "aria-valuemin": {
-          type: "decimal"
+        'aria-rowspan': {
+          type: 'int'
         },
-        "aria-valuenow": {
-          type: "decimal"
+        'aria-selected': {
+          type: 'nmtoken',
+          values: [ 'true', 'false', 'undefined' ]
         },
-        "aria-valuetext": {
-          type: "string"
+        'aria-setsize': {
+          type: 'int'
+        },
+        'aria-sort': {
+          type: 'nmtoken',
+          values: [ 'ascending', 'descending', 'other', 'none' ]
+        },
+        'aria-valuemax': {
+          type: 'decimal'
+        },
+        'aria-valuemin': {
+          type: 'decimal'
+        },
+        'aria-valuenow': {
+          type: 'decimal'
+        },
+        'aria-valuetext': {
+          type: 'string'
         }
       };
-      lookupTables.globalAttributes = [ "aria-atomic", "aria-busy", "aria-controls", "aria-describedby", "aria-disabled", "aria-dropeffect", "aria-flowto", "aria-grabbed", "aria-haspopup", "aria-hidden", "aria-invalid", "aria-label", "aria-labelledby", "aria-live", "aria-owns", "aria-relevant" ];
-      lookupTables.role = {
+      lookupTable.globalAttributes = [ 'aria-atomic', 'aria-busy', 'aria-controls', 'aria-current', 'aria-describedby', 'aria-disabled', 'aria-dropeffect', 'aria-flowto', 'aria-grabbed', 'aria-haspopup', 'aria-hidden', 'aria-invalid', 'aria-keyshortcuts', 'aria-label', 'aria-labelledby', 'aria-live', 'aria-owns', 'aria-relevant' ];
+      var elementConditions = {
+        CANNOT_HAVE_LIST_ATTRIBUTE: function CANNOT_HAVE_LIST_ATTRIBUTE(node) {
+          var nodeAttrs = Array.from(node.attributes).map(function(a) {
+            return a.name.toUpperCase();
+          });
+          if (nodeAttrs.includes('LIST')) {
+            return false;
+          }
+          return true;
+        },
+        CANNOT_HAVE_HREF_ATTRIBUTE: function CANNOT_HAVE_HREF_ATTRIBUTE(node) {
+          var nodeAttrs = Array.from(node.attributes).map(function(a) {
+            return a.name.toUpperCase();
+          });
+          if (nodeAttrs.includes('HREF')) {
+            return false;
+          }
+          return true;
+        },
+        MUST_HAVE_HREF_ATTRIBUTE: function MUST_HAVE_HREF_ATTRIBUTE(node) {
+          if (!node.href) {
+            return false;
+          }
+          return true;
+        },
+        MUST_HAVE_SIZE_ATTRIBUTE_WITH_VALUE_GREATER_THAN_1: function MUST_HAVE_SIZE_ATTRIBUTE_WITH_VALUE_GREATER_THAN_1(node) {
+          var attr = 'SIZE';
+          var nodeAttrs = Array.from(node.attributes).map(function(a) {
+            return a.name.toUpperCase();
+          });
+          if (!nodeAttrs.includes(attr)) {
+            return false;
+          }
+          return Number(node.getAttribute(attr)) > 1;
+        },
+        MUST_HAVE_ALT_ATTRIBUTE: function MUST_HAVE_ALT_ATTRIBUTE(node) {
+          var attr = 'ALT';
+          var nodeAttrs = Array.from(node.attributes).map(function(a) {
+            return a.name.toUpperCase();
+          });
+          if (!nodeAttrs.includes(attr)) {
+            return false;
+          }
+          return true;
+        },
+        MUST_HAVE_ALT_ATTRIBUTE_WITH_VALUE: function MUST_HAVE_ALT_ATTRIBUTE_WITH_VALUE(node) {
+          var attr = 'ALT';
+          var nodeAttrs = Array.from(node.attributes).map(function(a) {
+            return a.name.toUpperCase();
+          });
+          if (!nodeAttrs.includes(attr)) {
+            return false;
+          }
+          var attrValue = node.getAttribute(attr);
+          return attrValue && attrValue.length > 0;
+        }
+      };
+      lookupTable.role = {
         alert: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         alertdialog: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-modal', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'DIALOG', 'SECTION' ]
         },
         application: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ARTICLE', 'AUDIO', 'EMBED', 'IFRAME', 'OBJECT', 'SECTION', 'SVG', 'VIDEO' ]
         },
         article: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-posinset', 'aria-setsize', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "article" ]
+          implicit: [ 'article' ],
+          unsupported: false
         },
         banner: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'header' ],
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         button: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded", "aria-pressed" ]
+            allowed: [ 'aria-expanded', 'aria-pressed', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
+          nameFrom: [ 'author', 'contents' ],
           context: null,
-          implicit: [ "button", 'input[type="button"]', 'input[type="image"]' ]
+          implicit: [ 'button', 'input[type="button"]', 'input[type="image"]', 'input[type="reset"]', 'input[type="submit"]', 'summary' ],
+          unsupported: false,
+          allowedElements: [ {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         cell: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-colindex", "aria-colspan", "aria-rowindex", "aria-rowspan" ]
+            allowed: [ 'aria-colindex', 'aria-colspan', 'aria-rowindex', 'aria-rowspan', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "row" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'row' ],
+          implicit: [ 'td', 'th' ],
+          unsupported: false
         },
         checkbox: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            required: [ "aria-checked" ]
+            allowed: [ 'aria-checked', 'aria-required', 'aria-readonly', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
+          nameFrom: [ 'author', 'contents' ],
           context: null,
-          implicit: [ 'input[type="checkbox"]' ]
+          implicit: [ 'input[type="checkbox"]' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON' ]
         },
         columnheader: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded", "aria-sort", "aria-readonly", "aria-selected", "aria-required" ]
+            allowed: [ 'aria-colindex', 'aria-colspan', 'aria-expanded', 'aria-rowindex', 'aria-rowspan', 'aria-required', 'aria-readonly', 'aria-selected', 'aria-sort', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "row" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'row' ],
+          implicit: [ 'th' ],
+          unsupported: false
         },
         combobox: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            required: [ "aria-expanded" ],
-            allowed: [ "aria-autocomplete", "aria-required", "aria-activedescendant" ]
+            allowed: [ 'aria-expanded', 'aria-autocomplete', 'aria-required', 'aria-activedescendant', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "listbox", "textbox" ]
+            all: [ 'listbox', 'textbox' ]
           },
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false
         },
         command: {
-          nameFrom: [ "author" ],
-          type: "abstract"
+          nameFrom: [ 'author' ],
+          type: 'abstract',
+          unsupported: false
         },
         complementary: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "aside" ]
+          implicit: [ 'aside' ],
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         composite: {
-          nameFrom: [ "author" ],
-          type: "abstract"
+          nameFrom: [ 'author' ],
+          type: 'abstract',
+          unsupported: false
         },
         contentinfo: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'footer' ],
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         definition: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'dd', 'dfn' ],
+          unsupported: false
         },
         dialog: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-modal', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "dialog" ]
+          implicit: [ 'dialog' ],
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         directory: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: null
+          nameFrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         document: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "body" ]
+          implicit: [ 'body' ],
+          unsupported: false,
+          allowedElements: [ 'ARTICLE', 'EMBED', 'IFRAME', 'SECTION', 'SVG', 'OBJECT' ]
+        },
+        'doc-abstract': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-acknowledgments': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-afterword': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-appendix': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-backlink': {
+          type: 'link',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
+        },
+        'doc-biblioentry': {
+          type: 'listitem',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-level', 'aria-posinset', 'aria-setsize', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author' ],
+          context: [ 'doc-bibliography' ],
+          unsupported: false,
+          allowedElements: [ 'LI' ]
+        },
+        'doc-bibliography': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-biblioref': {
+          type: 'link',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
+        },
+        'doc-chapter': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-colophon': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-conclusion': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-cover': {
+          type: 'img',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false
+        },
+        'doc-credit': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-credits': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-dedication': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-endnote': {
+          type: 'listitem',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-level', 'aria-posinset', 'aria-setsize', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: [ 'doc-endnotes' ],
+          unsupported: false,
+          allowedElements: [ 'LI' ]
+        },
+        'doc-endnotes': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: [ 'doc-endnote' ],
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-epigraph': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false
+        },
+        'doc-epilogue': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-errata': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-example': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ASIDE', 'SECTION' ]
+        },
+        'doc-footnote': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ASIDE', 'FOOTER', 'HEADER' ]
+        },
+        'doc-foreword': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-glossary': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: [ 'term', 'definition' ],
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'DL' ]
+        },
+        'doc-glossref': {
+          type: 'link',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
+        },
+        'doc-index': {
+          type: 'navigation',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'NAV', 'SECTION' ]
+        },
+        'doc-introduction': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-noteref': {
+          type: 'link',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
+        },
+        'doc-notice': {
+          type: 'note',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-pagebreak': {
+          type: 'separator',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'HR' ]
+        },
+        'doc-pagelist': {
+          type: 'navigation',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'NAV', 'SECTION' ]
+        },
+        'doc-part': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-preface': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-prologue': {
+          type: 'landmark',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-pullquote': {
+          type: 'none',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ASIDE', 'SECTION' ]
+        },
+        'doc-qna': {
+          type: 'section',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        'doc-subtitle': {
+          type: 'sectionhead',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'H1', 'H2', 'H3', 'H4', 'H5', 'H6' ]
+        },
+        'doc-tip': {
+          type: 'note',
+          attributes: {
+            allowed: [ 'aria-expanded' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ASIDE' ]
+        },
+        'doc-toc': {
+          type: 'navigation',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          namefrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'NAV', 'SECTION' ]
+        },
+        feed: {
+          type: 'structure',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: {
+            one: [ 'article' ]
+          },
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ARTICLE', 'ASIDE', 'SECTION' ]
+        },
+        figure: {
+          type: 'structure',
+          unsupported: true
         },
         form: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'form' ],
+          unsupported: false
         },
         grid: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-level", "aria-multiselectable", "aria-readonly", "aria-activedescendant", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-expanded', 'aria-colcount', 'aria-level', 'aria-multiselectable', 'aria-readonly', 'aria-rowcount', 'aria-errormessage' ]
           },
           owned: {
-            one: [ "rowgroup", "row" ]
+            one: [ 'rowgroup', 'row' ]
           },
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'table' ],
+          unsupported: false
         },
         gridcell: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-selected", "aria-readonly", "aria-expanded", "aria-required" ]
+            allowed: [ 'aria-colindex', 'aria-colspan', 'aria-expanded', 'aria-rowindex', 'aria-rowspan', 'aria-selected', 'aria-readonly', 'aria-required', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "row" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'row' ],
+          implicit: [ 'td', 'th' ],
+          unsupported: false
         },
         group: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "details" ]
+          implicit: [ 'details', 'optgroup' ],
+          unsupported: false,
+          allowedElements: [ 'DL', 'FIGCAPTION', 'FIELDSET', 'FIGURE', 'FOOTER', 'HEADER', 'OL', 'UL' ]
         },
         heading: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-level", "aria-expanded" ]
+            required: [ 'aria-level' ],
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
+          nameFrom: [ 'author', 'contents' ],
           context: null,
-          implicit: [ "h1", "h2", "h3", "h4", "h5", "h6" ]
+          implicit: [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ],
+          unsupported: false
         },
         img: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "img" ]
+          implicit: [ 'img' ],
+          unsupported: false,
+          allowedElements: [ 'EMBED', 'IFRAME', 'OBJECT', 'SVG' ]
         },
         input: {
-          nameFrom: [ "author" ],
-          type: "abstract"
+          nameFrom: [ 'author' ],
+          type: 'abstract',
+          unsupported: false
         },
         landmark: {
-          nameFrom: [ "author" ],
-          type: "abstract"
+          nameFrom: [ 'author' ],
+          type: 'abstract',
+          unsupported: false
         },
         link: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
+          nameFrom: [ 'author', 'contents' ],
           context: null,
-          implicit: [ "a[href]" ]
+          implicit: [ 'a[href]' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'IMAGE'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'IMAGE'
+            }
+          } ]
         },
         list: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "listitem" ]
+            all: [ 'listitem' ]
           },
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "ol", "ul" ]
+          implicit: [ 'ol', 'ul', 'dl' ],
+          unsupported: false
         },
         listbox: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-multiselectable", "aria-required", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-multiselectable', 'aria-required', 'aria-expanded', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "option" ]
+            all: [ 'option' ]
           },
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "select" ]
+          implicit: [ 'select' ],
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         listitem: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-level", "aria-posinset", "aria-setsize", "aria-expanded" ]
+            allowed: [ 'aria-level', 'aria-posinset', 'aria-setsize', 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "list" ],
-          implicit: [ "li" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'list' ],
+          implicit: [ 'li', 'dt' ],
+          unsupported: false
         },
         log: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         main: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'main' ],
+          unsupported: false,
+          allowedElements: [ 'ARTICLE', 'SECTION' ]
         },
         marquee: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         math: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'math' ],
+          unsupported: false
         },
         menu: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-expanded', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: {
-            one: [ "menuitem", "menuitemradio", "menuitemcheckbox" ]
+            one: [ 'menuitem', 'menuitemradio', 'menuitemcheckbox' ]
           },
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'menu[type="context"]' ],
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         menubar: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-expanded', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         menuitem: {
-          type: "widget",
-          attributes: null,
+          type: 'widget',
+          attributes: {
+            allowed: [ 'aria-posinset', 'aria-setsize', 'aria-expanded', 'aria-errormessage' ]
+          },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "menu", "menubar" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'menu', 'menubar' ],
+          implicit: [ 'menuitem[type="command"]' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON', 'LI', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'IMAGE'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'BUTTON'
+            }
+          }, {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         menuitemcheckbox: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            required: [ "aria-checked" ]
+            allowed: [ 'aria-checked', 'aria-posinset', 'aria-setsize', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "menu", "menubar" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'menu', 'menubar' ],
+          implicit: [ 'menuitem[type="checkbox"]' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON', 'LI', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'CHECKBOX'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'IMAGE'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'BUTTON'
+            }
+          }, {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         menuitemradio: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-selected", "aria-posinset", "aria-setsize" ],
-            required: [ "aria-checked" ]
+            allowed: [ 'aria-checked', 'aria-selected', 'aria-posinset', 'aria-setsize', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "menu", "menubar" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'menu', 'menubar' ],
+          implicit: [ 'menuitem[type="radio"]' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON', 'LI', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'IMAGE'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'BUTTON'
+            }
+          }, {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         navigation: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'nav' ],
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         none: {
-          type: "structure",
+          type: 'structure',
           attributes: null,
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ARTICLE', 'ASIDE', 'DL', 'EMBED', 'FIGCAPTION', 'FIELDSET', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'LI', 'SECTION', 'OL', {
+            tagName: 'IMG',
+            condition: elementConditions.MUST_HAVE_ALT_ATTRIBUTE
+          } ]
         },
         note: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ASIDE' ]
         },
         option: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-selected", "aria-posinset", "aria-setsize", "aria-checked" ]
+            allowed: [ 'aria-selected', 'aria-posinset', 'aria-setsize', 'aria-checked', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "listbox" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'listbox' ],
+          implicit: [ 'option' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON', 'LI', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'CHECKBOX'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'BUTTON'
+            }
+          }, {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         presentation: {
-          type: "structure",
+          type: 'structure',
           attributes: null,
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ARTICLE', 'ASIDE', 'DL', 'EMBED', 'FIGCAPTION', 'FIELDSET', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'HR', 'LI', 'OL', 'SECTION', 'UL', {
+            tagName: 'IMG',
+            condition: elementConditions.MUST_HAVE_ALT_ATTRIBUTE
+          } ]
         },
         progressbar: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-valuetext", "aria-valuenow", "aria-valuemax", "aria-valuemin" ]
+            allowed: [ 'aria-valuetext', 'aria-valuenow', 'aria-valuemax', 'aria-valuemin', 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'progress' ],
+          unsupported: false
         },
         radio: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-selected", "aria-posinset", "aria-setsize" ],
-            required: [ "aria-checked" ]
+            allowed: [ 'aria-checked', 'aria-selected', 'aria-posinset', 'aria-setsize', 'aria-required', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
+          nameFrom: [ 'author', 'contents' ],
           context: null,
-          implicit: [ 'input[type="radio"]' ]
+          implicit: [ 'input[type="radio"]' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON', 'LI', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'IMAGE'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'BUTTON'
+            }
+          } ]
         },
         radiogroup: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-required", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-required', 'aria-expanded', 'aria-readonly', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "radio" ]
+            all: [ 'radio' ]
           },
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         range: {
-          nameFrom: [ "author" ],
-          type: "abstract"
+          nameFrom: [ 'author' ],
+          type: 'abstract',
+          unsupported: false
         },
         region: {
-          type: "structure",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "section" ]
+          implicit: [ 'section[aria-label]', 'section[aria-labelledby]', 'section[title]' ],
+          unsupported: false,
+          allowedElements: [ 'ARTICLE', 'ASIDE' ]
         },
         roletype: {
-          type: "abstract"
+          type: 'abstract',
+          unsupported: false
         },
         row: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-level", "aria-selected", "aria-activedescendant", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-colindex', 'aria-expanded', 'aria-level', 'aria-selected', 'aria-rowindex', 'aria-errormessage' ]
           },
           owned: {
-            one: [ "cell", "columnheader", "rowheader", "gridcell" ]
+            one: [ 'cell', 'columnheader', 'rowheader', 'gridcell' ]
           },
-          nameFrom: [ "author", "contents" ],
-          context: [ "rowgroup", "grid", "treegrid", "table" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'rowgroup', 'grid', 'treegrid', 'table' ],
+          implicit: [ 'tr' ],
+          unsupported: false
         },
         rowgroup: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-expanded', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "row" ]
+            all: [ 'row' ]
           },
-          nameFrom: [ "author", "contents" ],
-          context: [ "grid", "table" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'grid', 'table' ],
+          implicit: [ 'tbody', 'thead', 'tfoot' ],
+          unsupported: false
         },
         rowheader: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-sort", "aria-required", "aria-readonly", "aria-expanded", "aria-selected" ]
+            allowed: [ 'aria-colindex', 'aria-colspan', 'aria-expanded', 'aria-rowindex', 'aria-rowspan', 'aria-required', 'aria-readonly', 'aria-selected', 'aria-sort', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "row" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'row' ],
+          implicit: [ 'th' ],
+          unsupported: false
         },
         scrollbar: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            required: [ "aria-controls", "aria-orientation", "aria-valuenow", "aria-valuemax", "aria-valuemin" ],
-            allowed: [ "aria-valuetext" ]
+            required: [ 'aria-controls', 'aria-valuenow', 'aria-valuemax', 'aria-valuemin' ],
+            allowed: [ 'aria-valuetext', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false
         },
         search: {
-          type: "landmark",
+          type: 'landmark',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'ASIDE', 'FORM', 'SECTION' ]
         },
         searchbox: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-autocomplete", "aria-multiline", "aria-readonly", "aria-required" ]
+            allowed: [ 'aria-activedescendant', 'aria-autocomplete', 'aria-multiline', 'aria-readonly', 'aria-required', 'aria-placeholder', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ 'input[type="search"]' ]
+          implicit: [ 'input[type="search"]' ],
+          unsupported: false
         },
         section: {
-          nameFrom: [ "author", "contents" ],
-          type: "abstract"
+          nameFrom: [ 'author', 'contents' ],
+          type: 'abstract',
+          unsupported: false
         },
         sectionhead: {
-          nameFrom: [ "author", "contents" ],
-          type: "abstract"
+          nameFrom: [ 'author', 'contents' ],
+          type: 'abstract',
+          unsupported: false
         },
         select: {
-          nameFrom: [ "author" ],
-          type: "abstract"
+          nameFrom: [ 'author' ],
+          type: 'abstract',
+          unsupported: false
         },
         separator: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-expanded", "aria-orientation" ]
+            allowed: [ 'aria-expanded', 'aria-orientation', 'aria-valuenow', 'aria-valuemax', 'aria-valuemin', 'aria-valuetext', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'hr' ],
+          unsupported: false,
+          allowedElements: [ 'LI' ]
         },
         slider: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-valuetext", "aria-orientation" ],
-            required: [ "aria-valuenow", "aria-valuemax", "aria-valuemin" ]
+            allowed: [ 'aria-valuetext', 'aria-orientation', 'aria-readonly', 'aria-errormessage' ],
+            required: [ 'aria-valuenow', 'aria-valuemax', 'aria-valuemin' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'input[type="range"]' ],
+          unsupported: false
         },
         spinbutton: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-valuetext", "aria-required" ],
-            required: [ "aria-valuenow", "aria-valuemax", "aria-valuemin" ]
+            allowed: [ 'aria-valuetext', 'aria-required', 'aria-readonly', 'aria-errormessage' ],
+            required: [ 'aria-valuenow', 'aria-valuemax', 'aria-valuemin' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          implicit: [ 'input[type="number"]' ],
+          unsupported: false
         },
         status: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "output" ]
+          implicit: [ 'output' ],
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
         },
         structure: {
-          type: "abstract"
+          type: 'abstract',
+          unsupported: false
         },
-        "switch": {
-          type: "widget",
+        switch: {
+          type: 'widget',
           attributes: {
-            required: [ "aria-checked" ]
+            allowed: [ 'aria-errormessage' ],
+            required: [ 'aria-checked' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: null
+          nameFrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'BUTTON', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'CHECKBOX'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'IMAGE'
+            }
+          }, {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'BUTTON'
+            }
+          }, {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         tab: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-selected", "aria-expanded" ]
+            allowed: [ 'aria-selected', 'aria-expanded', 'aria-setsize', 'aria-posinset', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "tablist" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'tablist' ],
+          unsupported: false,
+          allowedElements: [ 'BUTTON', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', {
+            tagName: 'INPUT',
+            attributes: {
+              TYPE: 'BUTTON'
+            }
+          }, {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         table: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-colcount", "aria-rowcount" ]
+            allowed: [ 'aria-colcount', 'aria-rowcount', 'aria-errormessage' ]
           },
           owned: {
-            one: [ "rowgroup", "row" ]
+            one: [ 'rowgroup', 'row' ]
           },
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ "table" ]
+          implicit: [ 'table' ],
+          unsupported: false
         },
         tablist: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-expanded", "aria-level", "aria-multiselectable" ]
+            allowed: [ 'aria-activedescendant', 'aria-expanded', 'aria-level', 'aria-multiselectable', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "tab" ]
+            all: [ 'tab' ]
           },
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         tabpanel: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'SECTION' ]
+        },
+        term: {
+          type: 'structure',
+          attributes: {
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
+          },
+          owned: null,
+          nameFrom: [ 'author', 'contents' ],
+          context: null,
+          implicit: [ 'dt' ],
+          unsupported: false
         },
         text: {
-          type: "structure",
+          type: 'structure',
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: null
+          nameFrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false
         },
         textbox: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-autocomplete", "aria-multiline", "aria-readonly", "aria-required" ]
+            allowed: [ 'aria-activedescendant', 'aria-autocomplete', 'aria-multiline', 'aria-readonly', 'aria-required', 'aria-placeholder', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ 'input[type="text"]', "input:not([type])" ]
+          implicit: [ 'input[type="text"]', 'input[type="email"]', 'input[type="password"]', 'input[type="tel"]', 'input[type="url"]', 'input:not([type])', 'textarea' ],
+          unsupported: false
         },
         timer: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false
         },
         toolbar: {
-          type: "structure",
+          type: 'structure',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-expanded', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author" ],
+          nameFrom: [ 'author' ],
           context: null,
-          implicit: [ 'menu[type="toolbar"]' ]
+          implicit: [ 'menu[type="toolbar"]' ],
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         tooltip: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-expanded" ]
+            allowed: [ 'aria-expanded', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: null
+          nameFrom: [ 'author', 'contents' ],
+          context: null,
+          unsupported: false
         },
         tree: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-multiselectable", "aria-required", "aria-expanded" ]
+            allowed: [ 'aria-activedescendant', 'aria-multiselectable', 'aria-required', 'aria-expanded', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "treeitem" ]
+            all: [ 'treeitem' ]
           },
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false,
+          allowedElements: [ 'OL', 'UL' ]
         },
         treegrid: {
-          type: "composite",
+          type: 'composite',
           attributes: {
-            allowed: [ "aria-activedescendant", "aria-expanded", "aria-level", "aria-multiselectable", "aria-readonly", "aria-required" ]
+            allowed: [ 'aria-activedescendant', 'aria-colcount', 'aria-expanded', 'aria-level', 'aria-multiselectable', 'aria-readonly', 'aria-required', 'aria-rowcount', 'aria-orientation', 'aria-errormessage' ]
           },
           owned: {
-            all: [ "treeitem" ]
+            one: [ 'rowgroup', 'row' ]
           },
-          nameFrom: [ "author" ],
-          context: null
+          nameFrom: [ 'author' ],
+          context: null,
+          unsupported: false
         },
         treeitem: {
-          type: "widget",
+          type: 'widget',
           attributes: {
-            allowed: [ "aria-checked", "aria-selected", "aria-expanded", "aria-level", "aria-posinset", "aria-setsize" ]
+            allowed: [ 'aria-checked', 'aria-selected', 'aria-expanded', 'aria-level', 'aria-posinset', 'aria-setsize', 'aria-errormessage' ]
           },
           owned: null,
-          nameFrom: [ "author", "contents" ],
-          context: [ "treegrid", "tree" ]
+          nameFrom: [ 'author', 'contents' ],
+          context: [ 'group', 'tree' ],
+          unsupported: false,
+          allowedElements: [ 'LI', {
+            tagName: 'A',
+            condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+          } ]
         },
         widget: {
-          type: "abstract"
+          type: 'abstract',
+          unsupported: false
         },
         window: {
-          nameFrom: [ "author" ],
-          type: "abstract"
+          nameFrom: [ 'author' ],
+          type: 'abstract',
+          unsupported: false
+        }
+      };
+      lookupTable.elementsAllowedNoRole = [ {
+        tagName: 'AREA',
+        condition: elementConditions.MUST_HAVE_HREF_ATTRIBUTE
+      }, 'BASE', 'BODY', 'CAPTION', 'COL', 'COLGROUP', 'DATALIST', 'DD', 'DETAILS', 'DT', 'HEAD', 'HTML', {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'COLOR'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'DATE'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'DATETIME'
+        }
+      }, {
+        tagName: 'INPUT',
+        condition: elementConditions.CANNOT_HAVE_LIST_ATTRIBUTE,
+        attributes: {
+          TYPE: 'EMAIL'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'FILE'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'HIDDEN'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'MONTH'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'NUMBER'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'PASSWORD'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'RANGE'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'RESET'
+        }
+      }, {
+        tagName: 'INPUT',
+        condition: elementConditions.CANNOT_HAVE_LIST_ATTRIBUTE,
+        attributes: {
+          TYPE: 'SEARCH'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'SUBMIT'
+        }
+      }, {
+        tagName: 'INPUT',
+        condition: elementConditions.CANNOT_HAVE_LIST_ATTRIBUTE,
+        attributes: {
+          TYPE: 'TEL'
+        }
+      }, {
+        tagName: 'INPUT',
+        condition: elementConditions.CANNOT_HAVE_LIST_ATTRIBUTE,
+        attributes: {
+          TYPE: 'TEXT'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'TIME'
+        }
+      }, {
+        tagName: 'INPUT',
+        condition: elementConditions.CANNOT_HAVE_LIST_ATTRIBUTE,
+        attributes: {
+          TYPE: 'URL'
+        }
+      }, {
+        tagName: 'INPUT',
+        attributes: {
+          TYPE: 'WEEK'
+        }
+      }, 'KEYGEN', 'LABEL', 'LEGEND', {
+        tagName: 'LINK',
+        attributes: {
+          TYPE: 'HREF'
+        }
+      }, 'MAIN', 'MAP', 'MATH', {
+        tagName: 'MENU',
+        attributes: {
+          TYPE: 'CONTEXT'
+        }
+      }, {
+        tagName: 'MENUITEM',
+        attributes: {
+          TYPE: 'COMMAND'
+        }
+      }, {
+        tagName: 'MENUITEM',
+        attributes: {
+          TYPE: 'CHECKBOX'
+        }
+      }, {
+        tagName: 'MENUITEM',
+        attributes: {
+          TYPE: 'RADIO'
+        }
+      }, 'META', 'METER', 'NOSCRIPT', 'OPTGROUP', 'PARAM', 'PICTURE', 'PROGRESS', 'SCRIPT', {
+        tagName: 'SELECT',
+        condition: elementConditions.MUST_HAVE_SIZE_ATTRIBUTE_WITH_VALUE_GREATER_THAN_1,
+        attributes: {
+          TYPE: 'MULTIPLE'
+        }
+      }, 'SOURCE', 'STYLE', 'TEMPLATE', 'TEXTAREA', 'TITLE', 'TRACK', 'CLIPPATH', 'CURSOR', 'DEFS', 'DESC', 'FEBLEND', 'FECOLORMATRIX', 'FECOMPONENTTRANSFER', 'FECOMPOSITE', 'FECONVOLVEMATRIX', 'FEDIFFUSELIGHTING', 'FEDISPLACEMENTMAP', 'FEDISTANTLIGHT', 'FEDROPSHADOW', 'FEFLOOD', 'FEFUNCA', 'FEFUNCB', 'FEFUNCG', 'FEFUNCR', 'FEGAUSSIANBLUR', 'FEIMAGE', 'FEMERGE', 'FEMERGENODE', 'FEMORPHOLOGY', 'FEOFFSET', 'FEPOINTLIGHT', 'FESPECULARLIGHTING', 'FESPOTLIGHT', 'FETILE', 'FETURBULENCE', 'FILTER', 'HATCH', 'HATCHPATH', 'LINEARGRADIENT', 'MARKER', 'MASK', 'MESHGRADIENT', 'MESHPATCH', 'MESHROW', 'METADATA', 'MPATH', 'PATTERN', 'RADIALGRADIENT', 'SOLIDCOLOR', 'STOP', 'SWITCH', 'VIEW' ];
+      lookupTable.elementsAllowedAnyRole = [ {
+        tagName: 'A',
+        condition: elementConditions.CANNOT_HAVE_HREF_ATTRIBUTE
+      }, 'ABBR', 'ADDRESS', 'CANVAS', 'DIV', 'P', 'PRE', 'BLOCKQUOTE', 'INS', 'DEL', 'OUTPUT', 'SPAN', 'TABLE', 'TBODY', 'THEAD', 'TFOOT', 'TD', 'EM', 'STRONG', 'SMALL', 'S', 'CITE', 'Q', 'DFN', 'ABBR', 'TIME', 'CODE', 'VAR', 'SAMP', 'KBD', 'SUB', 'SUP', 'I', 'B', 'U', 'MARK', 'RUBY', 'RT', 'RP', 'BDI', 'BDO', 'BR', 'WBR', 'TH', 'TR' ];
+      lookupTable.evaluateRoleForElement = {
+        A: function A(_ref9) {
+          var node = _ref9.node, out = _ref9.out;
+          if (node.namespaceURI === 'http://www.w3.org/2000/svg') {
+            return true;
+          }
+          if (node.href.length) {
+            return out;
+          }
+          return true;
+        },
+        AREA: function AREA(_ref10) {
+          var node = _ref10.node;
+          return !node.href;
+        },
+        BUTTON: function BUTTON(_ref11) {
+          var node = _ref11.node, role = _ref11.role, out = _ref11.out;
+          if (node.getAttribute('type') === 'menu') {
+            return role === 'menuitem';
+          }
+          return out;
+        },
+        IMG: function IMG(_ref12) {
+          var node = _ref12.node, out = _ref12.out;
+          if (node.alt) {
+            return !out;
+          }
+          return out;
+        },
+        INPUT: function INPUT(_ref13) {
+          var node = _ref13.node, role = _ref13.role, out = _ref13.out;
+          switch (node.type) {
+           case 'button':
+           case 'image':
+            return out;
+
+           case 'checkbox':
+            if (role === 'button' && node.hasAttribute('aria-pressed')) {
+              return true;
+            }
+            return out;
+
+           case 'radio':
+            return role === 'menuitemradio';
+
+           default:
+            return false;
+          }
+        },
+        LI: function LI(_ref14) {
+          var node = _ref14.node, out = _ref14.out;
+          var hasImplicitListitemRole = axe.utils.matchesSelector(node, 'ol li, ul li');
+          if (hasImplicitListitemRole) {
+            return out;
+          }
+          return true;
+        },
+        LINK: function LINK(_ref15) {
+          var node = _ref15.node;
+          return !node.href;
+        },
+        MENU: function MENU(_ref16) {
+          var node = _ref16.node;
+          if (node.getAttribute('type') === 'context') {
+            return false;
+          }
+          return true;
+        },
+        OPTION: function OPTION(_ref17) {
+          var node = _ref17.node;
+          var withinOptionList = axe.utils.matchesSelector(node, 'select > option, datalist > option, optgroup > option');
+          return !withinOptionList;
+        },
+        SELECT: function SELECT(_ref18) {
+          var node = _ref18.node, role = _ref18.role;
+          return !node.multiple && node.size <= 1 && role === 'menu';
+        },
+        SVG: function SVG(_ref19) {
+          var node = _ref19.node, out = _ref19.out;
+          if (node.parentNode && node.parentNode.namespaceURI === 'http://www.w3.org/2000/svg') {
+            return true;
+          }
+          return out;
         }
       };
       var color = {};
       commons.color = color;
-      /*exported dom */ var dom = commons.dom = {};
-      /*exported table */ var table = commons.table = {};
-      /*exported text */ var text = commons.text = {};
-      /*exported utils */ /*global axe */ var utils = commons.utils = axe.utils;
-      /*global aria, axe, lookupTables */
-      /**
- * Get required attributes for a given role
- * @param  {String} role The role to check
- * @return {Array}
- */
+      var dom = commons.dom = {};
+      var table = commons.table = {};
+      var text = commons.text = {
+        EdgeFormDefaults: {}
+      };
+      var utils = commons.utils = axe.utils;
       aria.requiredAttr = function(role) {
-        "use strict";
-        var roles = lookupTables.role[role], attr = roles && roles.attributes && roles.attributes.required;
+        'use strict';
+        var roles = aria.lookupTable.role[role], attr = roles && roles.attributes && roles.attributes.required;
         return attr || [];
       };
-      /**
- * Get allowed attributes for a given role
- * @param  {String} role The role to check
- * @return {Array}
- */
       aria.allowedAttr = function(role) {
-        "use strict";
-        var roles = lookupTables.role[role], attr = roles && roles.attributes && roles.attributes.allowed || [], requiredAttr = roles && roles.attributes && roles.attributes.required || [];
-        return attr.concat(lookupTables.globalAttributes).concat(requiredAttr);
+        'use strict';
+        var roles = aria.lookupTable.role[role], attr = roles && roles.attributes && roles.attributes.allowed || [], requiredAttr = roles && roles.attributes && roles.attributes.required || [];
+        return attr.concat(aria.lookupTable.globalAttributes).concat(requiredAttr);
       };
-      /**
- * Check if an aria- attribute name is valid
- * @param  {String} att The attribute name
- * @return {Boolean}
- */
       aria.validateAttr = function(att) {
-        "use strict";
-        return !!lookupTables.attributes[att];
+        'use strict';
+        return !!aria.lookupTable.attributes[att];
       };
-      /**
- * Validate the value of an ARIA attribute
- * @param  {HTMLElement} node The element to check
- * @param  {String} attr The name of the attribute
- * @return {Boolean}
- */
-      aria.validateAttrValue = function(node, attr) {
-        //jshint maxcomplexity: 12
-        "use strict";
-        var matches, list, doc = document, value = node.getAttribute(attr), attrInfo = lookupTables.attributes[attr];
+      aria.validateAttrValue = function validateAttrValue(node, attr) {
+        'use strict';
+        var matches, list, value = node.getAttribute(attr), attrInfo = aria.lookupTable.attributes[attr];
+        var doc = dom.getRootNode(node);
         if (!attrInfo) {
           return true;
         }
         switch (attrInfo.type) {
-         case "boolean":
-         case "nmtoken":
-          return typeof value === "string" && attrInfo.values.indexOf(value.toLowerCase()) !== -1;
+         case 'boolean':
+         case 'nmtoken':
+          return typeof value === 'string' && attrInfo.values.includes(value.toLowerCase());
 
-         case "nmtokens":
+         case 'nmtokens':
           list = axe.utils.tokenList(value);
-          // Check if any value isn't in the list of values
           return list.reduce(function(result, token) {
-            return result && attrInfo.values.indexOf(token) !== -1;
+            return result && attrInfo.values.includes(token);
           }, list.length !== 0);
 
-         case "idref":
+         case 'idref':
+          if (value.trim().length === 0) {
+            return true;
+          }
           return !!(value && doc.getElementById(value));
 
-         case "idrefs":
+         case 'idrefs':
+          if (value.trim().length === 0) {
+            return true;
+          }
           list = axe.utils.tokenList(value);
-          // Check if any value isn't in the list of values
-          return list.reduce(function(result, token) {
-            return !!(result && doc.getElementById(token));
-          }, list.length !== 0);
+          return list.some(function(token) {
+            return doc.getElementById(token);
+          });
 
-         case "string":
-          // anything goes
+         case 'string':
           return true;
 
-         case "decimal":
+         case 'decimal':
           matches = value.match(/^[-+]?([0-9]*)\.?([0-9]*)$/);
           return !!(matches && (matches[1] || matches[2]));
 
-         case "int":
+         case 'int':
           return /^[-+]?[0-9]+$/.test(value);
         }
       };
-      /*global aria, dom, text */
-      /**
- * Gets the accessible ARIA label text of a given element
- * @see http://www.w3.org/WAI/PF/aria/roles#namecalculation
- * @param  {HTMLElement} node The element to test
- * @return {Mixed}      String of visible text, or `null` if no label is found
- */
-      aria.label = function(node) {
-        var ref, candidate;
-        if (node.getAttribute("aria-labelledby")) {
-          // aria-labelledby
-          ref = dom.idrefs(node, "aria-labelledby");
+      aria.getElementUnallowedRoles = function getElementUnallowedRoles(node, allowImplicit) {
+        function getRoleSegments(node) {
+          var roles = [];
+          if (!node) {
+            return roles;
+          }
+          if (node.hasAttribute('role')) {
+            var nodeRoles = axe.utils.tokenList(node.getAttribute('role').toLowerCase());
+            roles = roles.concat(nodeRoles);
+          }
+          if (node.hasAttributeNS('http://www.idpf.org/2007/ops', 'type')) {
+            var epubRoles = axe.utils.tokenList(node.getAttributeNS('http://www.idpf.org/2007/ops', 'type').toLowerCase()).map(function(role) {
+              return 'doc-' + role;
+            });
+            roles = roles.concat(epubRoles);
+          }
+          return roles;
+        }
+        var tagName = node.nodeName.toUpperCase();
+        if (!axe.utils.isHtmlElement(node)) {
+          return [];
+        }
+        var roleSegments = getRoleSegments(node);
+        var implicitRole = axe.commons.aria.implicitRole(node);
+        var unallowedRoles = roleSegments.filter(function(role) {
+          if (!axe.commons.aria.isValidRole(role)) {
+            return false;
+          }
+          if (!allowImplicit && role === implicitRole) {
+            if (!(role === 'row' && tagName === 'TR' && axe.utils.matchesSelector(node, 'table[role="grid"] > tr'))) {
+              return true;
+            }
+          }
+          if (!aria.isAriaRoleAllowedOnElement(node, role)) {
+            return true;
+          }
+        });
+        return unallowedRoles;
+      };
+      aria.getRole = function getRole(node) {
+        var _ref20 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {}, noImplicit = _ref20.noImplicit, fallback = _ref20.fallback, abstracts = _ref20.abstracts, dpub = _ref20.dpub;
+        var roleAttr = (node.getAttribute('role') || '').trim().toLowerCase();
+        var roleList = fallback ? axe.utils.tokenList(roleAttr) : [ roleAttr ];
+        var validRoles = roleList.filter(function(role) {
+          if (!dpub && role.substr(0, 4) === 'doc-') {
+            return false;
+          }
+          return aria.isValidRole(role, {
+            allowAbstract: abstracts
+          });
+        });
+        var explicitRole = validRoles[0];
+        if (!explicitRole && !noImplicit) {
+          return aria.implicitRole(node);
+        }
+        return explicitRole || null;
+      };
+      aria.isAriaRoleAllowedOnElement = function isAriaRoleAllowedOnElement(node, role) {
+        var tagName = node.nodeName.toUpperCase();
+        var lookupTable = axe.commons.aria.lookupTable;
+        if (aria.validateNodeAndAttributes(node, lookupTable.elementsAllowedNoRole)) {
+          return false;
+        }
+        if (aria.validateNodeAndAttributes(node, lookupTable.elementsAllowedAnyRole)) {
+          return true;
+        }
+        var roleValue = lookupTable.role[role];
+        if (!roleValue) {
+          return false;
+        }
+        if (!(roleValue.allowedElements && Array.isArray(roleValue.allowedElements) && roleValue.allowedElements.length)) {
+          return false;
+        }
+        var out = false;
+        out = aria.validateNodeAndAttributes(node, roleValue.allowedElements);
+        if (Object.keys(lookupTable.evaluateRoleForElement).includes(tagName)) {
+          out = lookupTable.evaluateRoleForElement[tagName]({
+            node: node,
+            role: role,
+            out: out
+          });
+        }
+        return out;
+      };
+      aria.labelVirtual = function(_ref21) {
+        var actualNode = _ref21.actualNode;
+        var ref = void 0, candidate = void 0;
+        if (actualNode.getAttribute('aria-labelledby')) {
+          ref = dom.idrefs(actualNode, 'aria-labelledby');
           candidate = ref.map(function(thing) {
-            return thing ? text.visible(thing, true) : "";
-          }).join(" ").trim();
+            var vNode = axe.utils.getNodeFromTree(axe._tree[0], thing);
+            return vNode ? text.visibleVirtual(vNode, true) : '';
+          }).join(' ').trim();
           if (candidate) {
             return candidate;
           }
         }
-        // aria-label
-        candidate = node.getAttribute("aria-label");
+        candidate = actualNode.getAttribute('aria-label');
         if (candidate) {
           candidate = text.sanitize(candidate).trim();
           if (candidate) {
@@ -6708,141 +11790,174 @@ maxstatements: false, maxcomplexity: false */
         }
         return null;
       };
-      /*global aria, lookupTables, axe */
-      /**
- * Check if a given role is valid
- * @param  {String}  role The role to check
- * @return {Boolean}
- */
+      aria.label = function(node) {
+        node = axe.utils.getNodeFromTree(axe._tree[0], node);
+        return aria.labelVirtual(node);
+      };
       aria.isValidRole = function(role) {
-        "use strict";
-        if (lookupTables.role[role]) {
-          return true;
+        var _ref22 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {}, allowAbstract = _ref22.allowAbstract, _ref22$flagUnsupporte = _ref22.flagUnsupported, flagUnsupported = _ref22$flagUnsupporte === undefined ? false : _ref22$flagUnsupporte;
+        var roleDefinition = aria.lookupTable.role[role];
+        var isRoleUnsupported = roleDefinition ? roleDefinition.unsupported : false;
+        if (!roleDefinition || flagUnsupported && isRoleUnsupported) {
+          return false;
         }
-        return false;
+        return allowAbstract ? true : roleDefinition.type !== 'abstract';
       };
-      /**
- * Get the roles that get name from contents
- * @return {Array}           Array of roles that match the type
- */
       aria.getRolesWithNameFromContents = function() {
-        return Object.keys(lookupTables.role).filter(function(r) {
-          return lookupTables.role[r].nameFrom && lookupTables.role[r].nameFrom.indexOf("contents") !== -1;
+        return Object.keys(aria.lookupTable.role).filter(function(r) {
+          return aria.lookupTable.role[r].nameFrom && aria.lookupTable.role[r].nameFrom.indexOf('contents') !== -1;
         });
       };
-      /**
- * Get the roles that have a certain "type"
- * @param  {String} roleType The roletype to check
- * @return {Array}           Array of roles that match the type
- */
       aria.getRolesByType = function(roleType) {
-        return Object.keys(lookupTables.role).filter(function(r) {
-          return lookupTables.role[r].type === roleType;
+        return Object.keys(aria.lookupTable.role).filter(function(r) {
+          return aria.lookupTable.role[r].type === roleType;
         });
       };
-      /**
- * Get the "type" of role; either widget, composite, abstract, landmark or `null`
- * @param  {String} role The role to check
- * @return {Mixed}       String if a matching role and its type are found, otherwise `null`
- */
       aria.getRoleType = function(role) {
-        var r = lookupTables.role[role];
+        var r = aria.lookupTable.role[role];
         return r && r.type || null;
       };
-      /**
- * Get the required owned (children) roles for a given role
- * @param  {String} role The role to check
- * @return {Mixed}       Either an Array of required owned elements or `null` if there are none
- */
       aria.requiredOwned = function(role) {
-        "use strict";
-        var owned = null, roles = lookupTables.role[role];
+        'use strict';
+        var owned = null, roles = aria.lookupTable.role[role];
         if (roles) {
           owned = axe.utils.clone(roles.owned);
         }
         return owned;
       };
-      /**
- * Get the required context (parent) roles for a given role
- * @param  {String} role The role to check
- * @return {Mixed}       Either an Array of required context elements or `null` if there are none
- */
       aria.requiredContext = function(role) {
-        "use strict";
-        var context = null, roles = lookupTables.role[role];
+        'use strict';
+        var context = null, roles = aria.lookupTable.role[role];
         if (roles) {
           context = axe.utils.clone(roles.context);
         }
         return context;
       };
-      /**
- * Get a list of CSS selectors of nodes that have an implicit role
- * @param  {String} role The role to check
- * @return {Mixed}       Either an Array of CSS selectors or `null` if there are none
- */
       aria.implicitNodes = function(role) {
-        "use strict";
-        var implicit = null, roles = lookupTables.role[role];
+        'use strict';
+        var implicit = null, roles = aria.lookupTable.role[role];
         if (roles && roles.implicit) {
           implicit = axe.utils.clone(roles.implicit);
         }
         return implicit;
       };
-      /**
- * Get the implicit role for a given node
- * @param  {HTMLElement} node The node to test
- * @return {Mixed}      Either the role or `null` if there is none
- */
       aria.implicitRole = function(node) {
-        "use strict";
-        var role, r, candidate, roles = lookupTables.role;
-        for (role in roles) {
-          if (roles.hasOwnProperty(role)) {
-            r = roles[role];
-            if (r.implicit) {
-              for (var index = 0, length = r.implicit.length; index < length; index++) {
-                candidate = r.implicit[index];
-                if (axe.utils.matchesSelector(node, candidate)) {
-                  return role;
-                }
-              }
-            }
+        'use strict';
+        var isValidImplicitRole = function isValidImplicitRole(set, role) {
+          var validForNodeType = function validForNodeType(implicitNodeTypeSelector) {
+            return axe.utils.matchesSelector(node, implicitNodeTypeSelector);
+          };
+          if (role.implicit && role.implicit.some(validForNodeType)) {
+            set.push(role.name);
+          }
+          return set;
+        };
+        var sortRolesByOptimalAriaContext = function sortRolesByOptimalAriaContext(roles, ariaAttributes) {
+          var getScore = function getScore(role) {
+            var allowedAriaAttributes = aria.allowedAttr(role);
+            return allowedAriaAttributes.reduce(function(score, attribute) {
+              return score + (ariaAttributes.indexOf(attribute) > -1 ? 1 : 0);
+            }, 0);
+          };
+          var scored = roles.map(function(role) {
+            return {
+              score: getScore(role),
+              name: role
+            };
+          });
+          var sorted = scored.sort(function(scoredRoleA, scoredRoleB) {
+            return scoredRoleB.score - scoredRoleA.score;
+          });
+          return sorted.map(function(sortedRole) {
+            return sortedRole.name;
+          });
+        };
+        var roles = Object.keys(aria.lookupTable.role).map(function(role) {
+          var lookup = aria.lookupTable.role[role];
+          return {
+            name: role,
+            implicit: lookup && lookup.implicit
+          };
+        });
+        var availableImplicitRoles = roles.reduce(isValidImplicitRole, []);
+        if (!availableImplicitRoles.length) {
+          return null;
+        }
+        var nodeAttributes = node.attributes;
+        var ariaAttributes = [];
+        for (var i = 0, j = nodeAttributes.length; i < j; i++) {
+          var attr = nodeAttributes[i];
+          if (attr.name.match(/^aria-/)) {
+            ariaAttributes.push(attr.name);
           }
         }
-        return null;
+        return sortRolesByOptimalAriaContext(availableImplicitRoles, ariaAttributes).shift();
       };
-      /*global color */
-      /**
- * @constructor
- * @param {number} red
- * @param {number} green
- * @param {number} blue
- * @param {number} alpha
- */
+      aria.validateNodeAndAttributes = function validateNodeAndAttributes(node, constraintsArray) {
+        var tagName = node.nodeName.toUpperCase();
+        var stringConstraints = constraintsArray.filter(function(c) {
+          return typeof c === 'string';
+        });
+        if (stringConstraints.includes(tagName)) {
+          return true;
+        }
+        var objectConstraints = constraintsArray.filter(function(c) {
+          return (typeof c === 'undefined' ? 'undefined' : _typeof(c)) === 'object';
+        }).filter(function(c) {
+          return c.tagName === tagName;
+        });
+        var nodeAttrs = Array.from(node.attributes).map(function(a) {
+          return a.name.toUpperCase();
+        });
+        var validConstraints = objectConstraints.filter(function(c) {
+          if (!c.attributes) {
+            if (c.condition) {
+              return true;
+            }
+            return false;
+          }
+          var keys = Object.keys(c.attributes);
+          if (!keys.length) {
+            return false;
+          }
+          var keepConstraint = false;
+          keys.forEach(function(k) {
+            if (!nodeAttrs.includes(k)) {
+              return;
+            }
+            var attrValue = node.getAttribute(k).trim().toUpperCase();
+            if (attrValue === c.attributes[k]) {
+              keepConstraint = true;
+            }
+          });
+          return keepConstraint;
+        });
+        if (!validConstraints.length) {
+          return false;
+        }
+        var out = true;
+        validConstraints.forEach(function(c) {
+          if (c.condition && typeof c.condition === 'function') {
+            out = c.condition(node);
+          }
+        });
+        return out;
+      };
       color.Color = function(red, green, blue, alpha) {
-        /** @type {number} */ this.red = red;
-        /** @type {number} */ this.green = green;
-        /** @type {number} */ this.blue = blue;
-        /** @type {number} */ this.alpha = alpha;
-        /**
-	 * Provide the hex string value for the color
-	 * @return {string}
-	 */
+        this.red = red;
+        this.green = green;
+        this.blue = blue;
+        this.alpha = alpha;
         this.toHexString = function() {
           var redString = Math.round(this.red).toString(16);
           var greenString = Math.round(this.green).toString(16);
           var blueString = Math.round(this.blue).toString(16);
-          return "#" + (this.red > 15.5 ? redString : "0" + redString) + (this.green > 15.5 ? greenString : "0" + greenString) + (this.blue > 15.5 ? blueString : "0" + blueString);
+          return '#' + (this.red > 15.5 ? redString : '0' + redString) + (this.green > 15.5 ? greenString : '0' + greenString) + (this.blue > 15.5 ? blueString : '0' + blueString);
         };
         var rgbRegex = /^rgb\((\d+), (\d+), (\d+)\)$/;
         var rgbaRegex = /^rgba\((\d+), (\d+), (\d+), (\d*(\.\d+)?)\)/;
-        /**
-	 * Set the color value based on a CSS RGB/RGBA string
-	 * @param  {string}  rgb  The string value
-	 */
         this.parseRgbString = function(colorString) {
-          // IE can pass transparent as value instead of rgba
-          if (colorString === "transparent") {
+          if (colorString === 'transparent') {
             this.red = 0;
             this.green = 0;
             this.blue = 0;
@@ -6866,11 +11981,6 @@ maxstatements: false, maxcomplexity: false */
             return;
           }
         };
-        /**
-	 * Get the relative luminance value
-	 * using algorithm from http://www.w3.org/WAI/GL/wiki/Relative_luminance
-	 * @return {number} The luminance value, ranges from 0 to 1
-	 */
         this.getRelativeLuminance = function() {
           var rSRGB = this.red / 255;
           var gSRGB = this.green / 255;
@@ -6881,12 +11991,6 @@ maxstatements: false, maxcomplexity: false */
           return .2126 * r + .7152 * g + .0722 * b;
         };
       };
-      /**
- * Combine the two given color according to alpha blending.
- * @param {Color} fgColor
- * @param {Color} bgColor
- * @return {Color}
- */
       color.flattenColors = function(fgColor, bgColor) {
         var alpha = fgColor.alpha;
         var r = (1 - alpha) * bgColor.red + alpha * fgColor.red;
@@ -6895,12 +11999,6 @@ maxstatements: false, maxcomplexity: false */
         var a = fgColor.alpha + bgColor.alpha * (1 - fgColor.alpha);
         return new color.Color(r, g, b, a);
       };
-      /**
- * Get the contrast of two colors
- * @param  {Color}  bgcolor  Background color
- * @param  {Color}  fgcolor  Foreground color
- * @return {number} The contrast ratio
- */
       color.getContrast = function(bgColor, fgColor) {
         if (!fgColor || !bgColor) {
           return null;
@@ -6912,330 +12010,381 @@ maxstatements: false, maxcomplexity: false */
         var fL = fgColor.getRelativeLuminance();
         return (Math.max(fL, bL) + .05) / (Math.min(fL, bL) + .05);
       };
-      /**
- * Check whether certain text properties meet WCAG contrast rules
- * @param  {Color}  bgcolor  Background color
- * @param  {Color}  fgcolor  Foreground color
- * @param  {number}  fontSize  Font size of text, in pixels
- * @param  {boolean}  isBold  Whether the text is bold
- * @return {{isValid: boolean, contrastRatio: number}}
- */
       color.hasValidContrastRatio = function(bg, fg, fontSize, isBold) {
         var contrast = color.getContrast(bg, fg);
         var isSmallFont = isBold && Math.ceil(fontSize * 72) / 96 < 14 || !isBold && Math.ceil(fontSize * 72) / 96 < 18;
+        var expectedContrastRatio = isSmallFont ? 4.5 : 3;
         return {
-          isValid: isSmallFont && contrast >= 4.5 || !isSmallFont && contrast >= 3,
-          contrastRatio: contrast
+          isValid: contrast > expectedContrastRatio,
+          contrastRatio: contrast,
+          expectedContrastRatio: expectedContrastRatio
         };
       };
-      /*global color */ function _getFonts(style) {
-        return style.getPropertyValue("font-family").split(/[,;]/g).map(function(font) {
+      function _getFonts(style) {
+        return style.getPropertyValue('font-family').split(/[,;]/g).map(function(font) {
           return font.trim().toLowerCase();
         });
       }
       function elementIsDistinct(node, ancestorNode) {
         var nodeStyle = window.getComputedStyle(node);
-        // Check if the link has a background
-        if (nodeStyle.getPropertyValue("background-image") !== "none") {
+        if (nodeStyle.getPropertyValue('background-image') !== 'none') {
           return true;
         }
-        // Check if the link has a border or outline
-        var hasBorder = [ "border-bottom", "border-top", "outline" ].reduce(function(result, edge) {
+        var hasBorder = [ 'border-bottom', 'border-top', 'outline' ].reduce(function(result, edge) {
           var borderClr = new color.Color();
-          borderClr.parseRgbString(nodeStyle.getPropertyValue(edge + "-color"));
-          // Check if a border/outline was specified
-          // or if the current border edge / outline
-          return result || nodeStyle.getPropertyValue(edge + "-style") !== "none" && parseFloat(nodeStyle.getPropertyValue(edge + "-width")) > 0 && borderClr.alpha !== 0;
+          borderClr.parseRgbString(nodeStyle.getPropertyValue(edge + '-color'));
+          return result || nodeStyle.getPropertyValue(edge + '-style') !== 'none' && parseFloat(nodeStyle.getPropertyValue(edge + '-width')) > 0 && borderClr.alpha !== 0;
         }, false);
         if (hasBorder) {
           return true;
         }
         var parentStyle = window.getComputedStyle(ancestorNode);
-        // Compare fonts
         if (_getFonts(nodeStyle)[0] !== _getFonts(parentStyle)[0]) {
           return true;
         }
-        var hasStyle = [ "text-decoration", "font-weight", "font-style", "font-size" ].reduce(function(result, cssProp) {
+        var hasStyle = [ 'text-decoration-line', 'text-decoration-style', 'font-weight', 'font-style', 'font-size' ].reduce(function(result, cssProp) {
           return result || nodeStyle.getPropertyValue(cssProp) !== parentStyle.getPropertyValue(cssProp);
         }, false);
+        var tDec = nodeStyle.getPropertyValue('text-decoration');
+        if (tDec.split(' ').length < 3) {
+          hasStyle = hasStyle || tDec !== parentStyle.getPropertyValue('text-decoration');
+        }
         return hasStyle;
       }
       color.elementIsDistinct = elementIsDistinct;
-      /*global dom, color */
-      /* jshint maxstatements: 34, maxcomplexity: 15 */
-      //TODO dsturley: too complex, needs refactor!!
-      var graphicNodeNames = [ "IMG", "CANVAS", "OBJECT", "IFRAME", "VIDEO", "SVG" ];
-      /**
- * Returns the non-alpha-blended background color of a node, null if it's an image
- * @param {Element} node
- * @return {Color}
- */
-      function getBackgroundForSingleNode(node) {
-        var bgColor, bgColorString, opacity;
-        var nodeStyle = window.getComputedStyle(node);
-        var nodeName = node.nodeName.toUpperCase();
-        if (graphicNodeNames.indexOf(nodeName) !== -1 || nodeStyle.getPropertyValue("background-image") !== "none") {
-          return null;
-        }
-        bgColorString = nodeStyle.getPropertyValue("background-color");
-        //Firefox exposes unspecified background as 'transparent' rather than rgba(0,0,0,0)
-        if (bgColorString === "transparent") {
-          bgColor = new color.Color(0, 0, 0, 0);
-        } else {
-          bgColor = new color.Color();
-          bgColor.parseRgbString(bgColorString);
-        }
-        opacity = nodeStyle.getPropertyValue("opacity");
-        bgColor.alpha = bgColor.alpha * opacity;
-        return bgColor;
-      }
-      /**
- * Determines whether an element has a fully opaque background, whether solid color or an image
- * @param {Element} node
- * @return {Boolean} false if the background is transparent, true otherwise
- */
-      dom.isOpaque = function(node) {
-        var bgColor = getBackgroundForSingleNode(node);
-        if (bgColor === null || bgColor.alpha === 1) {
+      var graphicNodes = [ 'IMG', 'CANVAS', 'OBJECT', 'IFRAME', 'VIDEO', 'SVG' ];
+      function elmHasImage(elm, style) {
+        var nodeName = elm.nodeName.toUpperCase();
+        if (graphicNodes.includes(nodeName)) {
+          axe.commons.color.incompleteData.set('bgColor', 'imgNode');
           return true;
         }
+        style = style || window.getComputedStyle(elm);
+        var bgImageStyle = style.getPropertyValue('background-image');
+        var hasBgImage = bgImageStyle !== 'none';
+        if (hasBgImage) {
+          var hasGradient = /gradient/.test(bgImageStyle);
+          axe.commons.color.incompleteData.set('bgColor', hasGradient ? 'bgGradient' : 'bgImage');
+        }
+        return hasBgImage;
+      }
+      function getBgColor(elm, elmStyle) {
+        elmStyle = elmStyle || window.getComputedStyle(elm);
+        var bgColor = new color.Color();
+        bgColor.parseRgbString(elmStyle.getPropertyValue('background-color'));
+        if (bgColor.alpha !== 0) {
+          var opacity = elmStyle.getPropertyValue('opacity');
+          bgColor.alpha = bgColor.alpha * opacity;
+        }
+        return bgColor;
+      }
+      function contentOverlapping(targetElement, bgNode) {
+        var targetRect = targetElement.getClientRects()[0];
+        var obscuringElements = dom.shadowElementsFromPoint(targetRect.left, targetRect.top);
+        if (obscuringElements) {
+          for (var i = 0; i < obscuringElements.length; i++) {
+            if (obscuringElements[i] !== targetElement && obscuringElements[i] === bgNode) {
+              return true;
+            }
+          }
+        }
         return false;
+      }
+      function calculateObscuringAlpha(elmIndex, elmStack, originalElm) {
+        var totalAlpha = 0;
+        if (elmIndex > 0) {
+          for (var i = elmIndex - 1; i >= 0; i--) {
+            var bgElm = elmStack[i];
+            var bgElmStyle = window.getComputedStyle(bgElm);
+            var bgColor = getBgColor(bgElm, bgElmStyle);
+            if (bgColor.alpha && contentOverlapping(originalElm, bgElm)) {
+              totalAlpha += bgColor.alpha;
+            } else {
+              elmStack.splice(i, 1);
+            }
+          }
+        }
+        return totalAlpha;
+      }
+      function elmPartiallyObscured(elm, bgElm, bgColor) {
+        var obscured = elm !== bgElm && !dom.visuallyContains(elm, bgElm) && bgColor.alpha !== 0;
+        if (obscured) {
+          axe.commons.color.incompleteData.set('bgColor', 'elmPartiallyObscured');
+        }
+        return obscured;
+      }
+      function includeMissingElements(elmStack, elm) {
+        var elementMap = {
+          TD: [ 'TR', 'TBODY' ],
+          TH: [ 'TR', 'THEAD' ],
+          INPUT: [ 'LABEL' ]
+        };
+        var tagArray = elmStack.map(function(elm) {
+          return elm.tagName;
+        });
+        var bgNodes = elmStack;
+        for (var candidate in elementMap) {
+          if (tagArray.includes(candidate)) {
+            for (var candidateIndex in elementMap[candidate]) {
+              if (candidate.hasOwnProperty(candidateIndex)) {
+                var ancestorMatch = axe.commons.dom.findUp(elm, elementMap[candidate][candidateIndex]);
+                if (ancestorMatch && elmStack.indexOf(ancestorMatch) === -1) {
+                  var overlaps = axe.commons.dom.visuallyOverlaps(elm.getBoundingClientRect(), ancestorMatch);
+                  if (overlaps) {
+                    bgNodes.splice(tagArray.indexOf(candidate) + 1, 0, ancestorMatch);
+                  }
+                }
+                if (elm.tagName === elementMap[candidate][candidateIndex] && tagArray.indexOf(elm.tagName) === -1) {
+                  bgNodes.splice(tagArray.indexOf(candidate) + 1, 0, elm);
+                }
+              }
+            }
+          }
+        }
+        return bgNodes;
+      }
+      function sortPageBackground(elmStack) {
+        var bodyIndex = elmStack.indexOf(document.body);
+        var bgNodes = elmStack;
+        if (bodyIndex > 1 && !elmHasImage(document.documentElement) && getBgColor(document.documentElement).alpha === 0) {
+          bgNodes.splice(bodyIndex, 1);
+          bgNodes.splice(elmStack.indexOf(document.documentElement), 1);
+          bgNodes.push(document.body);
+        }
+        return bgNodes;
+      }
+      color.getCoords = function(rect) {
+        var x = void 0, y = void 0;
+        if (rect.left > window.innerWidth) {
+          return;
+        }
+        if (rect.top > window.innerHeight) {
+          return;
+        }
+        x = Math.min(Math.ceil(rect.left + rect.width / 2), window.innerWidth - 1);
+        y = Math.min(Math.ceil(rect.top + rect.height / 2), window.innerHeight - 1);
+        return {
+          x: x,
+          y: y
+        };
       };
-      /**
- * Returns the elements that are visually "above" this one in z-index order where
- * supported at the position given inside the top-left corner of the provided
- * rectangle. Where not supported (IE < 10), returns the DOM parents.
- * @param {Element} node
- * @param {DOMRect} rect rectangle containing dimensions to consider
- * @return {Array} array of elements
- */
-      var getVisualParents = function getVisualParents(node, rect) {
-        var visualParents, thisIndex, posVal;
-        var parents = [];
-        var currentNode = node;
-        var nodeStyle = window.getComputedStyle(currentNode);
-        if (dom.supportsElementsFromPoint(document)) {
-          visualParents = dom.elementsFromPoint(document, Math.ceil(rect.left + 1), Math.ceil(rect.top + 1));
-          thisIndex = visualParents.indexOf(node);
-          // if the element is not present; then something is obscuring it thus making calculation impossible
-          if (thisIndex === -1) {
-            return null;
+      color.getRectStack = function(elm) {
+        var boundingCoords = color.getCoords(elm.getBoundingClientRect());
+        if (boundingCoords) {
+          var boundingStack = dom.shadowElementsFromPoint(boundingCoords.x, boundingCoords.y);
+          var rects = Array.from(elm.getClientRects());
+          if (rects && rects.length > 1) {
+            var filteredArr = rects.filter(function(rect) {
+              return rect.width && rect.width > 0;
+            }).map(function(rect) {
+              var coords = color.getCoords(rect);
+              if (coords) {
+                return dom.shadowElementsFromPoint(coords.x, coords.y);
+              }
+            });
+            filteredArr.splice(0, 0, boundingStack);
+            return filteredArr;
           } else {
-            if (visualParents && thisIndex < visualParents.length - 1) {
-              return visualParents.slice(thisIndex + 1);
-            }
+            return [ boundingStack ];
           }
         }
-        while (currentNode !== null) {
-          // If the element is positioned, we can't rely on DOM order to find visual parents
-          posVal = nodeStyle.getPropertyValue("position");
-          if (posVal !== "static") {
+        return null;
+      };
+      color.filteredRectStack = function(elm) {
+        var rectStack = color.getRectStack(elm);
+        if (rectStack && rectStack.length === 1) {
+          return rectStack[0];
+        } else if (rectStack && rectStack.length > 1) {
+          var boundingStack = rectStack.shift();
+          var isSame = void 0;
+          rectStack.forEach(function(rectList, index) {
+            if (index === 0) {
+              return;
+            }
+            var rectA = rectStack[index - 1], rectB = rectStack[index];
+            isSame = rectA.every(function(element, elementIndex) {
+              return element === rectB[elementIndex];
+            }) || boundingStack.includes(elm);
+          });
+          if (!isSame) {
+            axe.commons.color.incompleteData.set('bgColor', 'elmPartiallyObscuring');
             return null;
           }
-          currentNode = currentNode.parentElement;
-          if (currentNode !== null) {
-            nodeStyle = window.getComputedStyle(currentNode);
-            if (parseInt(nodeStyle.getPropertyValue("height"), 10) !== 0) {
-              parents.push(currentNode);
-            }
-          }
-        }
-        return parents;
-      };
-      /**
- * Returns the flattened background color of an element, or null if it can't be determined because
- * there is no opaque ancestor element visually containing it, or because background images are used.
- * @param {Element} node
- * @param {Array} bgNodes array to which all encountered nodes should be appended
- * @param {Boolean} noScroll (default false)
- * @return {Color}
- */
-      //TODO dsturley; why is this passing `bgNodes`?
-      color.getBackgroundColor = function(node, bgNodes, noScroll) {
-        var parent, parentColor;
-        var bgColor = getBackgroundForSingleNode(node);
-        if (bgNodes && (bgColor === null || bgColor.alpha !== 0)) {
-          bgNodes.push(node);
-        }
-        if (bgColor === null || bgColor.alpha === 1) {
-          return bgColor;
-        }
-        if (noScroll !== true) {
-          node.scrollIntoView();
-        }
-        var rect = node.getBoundingClientRect();
-        var currentNode = node;
-        var colorStack = [ {
-          color: bgColor,
-          node: node
-        } ];
-        var parents = getVisualParents(currentNode, rect);
-        if (!parents) {
+          return rectStack[0];
+        } else {
+          axe.commons.color.incompleteData.set('bgColor', 'outsideViewport');
           return null;
         }
-        while (bgColor.alpha !== 1) {
-          parent = parents.shift();
-          if (!parent && currentNode.tagName !== "HTML") {
-            return null;
-          } else {
-            if (!parent && currentNode.tagName === "HTML") {
-              parentColor = new color.Color(255, 255, 255, 1);
-            } else {
-              if (!dom.visuallyContains(node, parent)) {
-                return null;
-              }
-              parentColor = getBackgroundForSingleNode(parent);
-              if (bgNodes && (parentColor === null || parentColor.alpha !== 0)) {
-                bgNodes.push(parent);
-              }
-              if (parentColor === null) {
-                return null;
-              }
-            }
-          }
-          currentNode = parent;
-          bgColor = parentColor;
-          colorStack.push({
-            color: bgColor,
-            node: currentNode
-          });
-        }
-        var currColorNode = colorStack.pop();
-        var flattenedColor = currColorNode.color;
-        while ((currColorNode = colorStack.pop()) !== undefined) {
-          flattenedColor = color.flattenColors(currColorNode.color, flattenedColor);
-        }
-        return flattenedColor;
       };
-      /*global color */
-      /**
- * Returns the flattened foreground color of an element, or null if it can't be determined because
- * of transparency
- * @param {Element} node
- * @param {Boolean} noScroll (default false)
- * @return {Color}
- */
+      color.getBackgroundStack = function(elm) {
+        var elmStack = color.filteredRectStack(elm);
+        if (elmStack === null) {
+          return null;
+        }
+        elmStack = includeMissingElements(elmStack, elm);
+        elmStack = dom.reduceToElementsBelowFloating(elmStack, elm);
+        elmStack = sortPageBackground(elmStack);
+        var elmIndex = elmStack.indexOf(elm);
+        if (calculateObscuringAlpha(elmIndex, elmStack, elm) >= .99) {
+          axe.commons.color.incompleteData.set('bgColor', 'bgOverlap');
+          return null;
+        }
+        return elmIndex !== -1 ? elmStack : null;
+      };
+      color.getBackgroundColor = function(elm) {
+        var bgElms = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
+        var noScroll = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+        if (noScroll !== true) {
+          var alignToTop = elm.clientHeight - 2 >= window.innerHeight * 2;
+          elm.scrollIntoView(alignToTop);
+        }
+        var bgColors = [];
+        var elmStack = color.getBackgroundStack(elm);
+        (elmStack || []).some(function(bgElm) {
+          var bgElmStyle = window.getComputedStyle(bgElm);
+          var bgColor = getBgColor(bgElm, bgElmStyle);
+          if (elmPartiallyObscured(elm, bgElm, bgColor) || elmHasImage(bgElm, bgElmStyle)) {
+            bgColors = null;
+            bgElms.push(bgElm);
+            return true;
+          }
+          if (bgColor.alpha !== 0) {
+            bgElms.push(bgElm);
+            bgColors.push(bgColor);
+            return bgColor.alpha === 1;
+          } else {
+            return false;
+          }
+        });
+        if (bgColors !== null && elmStack !== null) {
+          bgColors.push(new color.Color(255, 255, 255, 1));
+          var colors = bgColors.reduce(color.flattenColors);
+          return colors;
+        }
+        return null;
+      };
+      dom.isOpaque = function(node) {
+        var style = window.getComputedStyle(node);
+        return elmHasImage(node, style) || getBgColor(node, style).alpha === 1;
+      };
       color.getForegroundColor = function(node, noScroll) {
         var nodeStyle = window.getComputedStyle(node);
         var fgColor = new color.Color();
-        fgColor.parseRgbString(nodeStyle.getPropertyValue("color"));
-        var opacity = nodeStyle.getPropertyValue("opacity");
+        fgColor.parseRgbString(nodeStyle.getPropertyValue('color'));
+        var opacity = nodeStyle.getPropertyValue('opacity');
         fgColor.alpha = fgColor.alpha * opacity;
         if (fgColor.alpha === 1) {
           return fgColor;
         }
         var bgColor = color.getBackgroundColor(node, [], noScroll);
         if (bgColor === null) {
+          var reason = axe.commons.color.incompleteData.get('bgColor');
+          axe.commons.color.incompleteData.set('fgColor', reason);
           return null;
         }
         return color.flattenColors(fgColor, bgColor);
       };
-      /* global dom */
-      /**
- * Returns true if the browser supports one of the methods to get elements from point
- * @param {Document} doc The HTML document
- * @return {Boolean}
- */
-      dom.supportsElementsFromPoint = function(doc) {
-        var element = doc.createElement("x");
-        element.style.cssText = "pointer-events:auto";
-        return element.style.pointerEvents === "auto" || !!doc.msElementsFromPoint;
-      };
-      /**
- * Returns the elements at a particular point in the viewport, in z-index order
- * @param {Document} doc The HTML document
- * @param {Element} x The x coordinate, as an integer
- * @param {Element} y The y coordinate, as an integer
- * @return {Array} Array of Elements
- */
-      dom.elementsFromPoint = function(doc, x, y) {
-        var elements = [], previousPointerEvents = [], current, i, d;
-        if (doc.msElementsFromPoint) {
-          var nl = doc.msElementsFromPoint(x, y);
-          return nl ? Array.prototype.slice.call(nl) : null;
-        }
-        // get all elements via elementFromPoint, and remove them from hit-testing in order
-        while ((current = doc.elementFromPoint(x, y)) && elements.indexOf(current) === -1 && current !== null) {
-          // push the element and its current style
-          elements.push(current);
-          previousPointerEvents.push({
-            value: current.style.getPropertyValue("pointer-events"),
-            priority: current.style.getPropertyPriority("pointer-events")
-          });
-          // add "pointer-events: none", to get to the underlying element
-          current.style.setProperty("pointer-events", "none", "important");
-          if (dom.isOpaque(current)) {
-            break;
+      color.incompleteData = function() {
+        var data = {};
+        return {
+          set: function set(key, reason) {
+            if (typeof key !== 'string') {
+              throw new Error('Incomplete data: key must be a string');
+            }
+            if (reason) {
+              data[key] = reason;
+            }
+            return data[key];
+          },
+          get: function get(key) {
+            return data[key];
+          },
+          clear: function clear() {
+            data = {};
           }
+        };
+      }();
+      dom.reduceToElementsBelowFloating = function(elements, targetNode) {
+        var floatingPositions = [ 'fixed', 'sticky' ], finalElements = [], targetFound = false, index, currentNode, style;
+        for (index = 0; index < elements.length; ++index) {
+          currentNode = elements[index];
+          if (currentNode === targetNode) {
+            targetFound = true;
+          }
+          style = window.getComputedStyle(currentNode);
+          if (!targetFound && floatingPositions.indexOf(style.position) !== -1) {
+            finalElements = [];
+            continue;
+          }
+          finalElements.push(currentNode);
         }
-        // restore the previous pointer-events values
-        for (i = previousPointerEvents.length; !!(d = previousPointerEvents[--i]); ) {
-          elements[i].style.setProperty("pointer-events", d.value ? d.value : "", d.priority);
-        }
-        // return our results
-        return elements;
+        return finalElements;
       };
-      /*global dom, axe */
-      /**
- * recusively walk up the DOM, checking for a node which matches a selector
- *
- * **WARNING:** this should be used sparingly, as it's not even close to being performant
- *
- * @param {HTMLElement|String} element The starting HTMLElement
- * @param {String} selector The selector for the HTMLElement
- * @return {HTMLElement|null} Either the matching HTMLElement or `null` if there was no match
- */
+      dom.findElmsInContext = function(_ref23) {
+        var context = _ref23.context, value = _ref23.value, attr = _ref23.attr, _ref23$elm = _ref23.elm, elm = _ref23$elm === undefined ? '' : _ref23$elm;
+        var root = void 0;
+        var escapedValue = axe.utils.escapeSelector(value);
+        if (context.nodeType === 9 || context.nodeType === 11) {
+          root = context;
+        } else {
+          root = dom.getRootNode(context);
+        }
+        return Array.from(root.querySelectorAll(elm + '[' + attr + '=' + escapedValue + ']'));
+      };
       dom.findUp = function(element, target) {
-        "use strict";
-        /*jslint browser:true*/ var parent, matches = document.querySelectorAll(target), length = matches.length;
-        if (!length) {
+        return dom.findUpVirtual(axe.utils.getNodeFromTree(axe._tree[0], element), target);
+      };
+      dom.findUpVirtual = function(element, target) {
+        var parent = void 0;
+        parent = element.actualNode;
+        if (!element.shadowId && typeof element.actualNode.closest === 'function') {
+          var match = element.actualNode.closest(target);
+          if (match) {
+            return match;
+          }
           return null;
         }
-        matches = axe.utils.toArray(matches);
-        parent = element.parentNode;
-        // recrusively walk up the DOM, checking each parent node
-        while (parent && matches.indexOf(parent) === -1) {
-          parent = parent.parentNode;
+        do {
+          parent = parent.assignedSlot ? parent.assignedSlot : parent.parentNode;
+          if (parent && parent.nodeType === 11) {
+            parent = parent.host;
+          }
+        } while (parent && !axe.utils.matchesSelector(parent, target) && parent !== document.documentElement);
+        if (!axe.utils.matchesSelector(parent, target)) {
+          return null;
         }
         return parent;
       };
-      /*global dom */ dom.getElementByReference = function(node, attr) {
-        "use strict";
-        var candidate, fragment = node.getAttribute(attr), doc = document;
-        if (fragment && fragment.charAt(0) === "#") {
-          fragment = fragment.substring(1);
-          candidate = doc.getElementById(fragment);
+      dom.getComposedParent = function getComposedParent(element) {
+        if (element.assignedSlot) {
+          return getComposedParent(element.assignedSlot);
+        } else if (element.parentNode) {
+          var parentNode = element.parentNode;
+          if (parentNode.nodeType === 1) {
+            return parentNode;
+          } else if (parentNode.host) {
+            return parentNode.host;
+          }
+        }
+        return null;
+      };
+      dom.getElementByReference = function(node, attr) {
+        var fragment = node.getAttribute(attr);
+        if (fragment && fragment.charAt(0) === '#') {
+          fragment = decodeURIComponent(fragment.substring(1));
+          var candidate = document.getElementById(fragment);
           if (candidate) {
             return candidate;
           }
-          candidate = doc.getElementsByName(fragment);
+          candidate = document.getElementsByName(fragment);
           if (candidate.length) {
             return candidate[0];
           }
         }
         return null;
       };
-      /*global dom */
-      /**
- * Get the coordinates of the element passed into the function relative to the document
- *
- * #### Returns
- *
- * Returns a `Object` with the following properties, which
- * each hold a value representing the pixels for each of the
- * respective coordinates:
- *
- * - `top`
- * - `right`
- * - `bottom`
- * - `left`
- * - `width`
- * - `height`
- *
- * @param {HTMLElement} el The HTMLElement
- */
       dom.getElementCoordinates = function(element) {
-        "use strict";
+        'use strict';
         var scrollOffset = dom.getScrollOffset(document), xOffset = scrollOffset.left, yOffset = scrollOffset.top, coords = element.getBoundingClientRect();
         return {
           top: coords.top + yOffset,
@@ -7246,19 +12395,12 @@ maxstatements: false, maxcomplexity: false */
           height: coords.bottom - coords.top
         };
       };
-      /*global dom */
-      /**
- * Get the scroll offset of the document passed in
- *
- * @param {Document} element The element to evaluate, defaults to document
- * @return {Object} Contains the attributes `x` and `y` which contain the scroll offsets
- */
+      dom.getRootNode = axe.utils.getRootNode;
       dom.getScrollOffset = function(element) {
-        "use strict";
+        'use strict';
         if (!element.nodeType && element.document) {
           element = element.document;
         }
-        // 9 === Node.DOCUMENT_NODE
         if (element.nodeType === 9) {
           var docElement = element.documentElement, body = element.body;
           return {
@@ -7271,16 +12413,8 @@ maxstatements: false, maxcomplexity: false */
           top: element.scrollTop
         };
       };
-      /*global dom */
-      /**
- * Gets the width and height of the viewport; used to calculate the right and bottom boundaries of the viewable area.
- *
- * @api private
- * @param  {Object}  window The `window` object that should be measured
- * @return {Object}  Object with the `width` and `height` of the viewport
- */
       dom.getViewportSize = function(win) {
-        "use strict";
+        'use strict';
         var body, doc = win.document, docElement = doc.documentElement;
         if (win.innerWidth) {
           return {
@@ -7300,16 +12434,27 @@ maxstatements: false, maxcomplexity: false */
           height: body.clientHeight
         };
       };
-      /*global dom, axe */
-      /**
- * Get elements referenced via a space-separated token attribute; it will insert `null` for any Element that is not found
- * @param  {HTMLElement} node
- * @param  {String} attr The name of attribute
- * @return {Array}      Array of elements (or `null` if not found)
- */
+      var hiddenTextElms = [ 'HEAD', 'TITLE', 'TEMPLATE', 'SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'VIDEO', 'AUDIO', 'NOSCRIPT' ];
+      function hasChildTextNodes(elm) {
+        if (!hiddenTextElms.includes(elm.actualNode.nodeName.toUpperCase())) {
+          return elm.children.some(function(_ref24) {
+            var actualNode = _ref24.actualNode;
+            return actualNode.nodeType === 3 && actualNode.nodeValue.trim();
+          });
+        }
+      }
+      dom.hasContentVirtual = function(elm, noRecursion) {
+        return hasChildTextNodes(elm) || dom.isVisualContent(elm.actualNode) || !!aria.labelVirtual(elm) || !noRecursion && elm.children.some(function(child) {
+          return child.actualNode.nodeType === 1 && dom.hasContentVirtual(child);
+        });
+      };
+      dom.hasContent = function hasContent(elm, noRecursion) {
+        elm = axe.utils.getNodeFromTree(axe._tree[0], elm);
+        return dom.hasContentVirtual(elm, noRecursion);
+      };
       dom.idrefs = function(node, attr) {
-        "use strict";
-        var index, length, doc = document, result = [], idrefs = node.getAttribute(attr);
+        'use strict';
+        var index, length, doc = dom.getRootNode(node), result = [], idrefs = node.getAttribute(attr);
         if (idrefs) {
           idrefs = axe.utils.tokenList(idrefs);
           for (index = 0, length = idrefs.length; index < length; index++) {
@@ -7318,233 +12463,238 @@ maxstatements: false, maxcomplexity: false */
         }
         return result;
       };
-      /*global dom */
-      /* jshint maxcomplexity: 20 */
-      /**
- * Determines if an element is focusable
- * @param {HTMLelement} element The HTMLelement
- * @return {Boolean} The element's focusability status
- */
+      function focusDisabled(el) {
+        return el.disabled || !dom.isVisible(el, true) && el.nodeName.toUpperCase() !== 'AREA';
+      }
       dom.isFocusable = function(el) {
-        "use strict";
-        if (!el || el.disabled || !dom.isVisible(el) && el.nodeName.toUpperCase() !== "AREA") {
+        'use strict';
+        if (focusDisabled(el)) {
           return false;
-        }
-        switch (el.nodeName.toUpperCase()) {
-         case "A":
-         case "AREA":
-          if (el.href) {
-            return true;
-          }
-          break;
-
-         case "INPUT":
-          return el.type !== "hidden";
-
-         case "TEXTAREA":
-         case "SELECT":
-         case "DETAILS":
-         case "BUTTON":
+        } else if (dom.isNativelyFocusable(el)) {
           return true;
         }
-        // check if the tabindex is specified and a parseable number
-        var tabindex = el.getAttribute("tabindex");
+        var tabindex = el.getAttribute('tabindex');
         if (tabindex && !isNaN(parseInt(tabindex, 10))) {
           return true;
         }
         return false;
       };
-      /*global dom */ dom.isHTML5 = function(doc) {
+      dom.isNativelyFocusable = function(el) {
+        'use strict';
+        if (!el || focusDisabled(el)) {
+          return false;
+        }
+        switch (el.nodeName.toUpperCase()) {
+         case 'A':
+         case 'AREA':
+          if (el.href) {
+            return true;
+          }
+          break;
+
+         case 'INPUT':
+          return el.type !== 'hidden';
+
+         case 'TEXTAREA':
+         case 'SELECT':
+         case 'DETAILS':
+         case 'BUTTON':
+          return true;
+        }
+        return false;
+      };
+      dom.insertedIntoFocusOrder = function(el) {
+        return el.tabIndex > -1 && dom.isFocusable(el) && !dom.isNativelyFocusable(el);
+      };
+      dom.isHTML5 = function(doc) {
         var node = doc.doctype;
         if (node === null) {
           return false;
         }
-        return node.name === "html" && !node.publicId && !node.systemId;
+        return node.name === 'html' && !node.publicId && !node.systemId;
       };
-      /* global axe, dom, window */ function walkDomNode(node, functor) {
-        "use strict";
-        var shouldWalk = functor(node);
-        node = node.firstChild;
-        while (node) {
-          if (shouldWalk !== false) {
-            walkDomNode(node, functor);
-          }
-          node = node.nextSibling;
+      function walkDomNode(node, functor) {
+        if (functor(node.actualNode) !== false) {
+          node.children.forEach(function(child) {
+            return walkDomNode(child, functor);
+          });
         }
       }
-      var blockLike = [ "block", "list-item", "table", "flex", "grid", "inline-block" ];
+      var blockLike = [ 'block', 'list-item', 'table', 'flex', 'grid', 'inline-block' ];
       function isBlock(elm) {
-        "use strict";
-        var display = window.getComputedStyle(elm).getPropertyValue("display");
-        return blockLike.indexOf(display) !== -1 || display.substr(0, 6) === "table-";
+        var display = window.getComputedStyle(elm).getPropertyValue('display');
+        return blockLike.includes(display) || display.substr(0, 6) === 'table-';
+      }
+      function getBlockParent(node) {
+        var parentBlock = dom.getComposedParent(node);
+        while (parentBlock && !isBlock(parentBlock)) {
+          parentBlock = dom.getComposedParent(parentBlock);
+        }
+        return axe.utils.getNodeFromTree(axe._tree[0], parentBlock);
       }
       dom.isInTextBlock = function isInTextBlock(node) {
-        // jshint maxcomplexity: 15
-        "use strict";
-        // Ignore if the link is a block
         if (isBlock(node)) {
           return false;
         }
-        // Find the closest parent
-        var parentBlock = node.parentNode;
-        while (parentBlock.nodeType === 1 && !isBlock(parentBlock)) {
-          parentBlock = parentBlock.parentNode;
-        }
-        // Find all the text part of the parent block not in a link, and all the text in a link
-        var parentText = "";
-        var linkText = "";
+        var virtualParent = getBlockParent(node);
+        var parentText = '';
+        var linkText = '';
         var inBrBlock = 0;
-        // We want to ignore hidden text, and if br / hr is used, only use the section of the parent 
-        // that has the link we're looking at
-        walkDomNode(parentBlock, function(currNode) {
-          // We're already passed it, skip everything else
+        walkDomNode(virtualParent, function(currNode) {
           if (inBrBlock === 2) {
             return false;
           }
           if (currNode.nodeType === 3) {
-            // Add the text to the parent
             parentText += currNode.nodeValue;
           }
-          // Ignore any node that's not an element (or text as above)
           if (currNode.nodeType !== 1) {
             return;
           }
-          var nodeName = (currNode.nodeName || "").toUpperCase();
-          // BR and HR elements break the line
-          if ([ "BR", "HR" ].indexOf(nodeName) !== -1) {
+          var nodeName = (currNode.nodeName || '').toUpperCase();
+          if ([ 'BR', 'HR' ].includes(nodeName)) {
             if (inBrBlock === 0) {
-              parentText = "";
-              linkText = "";
+              parentText = '';
+              linkText = '';
             } else {
               inBrBlock = 2;
             }
-          } else {
-            if (currNode.style.display === "none" || currNode.style.overflow === "hidden" || [ "", null, "none" ].indexOf(currNode.style.float) === -1 || [ "", null, "relative" ].indexOf(currNode.style.position) === -1) {
-              return false;
-            } else {
-              if (nodeName === "A" && currNode.href || (currNode.getAttribute("role") || "").toLowerCase() === "link") {
-                if (currNode === node) {
-                  inBrBlock = 1;
-                }
-                // Grab all the text from this element, but don't walk down it's children
-                linkText += currNode.textContent;
-                return false;
-              }
+          } else if (currNode.style.display === 'none' || currNode.style.overflow === 'hidden' || ![ '', null, 'none' ].includes(currNode.style.float) || ![ '', null, 'relative' ].includes(currNode.style.position)) {
+            return false;
+          } else if (nodeName === 'A' && currNode.href || (currNode.getAttribute('role') || '').toLowerCase() === 'link') {
+            if (currNode === node) {
+              inBrBlock = 1;
             }
+            linkText += currNode.textContent;
+            return false;
           }
         });
         parentText = axe.commons.text.sanitize(parentText);
         linkText = axe.commons.text.sanitize(linkText);
         return parentText.length > linkText.length;
       };
-      /*global dom */ dom.isNode = function(candidate) {
-        "use strict";
-        return candidate instanceof Node;
+      dom.isNode = function(element) {
+        'use strict';
+        return element instanceof Node;
       };
-      /*global dom */ dom.isOffscreen = function(element) {
-        "use strict";
-        var leftBoundary, docElement = document.documentElement, dir = window.getComputedStyle(document.body || docElement).getPropertyValue("direction"), coords = dom.getElementCoordinates(element);
-        // bottom edge beyond
-        if (coords.bottom < 0) {
+      function noParentScrolled(element, offset) {
+        element = dom.getComposedParent(element);
+        while (element && element.nodeName.toLowerCase() !== 'html') {
+          if (element.scrollTop) {
+            offset += element.scrollTop;
+            if (offset >= 0) {
+              return false;
+            }
+          }
+          element = dom.getComposedParent(element);
+        }
+        return true;
+      }
+      dom.isOffscreen = function(element) {
+        var leftBoundary = void 0;
+        var docElement = document.documentElement;
+        var styl = window.getComputedStyle(element);
+        var dir = window.getComputedStyle(document.body || docElement).getPropertyValue('direction');
+        var coords = dom.getElementCoordinates(element);
+        if (coords.bottom < 0 && (noParentScrolled(element, coords.bottom) || styl.position === 'absolute')) {
           return true;
         }
-        if (dir === "ltr") {
-          if (coords.right < 0) {
+        if (coords.left === 0 && coords.right === 0) {
+          return false;
+        }
+        if (dir === 'ltr') {
+          if (coords.right <= 0) {
             return true;
           }
         } else {
           leftBoundary = Math.max(docElement.scrollWidth, dom.getViewportSize(window).width);
-          if (coords.left > leftBoundary) {
+          if (coords.left >= leftBoundary) {
             return true;
           }
         }
         return false;
       };
-      /*global dom */
-      /*jshint maxcomplexity: 11 */
-      /**
- * Determines if an element is hidden with the clip rect technique
- * @param  {String}  clip Computed property value of clip
- * @return {Boolean}
- */
       function isClipped(clip) {
-        "use strict";
+        'use strict';
         var matches = clip.match(/rect\s*\(([0-9]+)px,?\s*([0-9]+)px,?\s*([0-9]+)px,?\s*([0-9]+)px\s*\)/);
         if (matches && matches.length === 5) {
           return matches[3] - matches[1] <= 0 && matches[2] - matches[4] <= 0;
         }
         return false;
       }
-      /**
- * Determine whether an element is visible
- *
- * @param {HTMLElement} el The HTMLElement
- * @param {Boolean} screenReader When provided, will evaluate visibility from the perspective of a screen reader
- * @return {Boolean} The element's visibilty status
- */
       dom.isVisible = function(el, screenReader, recursed) {
-        "use strict";
-        var style, nodeName = el.nodeName.toUpperCase(), parent = el.parentNode;
-        // 9 === Node.DOCUMENT
+        'use strict';
+        var style, nodeName, parent;
         if (el.nodeType === 9) {
           return true;
+        }
+        if (el.nodeType === 11) {
+          el = el.host;
         }
         style = window.getComputedStyle(el, null);
         if (style === null) {
           return false;
         }
-        if (style.getPropertyValue("display") === "none" || nodeName.toUpperCase() === "STYLE" || nodeName.toUpperCase() === "SCRIPT" || !screenReader && isClipped(style.getPropertyValue("clip")) || !recursed && (// visibility is only accurate on the first element
-        style.getPropertyValue("visibility") === "hidden" || // position does not matter if it was already calculated
-        !screenReader && dom.isOffscreen(el)) || screenReader && el.getAttribute("aria-hidden") === "true") {
+        nodeName = el.nodeName.toUpperCase();
+        if (style.getPropertyValue('display') === 'none' || nodeName.toUpperCase() === 'STYLE' || nodeName.toUpperCase() === 'SCRIPT' || !screenReader && isClipped(style.getPropertyValue('clip')) || !recursed && (style.getPropertyValue('visibility') === 'hidden' || !screenReader && dom.isOffscreen(el)) || screenReader && el.getAttribute('aria-hidden') === 'true') {
           return false;
         }
+        parent = el.assignedSlot ? el.assignedSlot : el.parentNode;
         if (parent) {
           return dom.isVisible(parent, screenReader, true);
         }
         return false;
       };
-      /*global dom */
-      /*jshint maxcomplexity: 20 */
-      /**
- * Check if an element is an inherently visual element
- * @param  {object}  candidate The node to check
- * @return {Boolean}
- */
-      dom.isVisualContent = function(candidate) {
-        "use strict";
-        switch (candidate.tagName.toUpperCase()) {
-         case "IMG":
-         case "IFRAME":
-         case "OBJECT":
-         case "VIDEO":
-         case "AUDIO":
-         case "CANVAS":
-         case "SVG":
-         case "MATH":
-         case "BUTTON":
-         case "SELECT":
-         case "TEXTAREA":
-         case "KEYGEN":
-         case "PROGRESS":
-         case "METER":
+      var visualRoles = [ 'checkbox', 'img', 'radio', 'range', 'slider', 'spinbutton', 'textbox' ];
+      dom.isVisualContent = function(element) {
+        var role = element.getAttribute('role');
+        if (role) {
+          return visualRoles.indexOf(role) !== -1;
+        }
+        switch (element.tagName.toUpperCase()) {
+         case 'IMG':
+         case 'IFRAME':
+         case 'OBJECT':
+         case 'VIDEO':
+         case 'AUDIO':
+         case 'CANVAS':
+         case 'SVG':
+         case 'MATH':
+         case 'BUTTON':
+         case 'SELECT':
+         case 'TEXTAREA':
+         case 'KEYGEN':
+         case 'PROGRESS':
+         case 'METER':
           return true;
 
-         case "INPUT":
-          return candidate.type !== "hidden";
+         case 'INPUT':
+          return element.type !== 'hidden';
 
          default:
           return false;
         }
       };
-      /* global dom */
-      /* jshint maxcomplexity: 11 */
-      /**
- * Checks whether a parent element visually contains its child, either directly or via scrolling.
- * Assumes that |parent| is an ancestor of |node|.
- * @param {Element} node
- * @param {Element} parent
- * @return {boolean} True if node is visually contained within parent
- */
+      dom.shadowElementsFromPoint = function(nodeX, nodeY) {
+        var root = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : document;
+        var i = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
+        if (i > 999) {
+          throw new Error('Infinite loop detected');
+        }
+        return Array.from(root.elementsFromPoint(nodeX, nodeY)).filter(function(nodes) {
+          return dom.getRootNode(nodes) === root;
+        }).reduce(function(stack, elm) {
+          if (axe.utils.isShadowRoot(elm)) {
+            var shadowStack = dom.shadowElementsFromPoint(nodeX, nodeY, elm.shadowRoot, i + 1);
+            stack = stack.concat(shadowStack);
+            if (stack.length && axe.commons.dom.visuallyContains(stack[0], elm)) {
+              stack.push(elm);
+            }
+          } else {
+            stack.push(elm);
+          }
+          return stack;
+        }, []);
+      };
       dom.visuallyContains = function(node, parent) {
         var rectBound = node.getBoundingClientRect();
         var margin = .01;
@@ -7563,25 +12713,18 @@ maxstatements: false, maxcomplexity: false */
           left: parentLeft - parent.scrollLeft,
           right: parentLeft - parent.scrollLeft + parent.scrollWidth
         };
-        //In theory, we should just be able to look at the scroll area as a superset of the parentRect,
-        //but that's not true in Firefox
+        var style = window.getComputedStyle(parent);
+        if (style.getPropertyValue('display') === 'inline') {
+          return true;
+        }
         if (rect.left < parentScrollArea.left && rect.left < parentRect.left || rect.top < parentScrollArea.top && rect.top < parentRect.top || rect.right > parentScrollArea.right && rect.right > parentRect.right || rect.bottom > parentScrollArea.bottom && rect.bottom > parentRect.bottom) {
           return false;
         }
-        var style = window.getComputedStyle(parent);
         if (rect.right > parentRect.right || rect.bottom > parentRect.bottom) {
-          return style.overflow === "scroll" || style.overflow === "auto" || style.overflow === "hidden" || parent instanceof HTMLBodyElement || parent instanceof HTMLHtmlElement;
+          return style.overflow === 'scroll' || style.overflow === 'auto' || style.overflow === 'hidden' || parent instanceof HTMLBodyElement || parent instanceof HTMLHtmlElement;
         }
         return true;
       };
-      /* global dom */
-      /* jshint maxcomplexity: 11 */
-      /**
- * Checks whether a parent element visually overlaps a rectangle, either directly or via scrolling.
- * @param {DOMRect} rect
- * @param {Element} parent
- * @return {boolean} True if rect is visually contained within parent
- */
       dom.visuallyOverlaps = function(rect, parent) {
         var parentRect = parent.getBoundingClientRect();
         var parentTop = parentRect.top;
@@ -7592,28 +12735,33 @@ maxstatements: false, maxcomplexity: false */
           left: parentLeft - parent.scrollLeft,
           right: parentLeft - parent.scrollLeft + parent.scrollWidth
         };
-        //In theory, we should just be able to look at the scroll area as a superset of the parentRect,
-        //but that's not true in Firefox
         if (rect.left > parentScrollArea.right && rect.left > parentRect.right || rect.top > parentScrollArea.bottom && rect.top > parentRect.bottom || rect.right < parentScrollArea.left && rect.right < parentRect.left || rect.bottom < parentScrollArea.top && rect.bottom < parentRect.top) {
           return false;
         }
         var style = window.getComputedStyle(parent);
         if (rect.left > parentRect.right || rect.top > parentRect.bottom) {
-          return style.overflow === "scroll" || style.overflow === "auto" || parent instanceof HTMLBodyElement || parent instanceof HTMLHtmlElement;
+          return style.overflow === 'scroll' || style.overflow === 'auto' || parent instanceof HTMLBodyElement || parent instanceof HTMLHtmlElement;
         }
         return true;
       };
-      /*global table, dom */
-      /**
- * Get the x, y coordinates of a table cell; normalized for rowspan and colspan
- * @param  {HTMLTableCelLElement} cell The table cell of which to get the position
- * @return {Object}      Object with `x` and `y` properties of the coordinates
- */
-      table.getCellPosition = function(cell) {
-        var tbl = table.toArray(dom.findUp(cell, "table")), index;
-        for (var rowIndex = 0; rowIndex < tbl.length; rowIndex++) {
-          if (tbl[rowIndex]) {
-            index = tbl[rowIndex].indexOf(cell);
+      table.getAllCells = function(tableElm) {
+        var rowIndex, cellIndex, rowLength, cellLength;
+        var cells = [];
+        for (rowIndex = 0, rowLength = tableElm.rows.length; rowIndex < rowLength; rowIndex++) {
+          for (cellIndex = 0, cellLength = tableElm.rows[rowIndex].cells.length; cellIndex < cellLength; cellIndex++) {
+            cells.push(tableElm.rows[rowIndex].cells[cellIndex]);
+          }
+        }
+        return cells;
+      };
+      table.getCellPosition = function(cell, tableGrid) {
+        var rowIndex, index;
+        if (!tableGrid) {
+          tableGrid = table.toGrid(dom.findUp(cell, 'table'));
+        }
+        for (rowIndex = 0; rowIndex < tableGrid.length; rowIndex++) {
+          if (tableGrid[rowIndex]) {
+            index = tableGrid[rowIndex].indexOf(cell);
             if (index !== -1) {
               return {
                 x: index,
@@ -7623,112 +12771,92 @@ maxstatements: false, maxcomplexity: false */
           }
         }
       };
-      /*global table */
-      /**
- * Get any associated table headers for a `HTMLTableCellElement`
- * @param  {HTMLTableCellElement} cell The cell of which to get headers
- * @return {Array}      Array of headers associated to the table cell
- */
       table.getHeaders = function(cell) {
-        if (cell.hasAttribute("headers")) {
-          return commons.dom.idrefs(cell, "headers");
+        if (cell.hasAttribute('headers')) {
+          return commons.dom.idrefs(cell, 'headers');
         }
-        var headers = [], currentCell, tbl = commons.table.toArray(commons.dom.findUp(cell, "table")), position = commons.table.getCellPosition(cell);
-        //
-        for (var x = position.x - 1; x >= 0; x--) {
-          currentCell = tbl[position.y][x];
-          if (commons.table.isRowHeader(currentCell)) {
-            headers.unshift(currentCell);
-          }
-        }
-        for (var y = position.y - 1; y >= 0; y--) {
-          currentCell = tbl[y][position.x];
-          if (currentCell && commons.table.isColumnHeader(currentCell)) {
-            headers.unshift(currentCell);
-          }
-        }
-        return headers;
+        var tableGrid = commons.table.toGrid(commons.dom.findUp(cell, 'table'));
+        var position = commons.table.getCellPosition(cell, tableGrid);
+        var rowHeaders = table.traverse('left', position, tableGrid).filter(function(cell) {
+          return table.isRowHeader(cell);
+        });
+        var colHeaders = table.traverse('up', position, tableGrid).filter(function(cell) {
+          return table.isColumnHeader(cell);
+        });
+        return [].concat(rowHeaders, colHeaders).reverse();
       };
-      /*global table, dom */
-      /**
- * Determine if a `HTMLTableCellElement` is a column header
- * @param  {HTMLTableCellElement}  node The table cell to test
- * @return {Boolean}
- */
-      table.isColumnHeader = function(node) {
-        var scope = node.getAttribute("scope");
-        if (scope === "col" || node.getAttribute("role") === "columnheader") {
-          return true;
-        } else {
-          if (scope || node.nodeName.toUpperCase() !== "TH") {
-            return false;
-          }
+      table.getScope = function(cell) {
+        var scope = cell.getAttribute('scope');
+        var role = cell.getAttribute('role');
+        if (cell instanceof Element === false || [ 'TD', 'TH' ].indexOf(cell.nodeName.toUpperCase()) === -1) {
+          throw new TypeError('Expected TD or TH element');
         }
-        var currentCell, position = table.getCellPosition(node), tbl = table.toArray(dom.findUp(node, "table")), cells = tbl[position.y];
-        for (var cellIndex = 0, cellLength = cells.length; cellIndex < cellLength; cellIndex++) {
-          currentCell = cells[cellIndex];
-          if (currentCell !== node) {
-            if (table.isDataCell(currentCell)) {
-              return false;
-            }
-          }
+        if (role === 'columnheader') {
+          return 'col';
+        } else if (role === 'rowheader') {
+          return 'row';
+        } else if (scope === 'col' || scope === 'row') {
+          return scope;
+        } else if (cell.nodeName.toUpperCase() !== 'TH') {
+          return false;
         }
-        return true;
+        var tableGrid = table.toGrid(dom.findUp(cell, 'table'));
+        var pos = table.getCellPosition(cell);
+        var headerRow = tableGrid[pos.y].reduce(function(headerRow, cell) {
+          return headerRow && cell.nodeName.toUpperCase() === 'TH';
+        }, true);
+        if (headerRow) {
+          return 'col';
+        }
+        var headerCol = tableGrid.map(function(col) {
+          return col[pos.x];
+        }).reduce(function(headerCol, cell) {
+          return headerCol && cell.nodeName.toUpperCase() === 'TH';
+        }, true);
+        if (headerCol) {
+          return 'row';
+        }
+        return 'auto';
       };
-      /*global table */
-      /**
- * Determine if a `HTMLTableCellElement` is a data cell
- * @param  {HTMLTableCellElement}  node The table cell to test
- * @return {Boolean}
- */
+      table.isColumnHeader = function(element) {
+        return [ 'col', 'auto' ].indexOf(table.getScope(element)) !== -1;
+      };
       table.isDataCell = function(cell) {
-        // @see http://www.whatwg.org/specs/web-apps/current-work/multipage/tables.html#empty-cell
         if (!cell.children.length && !cell.textContent.trim()) {
           return false;
         }
-        return cell.nodeName.toUpperCase() === "TD";
+        var role = cell.getAttribute('role');
+        if (axe.commons.aria.isValidRole(role)) {
+          return [ 'cell', 'gridcell' ].includes(role);
+        } else {
+          return cell.nodeName.toUpperCase() === 'TD';
+        }
       };
-      /*global table, dom */
-      /*jshint maxstatements: 70, maxcomplexity: 40 */
-      /**
- * Determines whether a table is a data table
- * @param  {HTMLTableElement}  node The table to test
- * @return {Boolean}
- * @see http://asurkov.blogspot.co.uk/2011/10/data-vs-layout-table.html
- */
       table.isDataTable = function(node) {
-        var role = node.getAttribute("role");
-        // The element is not focusable and has role=presentation
-        if ((role === "presentation" || role === "none") && !dom.isFocusable(node)) {
+        var role = (node.getAttribute('role') || '').toLowerCase();
+        if ((role === 'presentation' || role === 'none') && !dom.isFocusable(node)) {
           return false;
         }
-        // Table inside editable area is data table always since the table structure is crucial for table editing
-        if (node.getAttribute("contenteditable") === "true" || dom.findUp(node, '[contenteditable="true"]')) {
+        if (node.getAttribute('contenteditable') === 'true' || dom.findUp(node, '[contenteditable="true"]')) {
           return true;
         }
-        // Table having ARIA table related role is data table
-        if (role === "grid" || role === "treegrid" || role === "table") {
+        if (role === 'grid' || role === 'treegrid' || role === 'table') {
           return true;
         }
-        // Table having ARIA landmark role is data table
-        if (commons.aria.getRoleType(role) === "landmark") {
+        if (commons.aria.getRoleType(role) === 'landmark') {
           return true;
         }
-        // Table having datatable="0" attribute is layout table
-        if (node.getAttribute("datatable") === "0") {
+        if (node.getAttribute('datatable') === '0') {
           return false;
         }
-        // Table having summary attribute is data table
-        if (node.getAttribute("summary")) {
+        if (node.getAttribute('summary')) {
           return true;
         }
-        // Table having legitimate data table structures is data table
         if (node.tHead || node.tFoot || node.caption) {
           return true;
         }
-        // colgroup / col - colgroup is magically generated
         for (var childIndex = 0, childLength = node.children.length; childIndex < childLength; childIndex++) {
-          if (node.children[childIndex].nodeName.toUpperCase() === "COLGROUP") {
+          if (node.children[childIndex].nodeName.toUpperCase() === 'COLGROUP') {
             return true;
           }
         }
@@ -7740,131 +12868,82 @@ maxstatements: false, maxcomplexity: false */
           row = node.rows[rowIndex];
           for (var cellIndex = 0, cellLength = row.cells.length; cellIndex < cellLength; cellIndex++) {
             cell = row.cells[cellIndex];
-            if (cell.nodeName.toUpperCase() === "TH") {
+            if (cell.nodeName.toUpperCase() === 'TH') {
               return true;
             }
             if (!hasBorder && (cell.offsetWidth !== cell.clientWidth || cell.offsetHeight !== cell.clientHeight)) {
               hasBorder = true;
             }
-            if (cell.getAttribute("scope") || cell.getAttribute("headers") || cell.getAttribute("abbr")) {
+            if (cell.getAttribute('scope') || cell.getAttribute('headers') || cell.getAttribute('abbr')) {
               return true;
             }
-            if ([ "columnheader", "rowheader" ].indexOf(cell.getAttribute("role")) !== -1) {
+            if ([ 'columnheader', 'rowheader' ].includes((cell.getAttribute('role') || '').toLowerCase())) {
               return true;
             }
-            // abbr element as a single child element of table cell
-            if (cell.children.length === 1 && cell.children[0].nodeName.toUpperCase() === "ABBR") {
+            if (cell.children.length === 1 && cell.children[0].nodeName.toUpperCase() === 'ABBR') {
               return true;
             }
             cells++;
           }
         }
-        // Table having nested table is layout table
-        if (node.getElementsByTagName("table").length) {
+        if (node.getElementsByTagName('table').length) {
           return false;
         }
-        // Table having only one row or column is layout table (row)
         if (rowLength < 2) {
           return false;
         }
-        // Table having only one row or column is layout table (column)
         var sampleRow = node.rows[Math.ceil(rowLength / 2)];
         if (sampleRow.cells.length === 1 && sampleRow.cells[0].colSpan === 1) {
           return false;
         }
-        // Table having many columns (>= 5) is data table
         if (sampleRow.cells.length >= 5) {
           return true;
         }
-        // Table having borders around cells is data table
         if (hasBorder) {
           return true;
         }
-        // Table having differently colored rows is data table
         var bgColor, bgImage;
         for (rowIndex = 0; rowIndex < rowLength; rowIndex++) {
           row = node.rows[rowIndex];
-          if (bgColor && bgColor !== window.getComputedStyle(row).getPropertyValue("background-color")) {
+          if (bgColor && bgColor !== window.getComputedStyle(row).getPropertyValue('background-color')) {
             return true;
           } else {
-            bgColor = window.getComputedStyle(row).getPropertyValue("background-color");
+            bgColor = window.getComputedStyle(row).getPropertyValue('background-color');
           }
-          if (bgImage && bgImage !== window.getComputedStyle(row).getPropertyValue("background-image")) {
+          if (bgImage && bgImage !== window.getComputedStyle(row).getPropertyValue('background-image')) {
             return true;
           } else {
-            bgImage = window.getComputedStyle(row).getPropertyValue("background-image");
+            bgImage = window.getComputedStyle(row).getPropertyValue('background-image');
           }
         }
-        // Table having many rows (>= 20) is data table
         if (rowLength >= 20) {
           return true;
         }
-        // Wide table (more than 95% of the document width) is layout table
         if (dom.getElementCoordinates(node).width > dom.getViewportSize(window).width * .95) {
           return false;
         }
-        // Table having small amount of cells (<= 10) is layout table
         if (cells < 10) {
           return false;
         }
-        // Table containing embed, object, applet of iframe elements (typical advertisements elements) is layout table
-        if (node.querySelector("object, embed, iframe, applet")) {
+        if (node.querySelector('object, embed, iframe, applet')) {
           return false;
         }
-        // Otherwise it's data table
         return true;
       };
-      /*global table, axe */
-      /**
- * Determine if a `HTMLTableCellElement` is a header
- * @param  {HTMLTableCellElement}  node The table cell to test
- * @return {Boolean}
- */
       table.isHeader = function(cell) {
         if (table.isColumnHeader(cell) || table.isRowHeader(cell)) {
           return true;
         }
-        if (cell.id) {
-          return !!document.querySelector('[headers~="' + axe.utils.escapeSelector(cell.id) + '"]');
+        if (cell.getAttribute('id')) {
+          var id = axe.utils.escapeSelector(cell.getAttribute('id'));
+          return !!document.querySelector('[headers~="' + id + '"]');
         }
         return false;
       };
-      /*global table, dom */
-      /**
- * Determine if a `HTMLTableCellElement` is a row header
- * @param  {HTMLTableCellElement}  node The table cell to test
- * @return {Boolean}
- */
-      table.isRowHeader = function(node) {
-        var scope = node.getAttribute("scope");
-        if (scope === "row" || node.getAttribute("role") === "rowheader") {
-          return true;
-        } else {
-          if (scope || node.nodeName.toUpperCase() !== "TH") {
-            return false;
-          }
-        }
-        if (table.isColumnHeader(node)) {
-          return false;
-        }
-        var currentCell, position = table.getCellPosition(node), tbl = table.toArray(dom.findUp(node, "table"));
-        for (var rowIndex = 0, rowLength = tbl.length; rowIndex < rowLength; rowIndex++) {
-          currentCell = tbl[rowIndex][position.x];
-          if (currentCell !== node) {
-            if (table.isDataCell(currentCell)) {
-              return false;
-            }
-          }
-        }
-        return true;
+      table.isRowHeader = function(cell) {
+        return [ 'row', 'auto' ].includes(table.getScope(cell));
       };
-      /*global table */
-      /**
- * Converts a table to an Array, normalized for row and column spans
- * @param  {HTMLTableElement} node The table to convert
- * @return {Array}      Array of rows and cells
- */
-      table.toArray = function(node) {
+      table.toGrid = function(node) {
         var table = [];
         var rows = node.rows;
         for (var i = 0, rowLength = rows.length; i < rowLength; i++) {
@@ -7886,310 +12965,406 @@ maxstatements: false, maxcomplexity: false */
         }
         return table;
       };
-      /*global text, dom, aria, axe */ /*jshint maxstatements: 25, maxcomplexity: 19 */ var defaultButtonValues = {
-        submit: "Submit",
-        reset: "Reset"
+      table.toArray = table.toGrid;
+      (function(table) {
+        var traverseTable = function traverseTable(dir, position, tableGrid, callback) {
+          var result;
+          var cell = tableGrid[position.y] ? tableGrid[position.y][position.x] : undefined;
+          if (!cell) {
+            return [];
+          }
+          if (typeof callback === 'function') {
+            result = callback(cell, position, tableGrid);
+            if (result === true) {
+              return [ cell ];
+            }
+          }
+          result = traverseTable(dir, {
+            x: position.x + dir.x,
+            y: position.y + dir.y
+          }, tableGrid, callback);
+          result.unshift(cell);
+          return result;
+        };
+        table.traverse = function(dir, startPos, tableGrid, callback) {
+          if (Array.isArray(startPos)) {
+            callback = tableGrid;
+            tableGrid = startPos;
+            startPos = {
+              x: 0,
+              y: 0
+            };
+          }
+          if (typeof dir === 'string') {
+            switch (dir) {
+             case 'left':
+              dir = {
+                x: -1,
+                y: 0
+              };
+              break;
+
+             case 'up':
+              dir = {
+                x: 0,
+                y: -1
+              };
+              break;
+
+             case 'right':
+              dir = {
+                x: 1,
+                y: 0
+              };
+              break;
+
+             case 'down':
+              dir = {
+                x: 0,
+                y: 1
+              };
+              break;
+            }
+          }
+          return traverseTable(dir, {
+            x: startPos.x + dir.x,
+            y: startPos.y + dir.y
+          }, tableGrid, callback);
+        };
+      })(table);
+      var defaultButtonValues = {
+        submit: 'Submit',
+        reset: 'Reset'
       };
-      var inputTypes = [ "text", "search", "tel", "url", "email", "date", "time", "number", "range", "color" ];
-      var phrasingElements = [ "A", "EM", "STRONG", "SMALL", "MARK", "ABBR", "DFN", "I", "B", "S", "U", "CODE", "VAR", "SAMP", "KBD", "SUP", "SUB", "Q", "CITE", "SPAN", "BDO", "BDI", "BR", "WBR", "INS", "DEL", "IMG", "EMBED", "OBJECT", "IFRAME", "MAP", "AREA", "SCRIPT", "NOSCRIPT", "RUBY", "VIDEO", "AUDIO", "INPUT", "TEXTAREA", "SELECT", "BUTTON", "LABEL", "OUTPUT", "DATALIST", "KEYGEN", "PROGRESS", "COMMAND", "CANVAS", "TIME", "METER" ];
-      /**
- * Find a non-ARIA label for an element
- *
- * @param {HTMLElement} element The HTMLElement
- * @return {HTMLElement} The label element, or null if none is found
- */
-      function findLabel(element) {
-        var ref = null;
-        if (element.id) {
-          ref = document.querySelector('label[for="' + axe.utils.escapeSelector(element.id) + '"]');
-          if (ref) {
-            return ref;
-          }
+      var inputTypes = [ 'text', 'search', 'tel', 'url', 'email', 'date', 'time', 'number', 'range', 'color' ];
+      var phrasingElements = [ 'A', 'EM', 'STRONG', 'SMALL', 'MARK', 'ABBR', 'DFN', 'I', 'B', 'S', 'U', 'CODE', 'VAR', 'SAMP', 'KBD', 'SUP', 'SUB', 'Q', 'CITE', 'SPAN', 'BDO', 'BDI', 'BR', 'WBR', 'INS', 'DEL', 'IMG', 'EMBED', 'OBJECT', 'IFRAME', 'MAP', 'AREA', 'SCRIPT', 'NOSCRIPT', 'RUBY', 'VIDEO', 'AUDIO', 'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'LABEL', 'OUTPUT', 'DATALIST', 'KEYGEN', 'PROGRESS', 'COMMAND', 'CANVAS', 'TIME', 'METER' ];
+      function findLabel(virtualNode) {
+        var label = void 0;
+        if (virtualNode.actualNode.id) {
+          label = dom.findElmsInContext({
+            elm: 'label',
+            attr: 'for',
+            value: virtualNode.actualNode.id,
+            context: virtualNode.actualNode
+          })[0];
         }
-        ref = dom.findUp(element, "label");
-        return ref;
-      }
-      function isButton(element) {
-        return [ "button", "reset", "submit" ].indexOf(element.type) !== -1;
-      }
-      function isInput(element) {
-        var nodeName = element.nodeName.toUpperCase();
-        return nodeName === "TEXTAREA" || nodeName === "SELECT" || nodeName === "INPUT" && element.type.toLowerCase() !== "hidden";
-      }
-      function shouldCheckSubtree(element) {
-        return [ "BUTTON", "SUMMARY", "A" ].indexOf(element.nodeName.toUpperCase()) !== -1;
-      }
-      function shouldNeverCheckSubtree(element) {
-        return [ "TABLE", "FIGURE" ].indexOf(element.nodeName.toUpperCase()) !== -1;
-      }
-      /**
- * Calculate value of a form element when treated as a value
- *
- * @param {HTMLElement} element The HTMLElement
- * @return {string} The calculated value
- */
-      function formValueText(element) {
-        var nodeName = element.nodeName.toUpperCase();
-        if (nodeName === "INPUT") {
-          if (!element.hasAttribute("type") || inputTypes.indexOf(element.getAttribute("type").toLowerCase()) !== -1 && element.value) {
-            return element.value;
-          }
-          return "";
+        if (!label) {
+          label = dom.findUpVirtual(virtualNode, 'label');
         }
-        if (nodeName === "SELECT") {
-          var opts = element.options;
+        return axe.utils.getNodeFromTree(axe._tree[0], label);
+      }
+      function isButton(_ref25) {
+        var actualNode = _ref25.actualNode;
+        return [ 'button', 'reset', 'submit' ].includes(actualNode.type.toLowerCase());
+      }
+      function isInput(_ref26) {
+        var actualNode = _ref26.actualNode;
+        var nodeName = actualNode.nodeName.toUpperCase();
+        return nodeName === 'TEXTAREA' || nodeName === 'SELECT' || nodeName === 'INPUT' && actualNode.type.toLowerCase() !== 'hidden';
+      }
+      function shouldCheckSubtree(_ref27) {
+        var actualNode = _ref27.actualNode;
+        return [ 'BUTTON', 'SUMMARY', 'A' ].includes(actualNode.nodeName.toUpperCase());
+      }
+      function shouldNeverCheckSubtree(_ref28) {
+        var actualNode = _ref28.actualNode;
+        return [ 'TABLE', 'FIGURE', 'SELECT' ].includes(actualNode.nodeName.toUpperCase());
+      }
+      function formValueText(_ref29, inLabelledByContext) {
+        var actualNode = _ref29.actualNode;
+        var nodeName = actualNode.nodeName.toUpperCase();
+        if (nodeName === 'INPUT') {
+          if (!actualNode.hasAttribute('type') || inputTypes.includes(actualNode.type.toLowerCase())) {
+            return actualNode.value;
+          }
+          return '';
+        }
+        if (nodeName === 'SELECT' && inLabelledByContext) {
+          var opts = actualNode.options;
           if (opts && opts.length) {
-            var returnText = "";
+            var returnText = '';
             for (var i = 0; i < opts.length; i++) {
               if (opts[i].selected) {
-                returnText += " " + opts[i].text;
+                returnText += ' ' + opts[i].text;
               }
             }
             return text.sanitize(returnText);
           }
-          return "";
+          return '';
         }
-        if (nodeName === "TEXTAREA" && element.value) {
-          return element.value;
+        if (nodeName === 'TEXTAREA' && actualNode.value) {
+          return actualNode.value;
         }
-        return "";
+        return '';
       }
-      function checkDescendant(element, nodeName) {
-        var candidate = element.querySelector(nodeName.toLowerCase());
+      function checkDescendant(_ref30, nodeName) {
+        var actualNode = _ref30.actualNode;
+        var candidate = actualNode.querySelector(nodeName.toLowerCase());
         if (candidate) {
           return text.accessibleText(candidate);
         }
-        return "";
+        return '';
       }
-      /**
- * Determine whether an element can be an embedded control
- *
- * @param {HTMLElement} element The HTMLElement
- * @return {boolean} True if embedded control
- */
-      function isEmbeddedControl(e) {
-        if (!e) {
+      function isEmbeddedControl(elm) {
+        if (!elm) {
           return false;
         }
-        switch (e.nodeName.toUpperCase()) {
-         case "SELECT":
-         case "TEXTAREA":
+        var actualNode = elm.actualNode;
+        switch (actualNode.nodeName.toUpperCase()) {
+         case 'SELECT':
+         case 'TEXTAREA':
           return true;
 
-         case "INPUT":
-          return !e.hasAttribute("type") || inputTypes.indexOf(e.getAttribute("type").toLowerCase()) !== -1;
+         case 'INPUT':
+          return !actualNode.hasAttribute('type') || inputTypes.includes(actualNode.getAttribute('type').toLowerCase());
 
          default:
           return false;
         }
       }
-      function shouldCheckAlt(element) {
-        var nodeName = element.nodeName.toUpperCase();
-        return nodeName === "INPUT" && element.type.toLowerCase() === "image" || [ "IMG", "APPLET", "AREA" ].indexOf(nodeName) !== -1;
+      function shouldCheckAlt(_ref31) {
+        var actualNode = _ref31.actualNode;
+        var nodeName = actualNode.nodeName.toUpperCase();
+        return [ 'IMG', 'APPLET', 'AREA' ].includes(nodeName) || nodeName === 'INPUT' && actualNode.type.toLowerCase() === 'image';
       }
       function nonEmptyText(t) {
         return !!text.sanitize(t);
       }
-      /**
- * Determine the accessible text of an element, using logic from ARIA:
- * http://www.w3.org/TR/html-aam-1.0/
- * http://www.w3.org/TR/wai-aria/roles#textalternativecomputation
- *
- * @param {HTMLElement} element The HTMLElement
- * @param {Boolean} inLabelledByContext True when in the context of resolving a labelledBy
- * @return {string}
- */
-      text.accessibleText = function(element, inLabelledByContext) {
-        var accessibleNameComputation;
+      text.accessibleText = function accessibleText(element, inLabelledByContext) {
+        var virtualNode = axe.utils.getNodeFromTree(axe._tree[0], element);
+        return axe.commons.text.accessibleTextVirtual(virtualNode, inLabelledByContext);
+      };
+      text.accessibleTextVirtual = function accessibleTextVirtual(element, inLabelledByContext) {
+        var accessibleNameComputation = void 0;
         var encounteredNodes = [];
+        if (element instanceof Node) {
+          element = axe.utils.getNodeFromTree(axe._tree[0], element);
+        }
         function getInnerText(element, inLabelledByContext, inControlContext) {
-          var nodes = element.childNodes;
-          var returnText = "";
-          var node;
-          for (var i = 0; i < nodes.length; i++) {
-            node = nodes[i];
-            if (node.nodeType === 3) {
-              returnText += node.textContent;
-            } else {
-              if (node.nodeType === 1) {
-                if (phrasingElements.indexOf(node.nodeName.toUpperCase()) === -1) {
-                  returnText += " ";
-                }
-                returnText += accessibleNameComputation(nodes[i], inLabelledByContext, inControlContext);
+          return element.children.reduce(function(returnText, child) {
+            var actualNode = child.actualNode;
+            if (actualNode.nodeType === 3) {
+              returnText += actualNode.nodeValue;
+            } else if (actualNode.nodeType === 1) {
+              if (!phrasingElements.includes(actualNode.nodeName.toUpperCase())) {
+                returnText += ' ';
               }
+              returnText += accessibleNameComputation(child, inLabelledByContext, inControlContext);
             }
+            return returnText;
+          }, '');
+        }
+        function getLayoutTableText(element) {
+          if (!axe.commons.table.isDataTable(element.actualNode) && axe.commons.table.getAllCells(element.actualNode).length === 1) {
+            return getInnerText(element, false, false).trim();
           }
-          return returnText;
+          return '';
         }
         function checkNative(element, inLabelledByContext, inControlContext) {
-          // jshint maxstatements:30
-          var returnText = "";
-          var nodeName = element.nodeName.toUpperCase();
+          var returnText = '';
+          var actualNode = element.actualNode;
+          var nodeName = actualNode.nodeName.toUpperCase();
           if (shouldCheckSubtree(element)) {
-            returnText = getInnerText(element, false, false) || "";
+            returnText = getInnerText(element, false, false) || '';
             if (nonEmptyText(returnText)) {
               return returnText;
             }
           }
-          if (nodeName === "FIGURE") {
-            returnText = checkDescendant(element, "figcaption");
+          if (nodeName === 'FIGURE') {
+            returnText = checkDescendant(element, 'figcaption');
             if (nonEmptyText(returnText)) {
               return returnText;
             }
           }
-          if (nodeName === "TABLE") {
-            returnText = checkDescendant(element, "caption");
+          if (nodeName === 'TABLE') {
+            returnText = checkDescendant(element, 'caption');
             if (nonEmptyText(returnText)) {
               return returnText;
             }
-            returnText = element.getAttribute("title") || element.getAttribute("summary") || "";
+            returnText = actualNode.getAttribute('title') || actualNode.getAttribute('summary') || getLayoutTableText(element) || '';
             if (nonEmptyText(returnText)) {
               return returnText;
             }
           }
           if (shouldCheckAlt(element)) {
-            return element.getAttribute("alt") || "";
+            return actualNode.getAttribute('alt') || '';
           }
           if (isInput(element) && !inControlContext) {
             if (isButton(element)) {
-              return element.value || element.title || defaultButtonValues[element.type] || "";
+              return actualNode.value || actualNode.title || defaultButtonValues[actualNode.type] || '';
             }
             var labelElement = findLabel(element);
             if (labelElement) {
               return accessibleNameComputation(labelElement, inLabelledByContext, true);
             }
           }
-          return "";
+          return '';
         }
         function checkARIA(element, inLabelledByContext, inControlContext) {
-          if (!inLabelledByContext && element.hasAttribute("aria-labelledby")) {
-            return text.sanitize(dom.idrefs(element, "aria-labelledby").map(function(l) {
-              if (element === l) {
-                encounteredNodes.pop();
+          var returnText = '';
+          var actualNode = element.actualNode;
+          if (!inLabelledByContext && actualNode.hasAttribute('aria-labelledby')) {
+            returnText = text.sanitize(dom.idrefs(actualNode, 'aria-labelledby').map(function(label) {
+              if (label !== null) {
+                if (actualNode === label) {
+                  encounteredNodes.pop();
+                }
+                var vLabel = axe.utils.getNodeFromTree(axe._tree[0], label);
+                return accessibleNameComputation(vLabel, true, actualNode !== label);
+              } else {
+                return '';
               }
-              //let element be encountered twice
-              return accessibleNameComputation(l, true, element !== l);
-            }).join(" "));
+            }).join(' '));
           }
-          if (!(inControlContext && isEmbeddedControl(element)) && element.hasAttribute("aria-label")) {
-            return text.sanitize(element.getAttribute("aria-label"));
+          if (!returnText && !(inControlContext && isEmbeddedControl(element)) && actualNode.hasAttribute('aria-label')) {
+            return text.sanitize(actualNode.getAttribute('aria-label'));
           }
-          return "";
+          return returnText;
         }
-        /**
-	 * Determine the accessible text of an element, using logic from ARIA:
-	 * http://www.w3.org/TR/accname-aam-1.1/#mapping_additional_nd_name
-	 *
-	 * @param {HTMLElement} element The HTMLElement
-	 * @param {Boolean} inLabelledByContext True when in the context of resolving a labelledBy
-	 * @param {Boolean} inControlContext True when in the context of textifying a widget
-	 * @return {string}
-	 */
         accessibleNameComputation = function accessibleNameComputation(element, inLabelledByContext, inControlContext) {
-          "use strict";
-          var returnText;
-          // If the node was already checked or is null, skip
-          if (element === null || encounteredNodes.indexOf(element) !== -1) {
-            return "";
-          } else {
-            if (!inLabelledByContext && !dom.isVisible(element, true)) {
-              return "";
-            }
+          var returnText = void 0;
+          if (!element || encounteredNodes.includes(element)) {
+            return '';
+          } else if (element !== null && element.actualNode instanceof Node !== true) {
+            throw new Error('Invalid argument. Virtual Node must be provided');
+          } else if (!inLabelledByContext && !dom.isVisible(element.actualNode, true)) {
+            return '';
           }
           encounteredNodes.push(element);
-          var role = element.getAttribute("role");
-          //Step 2b & 2c
+          var role = element.actualNode.getAttribute('role');
           returnText = checkARIA(element, inLabelledByContext, inControlContext);
           if (nonEmptyText(returnText)) {
             return returnText;
           }
-          //Step 2d - native attribute or elements
           returnText = checkNative(element, inLabelledByContext, inControlContext);
           if (nonEmptyText(returnText)) {
             return returnText;
           }
-          //Step 2e
           if (inControlContext) {
-            returnText = formValueText(element);
+            returnText = formValueText(element, inLabelledByContext);
             if (nonEmptyText(returnText)) {
               return returnText;
             }
           }
-          //Step 2f
-          if (!shouldNeverCheckSubtree(element) && (!role || aria.getRolesWithNameFromContents().indexOf(role) !== -1)) {
+          if ((inLabelledByContext || !shouldNeverCheckSubtree(element)) && (!role || aria.getRolesWithNameFromContents().indexOf(role) !== -1)) {
             returnText = getInnerText(element, inLabelledByContext, inControlContext);
             if (nonEmptyText(returnText)) {
               return returnText;
             }
           }
-          //Step 2g - if text node, return value (handled in getInnerText)
-          //Step 2h
-          if (element.hasAttribute("title")) {
-            return element.getAttribute("title");
+          if (element.actualNode.hasAttribute('title')) {
+            return element.actualNode.getAttribute('title');
           }
-          return "";
+          return '';
         };
         return text.sanitize(accessibleNameComputation(element, inLabelledByContext));
       };
-      /*global text, dom, axe, aria */
-      /**
- * Gets the visible text of a label for a given input
- * @see http://www.w3.org/WAI/PF/aria/roles#namecalculation
- * @param  {HTMLElement} node The input to test
- * @return {Mixed}      String of visible text, or `null` if no label is found
- */
-      text.label = function(node) {
-        var ref, candidate;
-        candidate = aria.label(node);
+      var autocomplete = {
+        stateTerms: [ 'on', 'off' ],
+        standaloneTerms: [ 'name', 'honorific-prefix', 'given-name', 'additional-name', 'family-name', 'honorific-suffix', 'nickname', 'username', 'new-password', 'current-password', 'organization-title', 'organization', 'street-address', 'address-line1', 'address-line2', 'address-line3', 'address-level4', 'address-level3', 'address-level2', 'address-level1', 'country', 'country-name', 'postal-code', 'cc-name', 'cc-given-name', 'cc-additional-name', 'cc-family-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc', 'cc-type', 'transaction-currency', 'transaction-amount', 'language', 'bday', 'bday-day', 'bday-month', 'bday-year', 'sex', 'url', 'photo' ],
+        qualifiers: [ 'home', 'work', 'mobile', 'fax', 'pager' ],
+        qualifiedTerms: [ 'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-local-prefix', 'tel-local-suffix', 'tel-extension', 'email', 'impp' ],
+        locations: [ 'billing', 'shipping' ]
+      };
+      text.autocomplete = autocomplete;
+      text.isValidAutocomplete = function isValidAutocomplete(autocomplete) {
+        var _ref32 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {}, _ref32$looseTyped = _ref32.looseTyped, looseTyped = _ref32$looseTyped === undefined ? false : _ref32$looseTyped, _ref32$stateTerms = _ref32.stateTerms, stateTerms = _ref32$stateTerms === undefined ? [] : _ref32$stateTerms, _ref32$locations = _ref32.locations, locations = _ref32$locations === undefined ? [] : _ref32$locations, _ref32$qualifiers = _ref32.qualifiers, qualifiers = _ref32$qualifiers === undefined ? [] : _ref32$qualifiers, _ref32$standaloneTerm = _ref32.standaloneTerms, standaloneTerms = _ref32$standaloneTerm === undefined ? [] : _ref32$standaloneTerm, _ref32$qualifiedTerms = _ref32.qualifiedTerms, qualifiedTerms = _ref32$qualifiedTerms === undefined ? [] : _ref32$qualifiedTerms;
+        autocomplete = autocomplete.toLowerCase().trim();
+        stateTerms = stateTerms.concat(text.autocomplete.stateTerms);
+        if (stateTerms.includes(autocomplete) || autocomplete === '') {
+          return true;
+        }
+        qualifiers = qualifiers.concat(text.autocomplete.qualifiers);
+        locations = locations.concat(text.autocomplete.locations);
+        standaloneTerms = standaloneTerms.concat(text.autocomplete.standaloneTerms);
+        qualifiedTerms = qualifiedTerms.concat(text.autocomplete.qualifiedTerms);
+        var autocompleteTerms = autocomplete.split(/\s+/g);
+        if (!looseTyped) {
+          if (autocompleteTerms[0].length > 8 && autocompleteTerms[0].substr(0, 8) === 'section-') {
+            autocompleteTerms.shift();
+          }
+          if (locations.includes(autocompleteTerms[0])) {
+            autocompleteTerms.shift();
+          }
+          if (qualifiers.includes(autocompleteTerms[0])) {
+            autocompleteTerms.shift();
+            standaloneTerms = [];
+          }
+          if (autocompleteTerms.length !== 1) {
+            return false;
+          }
+        }
+        var purposeTerm = autocompleteTerms[autocompleteTerms.length - 1];
+        return standaloneTerms.includes(purposeTerm) || qualifiedTerms.includes(purposeTerm);
+      };
+      text.labelVirtual = function(node) {
+        var ref, candidate, doc;
+        candidate = aria.labelVirtual(node);
         if (candidate) {
           return candidate;
         }
-        // explicit label
-        if (node.id) {
-          ref = document.querySelector('label[for="' + axe.utils.escapeSelector(node.id) + '"]');
+        if (node.actualNode.id) {
+          var id = axe.commons.utils.escapeSelector(node.actualNode.getAttribute('id'));
+          doc = axe.commons.dom.getRootNode(node.actualNode);
+          ref = doc.querySelector('label[for="' + id + '"]');
           candidate = ref && text.visible(ref, true);
           if (candidate) {
             return candidate;
           }
         }
-        ref = dom.findUp(node, "label");
+        ref = dom.findUpVirtual(node, 'label');
         candidate = ref && text.visible(ref, true);
         if (candidate) {
           return candidate;
         }
         return null;
       };
-      /*global text */ text.sanitize = function(str) {
-        "use strict";
-        return str.replace(/\r\n/g, "\n").replace(/\u00A0/g, " ").replace(/[\s]{2,}/g, " ").trim();
+      text.label = function(node) {
+        node = axe.utils.getNodeFromTree(axe._tree[0], node);
+        return text.labelVirtual(node);
       };
-      /*global text, dom */ text.visible = function(element, screenReader, noRecursing) {
-        "use strict";
-        var index, child, nodeValue, childNodes = element.childNodes, length = childNodes.length, result = "";
-        for (index = 0; index < length; index++) {
-          child = childNodes[index];
-          if (child.nodeType === 3) {
-            nodeValue = child.nodeValue;
-            if (nodeValue && dom.isVisible(element, screenReader)) {
-              result += child.nodeValue;
+      text.sanitize = function(str) {
+        'use strict';
+        return str.replace(/\r\n/g, '\n').replace(/\u00A0/g, ' ').replace(/[\s]{2,}/g, ' ').trim();
+      };
+      text.visibleVirtual = function(element, screenReader, noRecursing) {
+        var result = element.children.map(function(child) {
+          if (child.actualNode.nodeType === 3) {
+            var nodeValue = child.actualNode.nodeValue;
+            if (nodeValue && dom.isVisible(element.actualNode, screenReader)) {
+              return nodeValue;
             }
-          } else {
-            if (!noRecursing) {
-              result += text.visible(child, screenReader);
-            }
+          } else if (!noRecursing) {
+            return text.visibleVirtual(child, screenReader);
           }
-        }
+        }).join('');
         return text.sanitize(result);
       };
-      /*global axe */ axe.utils.toArray = function(thing) {
-        "use strict";
-        return Array.prototype.slice.call(thing);
+      text.visible = function(element, screenReader, noRecursing) {
+        element = axe.utils.getNodeFromTree(axe._tree[0], element);
+        return text.visibleVirtual(element, screenReader, noRecursing);
       };
-      /*global axe */ axe.utils.tokenList = function(str) {
-        "use strict";
-        return str.trim().replace(/\s{2,}/g, " ").split(" ");
+      axe.utils.getBaseLang = function getBaseLang(lang) {
+        if (!lang) {
+          return '';
+        }
+        return lang.trim().split('-')[0].toLowerCase();
+      };
+      var htmlTags = [ 'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base', 'bdi', 'bdo', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption', 'cite', 'code', 'col', 'colgroup', 'data', 'datalist', 'dd', 'del', 'details', 'dfn', 'dialog', 'div', 'dl', 'dt', 'em', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'i', 'iframe', 'img', 'input', 'ins', 'kbd', 'keygen', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark', 'math', 'menu', 'menuitem', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol', 'optgroup', 'option', 'output', 'p', 'param', 'picture', 'pre', 'progress', 'q', 'rb', 'rp', 'rt', 'rtc', 'ruby', 's', 'samp', 'script', 'section', 'select', 'slot', 'small', 'source', 'span', 'strong', 'style', 'sub', 'summary', 'sup', 'svg', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul', 'var', 'video', 'wbr' ];
+      axe.utils.isHtmlElement = function isHtmlElement(node) {
+        var tagName = node.nodeName.toLowerCase();
+        return htmlTags.includes(tagName) && node.namespaceURI !== 'http://www.w3.org/2000/svg';
+      };
+      axe.utils.tokenList = function(str) {
+        'use strict';
+        return str.trim().replace(/\s{2,}/g, ' ').split(' ');
+      };
+      var langs = [ 'aa', 'ab', 'ae', 'af', 'ak', 'am', 'an', 'ar', 'as', 'av', 'ay', 'az', 'ba', 'be', 'bg', 'bh', 'bi', 'bm', 'bn', 'bo', 'br', 'bs', 'ca', 'ce', 'ch', 'co', 'cr', 'cs', 'cu', 'cv', 'cy', 'da', 'de', 'dv', 'dz', 'ee', 'el', 'en', 'eo', 'es', 'et', 'eu', 'fa', 'ff', 'fi', 'fj', 'fo', 'fr', 'fy', 'ga', 'gd', 'gl', 'gn', 'gu', 'gv', 'ha', 'he', 'hi', 'ho', 'hr', 'ht', 'hu', 'hy', 'hz', 'ia', 'id', 'ie', 'ig', 'ii', 'ik', 'in', 'io', 'is', 'it', 'iu', 'iw', 'ja', 'ji', 'jv', 'jw', 'ka', 'kg', 'ki', 'kj', 'kk', 'kl', 'km', 'kn', 'ko', 'kr', 'ks', 'ku', 'kv', 'kw', 'ky', 'la', 'lb', 'lg', 'li', 'ln', 'lo', 'lt', 'lu', 'lv', 'mg', 'mh', 'mi', 'mk', 'ml', 'mn', 'mo', 'mr', 'ms', 'mt', 'my', 'na', 'nb', 'nd', 'ne', 'ng', 'nl', 'nn', 'no', 'nr', 'nv', 'ny', 'oc', 'oj', 'om', 'or', 'os', 'pa', 'pi', 'pl', 'ps', 'pt', 'qu', 'rm', 'rn', 'ro', 'ru', 'rw', 'sa', 'sc', 'sd', 'se', 'sg', 'sh', 'si', 'sk', 'sl', 'sm', 'sn', 'so', 'sq', 'sr', 'ss', 'st', 'su', 'sv', 'sw', 'ta', 'te', 'tg', 'th', 'ti', 'tk', 'tl', 'tn', 'to', 'tr', 'ts', 'tt', 'tw', 'ty', 'ug', 'uk', 'ur', 'uz', 've', 'vi', 'vo', 'wa', 'wo', 'xh', 'yi', 'yo', 'za', 'zh', 'zu', 'aaa', 'aab', 'aac', 'aad', 'aae', 'aaf', 'aag', 'aah', 'aai', 'aak', 'aal', 'aam', 'aan', 'aao', 'aap', 'aaq', 'aas', 'aat', 'aau', 'aav', 'aaw', 'aax', 'aaz', 'aba', 'abb', 'abc', 'abd', 'abe', 'abf', 'abg', 'abh', 'abi', 'abj', 'abl', 'abm', 'abn', 'abo', 'abp', 'abq', 'abr', 'abs', 'abt', 'abu', 'abv', 'abw', 'abx', 'aby', 'abz', 'aca', 'acb', 'acd', 'ace', 'acf', 'ach', 'aci', 'ack', 'acl', 'acm', 'acn', 'acp', 'acq', 'acr', 'acs', 'act', 'acu', 'acv', 'acw', 'acx', 'acy', 'acz', 'ada', 'adb', 'add', 'ade', 'adf', 'adg', 'adh', 'adi', 'adj', 'adl', 'adn', 'ado', 'adp', 'adq', 'adr', 'ads', 'adt', 'adu', 'adw', 'adx', 'ady', 'adz', 'aea', 'aeb', 'aec', 'aed', 'aee', 'aek', 'ael', 'aem', 'aen', 'aeq', 'aer', 'aes', 'aeu', 'aew', 'aey', 'aez', 'afa', 'afb', 'afd', 'afe', 'afg', 'afh', 'afi', 'afk', 'afn', 'afo', 'afp', 'afs', 'aft', 'afu', 'afz', 'aga', 'agb', 'agc', 'agd', 'age', 'agf', 'agg', 'agh', 'agi', 'agj', 'agk', 'agl', 'agm', 'agn', 'ago', 'agp', 'agq', 'agr', 'ags', 'agt', 'agu', 'agv', 'agw', 'agx', 'agy', 'agz', 'aha', 'ahb', 'ahg', 'ahh', 'ahi', 'ahk', 'ahl', 'ahm', 'ahn', 'aho', 'ahp', 'ahr', 'ahs', 'aht', 'aia', 'aib', 'aic', 'aid', 'aie', 'aif', 'aig', 'aih', 'aii', 'aij', 'aik', 'ail', 'aim', 'ain', 'aio', 'aip', 'aiq', 'air', 'ais', 'ait', 'aiw', 'aix', 'aiy', 'aja', 'ajg', 'aji', 'ajn', 'ajp', 'ajt', 'aju', 'ajw', 'ajz', 'akb', 'akc', 'akd', 'ake', 'akf', 'akg', 'akh', 'aki', 'akj', 'akk', 'akl', 'akm', 'ako', 'akp', 'akq', 'akr', 'aks', 'akt', 'aku', 'akv', 'akw', 'akx', 'aky', 'akz', 'ala', 'alc', 'ald', 'ale', 'alf', 'alg', 'alh', 'ali', 'alj', 'alk', 'all', 'alm', 'aln', 'alo', 'alp', 'alq', 'alr', 'als', 'alt', 'alu', 'alv', 'alw', 'alx', 'aly', 'alz', 'ama', 'amb', 'amc', 'ame', 'amf', 'amg', 'ami', 'amj', 'amk', 'aml', 'amm', 'amn', 'amo', 'amp', 'amq', 'amr', 'ams', 'amt', 'amu', 'amv', 'amw', 'amx', 'amy', 'amz', 'ana', 'anb', 'anc', 'and', 'ane', 'anf', 'ang', 'anh', 'ani', 'anj', 'ank', 'anl', 'anm', 'ann', 'ano', 'anp', 'anq', 'anr', 'ans', 'ant', 'anu', 'anv', 'anw', 'anx', 'any', 'anz', 'aoa', 'aob', 'aoc', 'aod', 'aoe', 'aof', 'aog', 'aoh', 'aoi', 'aoj', 'aok', 'aol', 'aom', 'aon', 'aor', 'aos', 'aot', 'aou', 'aox', 'aoz', 'apa', 'apb', 'apc', 'apd', 'ape', 'apf', 'apg', 'aph', 'api', 'apj', 'apk', 'apl', 'apm', 'apn', 'apo', 'app', 'apq', 'apr', 'aps', 'apt', 'apu', 'apv', 'apw', 'apx', 'apy', 'apz', 'aqa', 'aqc', 'aqd', 'aqg', 'aql', 'aqm', 'aqn', 'aqp', 'aqr', 'aqt', 'aqz', 'arb', 'arc', 'ard', 'are', 'arh', 'ari', 'arj', 'ark', 'arl', 'arn', 'aro', 'arp', 'arq', 'arr', 'ars', 'art', 'aru', 'arv', 'arw', 'arx', 'ary', 'arz', 'asa', 'asb', 'asc', 'asd', 'ase', 'asf', 'asg', 'ash', 'asi', 'asj', 'ask', 'asl', 'asn', 'aso', 'asp', 'asq', 'asr', 'ass', 'ast', 'asu', 'asv', 'asw', 'asx', 'asy', 'asz', 'ata', 'atb', 'atc', 'atd', 'ate', 'atg', 'ath', 'ati', 'atj', 'atk', 'atl', 'atm', 'atn', 'ato', 'atp', 'atq', 'atr', 'ats', 'att', 'atu', 'atv', 'atw', 'atx', 'aty', 'atz', 'aua', 'aub', 'auc', 'aud', 'aue', 'auf', 'aug', 'auh', 'aui', 'auj', 'auk', 'aul', 'aum', 'aun', 'auo', 'aup', 'auq', 'aur', 'aus', 'aut', 'auu', 'auw', 'aux', 'auy', 'auz', 'avb', 'avd', 'avi', 'avk', 'avl', 'avm', 'avn', 'avo', 'avs', 'avt', 'avu', 'avv', 'awa', 'awb', 'awc', 'awd', 'awe', 'awg', 'awh', 'awi', 'awk', 'awm', 'awn', 'awo', 'awr', 'aws', 'awt', 'awu', 'awv', 'aww', 'awx', 'awy', 'axb', 'axe', 'axg', 'axk', 'axl', 'axm', 'axx', 'aya', 'ayb', 'ayc', 'ayd', 'aye', 'ayg', 'ayh', 'ayi', 'ayk', 'ayl', 'ayn', 'ayo', 'ayp', 'ayq', 'ayr', 'ays', 'ayt', 'ayu', 'ayx', 'ayy', 'ayz', 'aza', 'azb', 'azc', 'azd', 'azg', 'azj', 'azm', 'azn', 'azo', 'azt', 'azz', 'baa', 'bab', 'bac', 'bad', 'bae', 'baf', 'bag', 'bah', 'bai', 'baj', 'bal', 'ban', 'bao', 'bap', 'bar', 'bas', 'bat', 'bau', 'bav', 'baw', 'bax', 'bay', 'baz', 'bba', 'bbb', 'bbc', 'bbd', 'bbe', 'bbf', 'bbg', 'bbh', 'bbi', 'bbj', 'bbk', 'bbl', 'bbm', 'bbn', 'bbo', 'bbp', 'bbq', 'bbr', 'bbs', 'bbt', 'bbu', 'bbv', 'bbw', 'bbx', 'bby', 'bbz', 'bca', 'bcb', 'bcc', 'bcd', 'bce', 'bcf', 'bcg', 'bch', 'bci', 'bcj', 'bck', 'bcl', 'bcm', 'bcn', 'bco', 'bcp', 'bcq', 'bcr', 'bcs', 'bct', 'bcu', 'bcv', 'bcw', 'bcy', 'bcz', 'bda', 'bdb', 'bdc', 'bdd', 'bde', 'bdf', 'bdg', 'bdh', 'bdi', 'bdj', 'bdk', 'bdl', 'bdm', 'bdn', 'bdo', 'bdp', 'bdq', 'bdr', 'bds', 'bdt', 'bdu', 'bdv', 'bdw', 'bdx', 'bdy', 'bdz', 'bea', 'beb', 'bec', 'bed', 'bee', 'bef', 'beg', 'beh', 'bei', 'bej', 'bek', 'bem', 'beo', 'bep', 'beq', 'ber', 'bes', 'bet', 'beu', 'bev', 'bew', 'bex', 'bey', 'bez', 'bfa', 'bfb', 'bfc', 'bfd', 'bfe', 'bff', 'bfg', 'bfh', 'bfi', 'bfj', 'bfk', 'bfl', 'bfm', 'bfn', 'bfo', 'bfp', 'bfq', 'bfr', 'bfs', 'bft', 'bfu', 'bfw', 'bfx', 'bfy', 'bfz', 'bga', 'bgb', 'bgc', 'bgd', 'bge', 'bgf', 'bgg', 'bgi', 'bgj', 'bgk', 'bgl', 'bgm', 'bgn', 'bgo', 'bgp', 'bgq', 'bgr', 'bgs', 'bgt', 'bgu', 'bgv', 'bgw', 'bgx', 'bgy', 'bgz', 'bha', 'bhb', 'bhc', 'bhd', 'bhe', 'bhf', 'bhg', 'bhh', 'bhi', 'bhj', 'bhk', 'bhl', 'bhm', 'bhn', 'bho', 'bhp', 'bhq', 'bhr', 'bhs', 'bht', 'bhu', 'bhv', 'bhw', 'bhx', 'bhy', 'bhz', 'bia', 'bib', 'bic', 'bid', 'bie', 'bif', 'big', 'bij', 'bik', 'bil', 'bim', 'bin', 'bio', 'bip', 'biq', 'bir', 'bit', 'biu', 'biv', 'biw', 'bix', 'biy', 'biz', 'bja', 'bjb', 'bjc', 'bjd', 'bje', 'bjf', 'bjg', 'bjh', 'bji', 'bjj', 'bjk', 'bjl', 'bjm', 'bjn', 'bjo', 'bjp', 'bjq', 'bjr', 'bjs', 'bjt', 'bju', 'bjv', 'bjw', 'bjx', 'bjy', 'bjz', 'bka', 'bkb', 'bkc', 'bkd', 'bkf', 'bkg', 'bkh', 'bki', 'bkj', 'bkk', 'bkl', 'bkm', 'bkn', 'bko', 'bkp', 'bkq', 'bkr', 'bks', 'bkt', 'bku', 'bkv', 'bkw', 'bkx', 'bky', 'bkz', 'bla', 'blb', 'blc', 'bld', 'ble', 'blf', 'blg', 'blh', 'bli', 'blj', 'blk', 'bll', 'blm', 'bln', 'blo', 'blp', 'blq', 'blr', 'bls', 'blt', 'blv', 'blw', 'blx', 'bly', 'blz', 'bma', 'bmb', 'bmc', 'bmd', 'bme', 'bmf', 'bmg', 'bmh', 'bmi', 'bmj', 'bmk', 'bml', 'bmm', 'bmn', 'bmo', 'bmp', 'bmq', 'bmr', 'bms', 'bmt', 'bmu', 'bmv', 'bmw', 'bmx', 'bmy', 'bmz', 'bna', 'bnb', 'bnc', 'bnd', 'bne', 'bnf', 'bng', 'bni', 'bnj', 'bnk', 'bnl', 'bnm', 'bnn', 'bno', 'bnp', 'bnq', 'bnr', 'bns', 'bnt', 'bnu', 'bnv', 'bnw', 'bnx', 'bny', 'bnz', 'boa', 'bob', 'boe', 'bof', 'bog', 'boh', 'boi', 'boj', 'bok', 'bol', 'bom', 'bon', 'boo', 'bop', 'boq', 'bor', 'bot', 'bou', 'bov', 'bow', 'box', 'boy', 'boz', 'bpa', 'bpb', 'bpd', 'bpg', 'bph', 'bpi', 'bpj', 'bpk', 'bpl', 'bpm', 'bpn', 'bpo', 'bpp', 'bpq', 'bpr', 'bps', 'bpt', 'bpu', 'bpv', 'bpw', 'bpx', 'bpy', 'bpz', 'bqa', 'bqb', 'bqc', 'bqd', 'bqf', 'bqg', 'bqh', 'bqi', 'bqj', 'bqk', 'bql', 'bqm', 'bqn', 'bqo', 'bqp', 'bqq', 'bqr', 'bqs', 'bqt', 'bqu', 'bqv', 'bqw', 'bqx', 'bqy', 'bqz', 'bra', 'brb', 'brc', 'brd', 'brf', 'brg', 'brh', 'bri', 'brj', 'brk', 'brl', 'brm', 'brn', 'bro', 'brp', 'brq', 'brr', 'brs', 'brt', 'bru', 'brv', 'brw', 'brx', 'bry', 'brz', 'bsa', 'bsb', 'bsc', 'bse', 'bsf', 'bsg', 'bsh', 'bsi', 'bsj', 'bsk', 'bsl', 'bsm', 'bsn', 'bso', 'bsp', 'bsq', 'bsr', 'bss', 'bst', 'bsu', 'bsv', 'bsw', 'bsx', 'bsy', 'bta', 'btb', 'btc', 'btd', 'bte', 'btf', 'btg', 'bth', 'bti', 'btj', 'btk', 'btl', 'btm', 'btn', 'bto', 'btp', 'btq', 'btr', 'bts', 'btt', 'btu', 'btv', 'btw', 'btx', 'bty', 'btz', 'bua', 'bub', 'buc', 'bud', 'bue', 'buf', 'bug', 'buh', 'bui', 'buj', 'buk', 'bum', 'bun', 'buo', 'bup', 'buq', 'bus', 'but', 'buu', 'buv', 'buw', 'bux', 'buy', 'buz', 'bva', 'bvb', 'bvc', 'bvd', 'bve', 'bvf', 'bvg', 'bvh', 'bvi', 'bvj', 'bvk', 'bvl', 'bvm', 'bvn', 'bvo', 'bvp', 'bvq', 'bvr', 'bvt', 'bvu', 'bvv', 'bvw', 'bvx', 'bvy', 'bvz', 'bwa', 'bwb', 'bwc', 'bwd', 'bwe', 'bwf', 'bwg', 'bwh', 'bwi', 'bwj', 'bwk', 'bwl', 'bwm', 'bwn', 'bwo', 'bwp', 'bwq', 'bwr', 'bws', 'bwt', 'bwu', 'bww', 'bwx', 'bwy', 'bwz', 'bxa', 'bxb', 'bxc', 'bxd', 'bxe', 'bxf', 'bxg', 'bxh', 'bxi', 'bxj', 'bxk', 'bxl', 'bxm', 'bxn', 'bxo', 'bxp', 'bxq', 'bxr', 'bxs', 'bxu', 'bxv', 'bxw', 'bxx', 'bxz', 'bya', 'byb', 'byc', 'byd', 'bye', 'byf', 'byg', 'byh', 'byi', 'byj', 'byk', 'byl', 'bym', 'byn', 'byo', 'byp', 'byq', 'byr', 'bys', 'byt', 'byv', 'byw', 'byx', 'byy', 'byz', 'bza', 'bzb', 'bzc', 'bzd', 'bze', 'bzf', 'bzg', 'bzh', 'bzi', 'bzj', 'bzk', 'bzl', 'bzm', 'bzn', 'bzo', 'bzp', 'bzq', 'bzr', 'bzs', 'bzt', 'bzu', 'bzv', 'bzw', 'bzx', 'bzy', 'bzz', 'caa', 'cab', 'cac', 'cad', 'cae', 'caf', 'cag', 'cah', 'cai', 'caj', 'cak', 'cal', 'cam', 'can', 'cao', 'cap', 'caq', 'car', 'cas', 'cau', 'cav', 'caw', 'cax', 'cay', 'caz', 'cba', 'cbb', 'cbc', 'cbd', 'cbe', 'cbg', 'cbh', 'cbi', 'cbj', 'cbk', 'cbl', 'cbn', 'cbo', 'cbq', 'cbr', 'cbs', 'cbt', 'cbu', 'cbv', 'cbw', 'cby', 'cca', 'ccc', 'ccd', 'cce', 'ccg', 'cch', 'ccj', 'ccl', 'ccm', 'ccn', 'cco', 'ccp', 'ccq', 'ccr', 'ccs', 'cda', 'cdc', 'cdd', 'cde', 'cdf', 'cdg', 'cdh', 'cdi', 'cdj', 'cdm', 'cdn', 'cdo', 'cdr', 'cds', 'cdy', 'cdz', 'cea', 'ceb', 'ceg', 'cek', 'cel', 'cen', 'cet', 'cfa', 'cfd', 'cfg', 'cfm', 'cga', 'cgc', 'cgg', 'cgk', 'chb', 'chc', 'chd', 'chf', 'chg', 'chh', 'chj', 'chk', 'chl', 'chm', 'chn', 'cho', 'chp', 'chq', 'chr', 'cht', 'chw', 'chx', 'chy', 'chz', 'cia', 'cib', 'cic', 'cid', 'cie', 'cih', 'cik', 'cim', 'cin', 'cip', 'cir', 'ciw', 'ciy', 'cja', 'cje', 'cjh', 'cji', 'cjk', 'cjm', 'cjn', 'cjo', 'cjp', 'cjr', 'cjs', 'cjv', 'cjy', 'cka', 'ckb', 'ckh', 'ckl', 'ckn', 'cko', 'ckq', 'ckr', 'cks', 'ckt', 'cku', 'ckv', 'ckx', 'cky', 'ckz', 'cla', 'clc', 'cld', 'cle', 'clh', 'cli', 'clj', 'clk', 'cll', 'clm', 'clo', 'clt', 'clu', 'clw', 'cly', 'cma', 'cmc', 'cme', 'cmg', 'cmi', 'cmk', 'cml', 'cmm', 'cmn', 'cmo', 'cmr', 'cms', 'cmt', 'cna', 'cnb', 'cnc', 'cng', 'cnh', 'cni', 'cnk', 'cnl', 'cno', 'cnr', 'cns', 'cnt', 'cnu', 'cnw', 'cnx', 'coa', 'cob', 'coc', 'cod', 'coe', 'cof', 'cog', 'coh', 'coj', 'cok', 'col', 'com', 'con', 'coo', 'cop', 'coq', 'cot', 'cou', 'cov', 'cow', 'cox', 'coy', 'coz', 'cpa', 'cpb', 'cpc', 'cpe', 'cpf', 'cpg', 'cpi', 'cpn', 'cpo', 'cpp', 'cps', 'cpu', 'cpx', 'cpy', 'cqd', 'cqu', 'cra', 'crb', 'crc', 'crd', 'crf', 'crg', 'crh', 'cri', 'crj', 'crk', 'crl', 'crm', 'crn', 'cro', 'crp', 'crq', 'crr', 'crs', 'crt', 'crv', 'crw', 'crx', 'cry', 'crz', 'csa', 'csb', 'csc', 'csd', 'cse', 'csf', 'csg', 'csh', 'csi', 'csj', 'csk', 'csl', 'csm', 'csn', 'cso', 'csq', 'csr', 'css', 'cst', 'csu', 'csv', 'csw', 'csy', 'csz', 'cta', 'ctc', 'ctd', 'cte', 'ctg', 'cth', 'ctl', 'ctm', 'ctn', 'cto', 'ctp', 'cts', 'ctt', 'ctu', 'ctz', 'cua', 'cub', 'cuc', 'cug', 'cuh', 'cui', 'cuj', 'cuk', 'cul', 'cum', 'cuo', 'cup', 'cuq', 'cur', 'cus', 'cut', 'cuu', 'cuv', 'cuw', 'cux', 'cuy', 'cvg', 'cvn', 'cwa', 'cwb', 'cwd', 'cwe', 'cwg', 'cwt', 'cya', 'cyb', 'cyo', 'czh', 'czk', 'czn', 'czo', 'czt', 'daa', 'dac', 'dad', 'dae', 'daf', 'dag', 'dah', 'dai', 'daj', 'dak', 'dal', 'dam', 'dao', 'dap', 'daq', 'dar', 'das', 'dau', 'dav', 'daw', 'dax', 'day', 'daz', 'dba', 'dbb', 'dbd', 'dbe', 'dbf', 'dbg', 'dbi', 'dbj', 'dbl', 'dbm', 'dbn', 'dbo', 'dbp', 'dbq', 'dbr', 'dbt', 'dbu', 'dbv', 'dbw', 'dby', 'dcc', 'dcr', 'dda', 'ddd', 'dde', 'ddg', 'ddi', 'ddj', 'ddn', 'ddo', 'ddr', 'dds', 'ddw', 'dec', 'ded', 'dee', 'def', 'deg', 'deh', 'dei', 'dek', 'del', 'dem', 'den', 'dep', 'deq', 'der', 'des', 'dev', 'dez', 'dga', 'dgb', 'dgc', 'dgd', 'dge', 'dgg', 'dgh', 'dgi', 'dgk', 'dgl', 'dgn', 'dgo', 'dgr', 'dgs', 'dgt', 'dgu', 'dgw', 'dgx', 'dgz', 'dha', 'dhd', 'dhg', 'dhi', 'dhl', 'dhm', 'dhn', 'dho', 'dhr', 'dhs', 'dhu', 'dhv', 'dhw', 'dhx', 'dia', 'dib', 'dic', 'did', 'dif', 'dig', 'dih', 'dii', 'dij', 'dik', 'dil', 'dim', 'din', 'dio', 'dip', 'diq', 'dir', 'dis', 'dit', 'diu', 'diw', 'dix', 'diy', 'diz', 'dja', 'djb', 'djc', 'djd', 'dje', 'djf', 'dji', 'djj', 'djk', 'djl', 'djm', 'djn', 'djo', 'djr', 'dju', 'djw', 'dka', 'dkk', 'dkl', 'dkr', 'dks', 'dkx', 'dlg', 'dlk', 'dlm', 'dln', 'dma', 'dmb', 'dmc', 'dmd', 'dme', 'dmg', 'dmk', 'dml', 'dmm', 'dmn', 'dmo', 'dmr', 'dms', 'dmu', 'dmv', 'dmw', 'dmx', 'dmy', 'dna', 'dnd', 'dne', 'dng', 'dni', 'dnj', 'dnk', 'dnn', 'dnr', 'dnt', 'dnu', 'dnv', 'dnw', 'dny', 'doa', 'dob', 'doc', 'doe', 'dof', 'doh', 'doi', 'dok', 'dol', 'don', 'doo', 'dop', 'doq', 'dor', 'dos', 'dot', 'dov', 'dow', 'dox', 'doy', 'doz', 'dpp', 'dra', 'drb', 'drc', 'drd', 'dre', 'drg', 'drh', 'dri', 'drl', 'drn', 'dro', 'drq', 'drr', 'drs', 'drt', 'dru', 'drw', 'dry', 'dsb', 'dse', 'dsh', 'dsi', 'dsl', 'dsn', 'dso', 'dsq', 'dta', 'dtb', 'dtd', 'dth', 'dti', 'dtk', 'dtm', 'dtn', 'dto', 'dtp', 'dtr', 'dts', 'dtt', 'dtu', 'dty', 'dua', 'dub', 'duc', 'dud', 'due', 'duf', 'dug', 'duh', 'dui', 'duj', 'duk', 'dul', 'dum', 'dun', 'duo', 'dup', 'duq', 'dur', 'dus', 'duu', 'duv', 'duw', 'dux', 'duy', 'duz', 'dva', 'dwa', 'dwl', 'dwr', 'dws', 'dwu', 'dww', 'dwy', 'dya', 'dyb', 'dyd', 'dyg', 'dyi', 'dym', 'dyn', 'dyo', 'dyu', 'dyy', 'dza', 'dzd', 'dze', 'dzg', 'dzl', 'dzn', 'eaa', 'ebg', 'ebk', 'ebo', 'ebr', 'ebu', 'ecr', 'ecs', 'ecy', 'eee', 'efa', 'efe', 'efi', 'ega', 'egl', 'ego', 'egx', 'egy', 'ehu', 'eip', 'eit', 'eiv', 'eja', 'eka', 'ekc', 'eke', 'ekg', 'eki', 'ekk', 'ekl', 'ekm', 'eko', 'ekp', 'ekr', 'eky', 'ele', 'elh', 'eli', 'elk', 'elm', 'elo', 'elp', 'elu', 'elx', 'ema', 'emb', 'eme', 'emg', 'emi', 'emk', 'emm', 'emn', 'emo', 'emp', 'ems', 'emu', 'emw', 'emx', 'emy', 'ena', 'enb', 'enc', 'end', 'enf', 'enh', 'enl', 'enm', 'enn', 'eno', 'enq', 'enr', 'enu', 'env', 'enw', 'enx', 'eot', 'epi', 'era', 'erg', 'erh', 'eri', 'erk', 'ero', 'err', 'ers', 'ert', 'erw', 'ese', 'esg', 'esh', 'esi', 'esk', 'esl', 'esm', 'esn', 'eso', 'esq', 'ess', 'esu', 'esx', 'esy', 'etb', 'etc', 'eth', 'etn', 'eto', 'etr', 'ets', 'ett', 'etu', 'etx', 'etz', 'euq', 'eve', 'evh', 'evn', 'ewo', 'ext', 'eya', 'eyo', 'eza', 'eze', 'faa', 'fab', 'fad', 'faf', 'fag', 'fah', 'fai', 'faj', 'fak', 'fal', 'fam', 'fan', 'fap', 'far', 'fat', 'fau', 'fax', 'fay', 'faz', 'fbl', 'fcs', 'fer', 'ffi', 'ffm', 'fgr', 'fia', 'fie', 'fil', 'fip', 'fir', 'fit', 'fiu', 'fiw', 'fkk', 'fkv', 'fla', 'flh', 'fli', 'fll', 'fln', 'flr', 'fly', 'fmp', 'fmu', 'fnb', 'fng', 'fni', 'fod', 'foi', 'fom', 'fon', 'for', 'fos', 'fox', 'fpe', 'fqs', 'frc', 'frd', 'frk', 'frm', 'fro', 'frp', 'frq', 'frr', 'frs', 'frt', 'fse', 'fsl', 'fss', 'fub', 'fuc', 'fud', 'fue', 'fuf', 'fuh', 'fui', 'fuj', 'fum', 'fun', 'fuq', 'fur', 'fut', 'fuu', 'fuv', 'fuy', 'fvr', 'fwa', 'fwe', 'gaa', 'gab', 'gac', 'gad', 'gae', 'gaf', 'gag', 'gah', 'gai', 'gaj', 'gak', 'gal', 'gam', 'gan', 'gao', 'gap', 'gaq', 'gar', 'gas', 'gat', 'gau', 'gav', 'gaw', 'gax', 'gay', 'gaz', 'gba', 'gbb', 'gbc', 'gbd', 'gbe', 'gbf', 'gbg', 'gbh', 'gbi', 'gbj', 'gbk', 'gbl', 'gbm', 'gbn', 'gbo', 'gbp', 'gbq', 'gbr', 'gbs', 'gbu', 'gbv', 'gbw', 'gbx', 'gby', 'gbz', 'gcc', 'gcd', 'gce', 'gcf', 'gcl', 'gcn', 'gcr', 'gct', 'gda', 'gdb', 'gdc', 'gdd', 'gde', 'gdf', 'gdg', 'gdh', 'gdi', 'gdj', 'gdk', 'gdl', 'gdm', 'gdn', 'gdo', 'gdq', 'gdr', 'gds', 'gdt', 'gdu', 'gdx', 'gea', 'geb', 'gec', 'ged', 'geg', 'geh', 'gei', 'gej', 'gek', 'gel', 'gem', 'geq', 'ges', 'gev', 'gew', 'gex', 'gey', 'gez', 'gfk', 'gft', 'gfx', 'gga', 'ggb', 'ggd', 'gge', 'ggg', 'ggk', 'ggl', 'ggn', 'ggo', 'ggr', 'ggt', 'ggu', 'ggw', 'gha', 'ghc', 'ghe', 'ghh', 'ghk', 'ghl', 'ghn', 'gho', 'ghr', 'ghs', 'ght', 'gia', 'gib', 'gic', 'gid', 'gie', 'gig', 'gih', 'gil', 'gim', 'gin', 'gio', 'gip', 'giq', 'gir', 'gis', 'git', 'giu', 'giw', 'gix', 'giy', 'giz', 'gji', 'gjk', 'gjm', 'gjn', 'gjr', 'gju', 'gka', 'gkd', 'gke', 'gkn', 'gko', 'gkp', 'gku', 'glc', 'gld', 'glh', 'gli', 'glj', 'glk', 'gll', 'glo', 'glr', 'glu', 'glw', 'gly', 'gma', 'gmb', 'gmd', 'gme', 'gmg', 'gmh', 'gml', 'gmm', 'gmn', 'gmq', 'gmu', 'gmv', 'gmw', 'gmx', 'gmy', 'gmz', 'gna', 'gnb', 'gnc', 'gnd', 'gne', 'gng', 'gnh', 'gni', 'gnj', 'gnk', 'gnl', 'gnm', 'gnn', 'gno', 'gnq', 'gnr', 'gnt', 'gnu', 'gnw', 'gnz', 'goa', 'gob', 'goc', 'god', 'goe', 'gof', 'gog', 'goh', 'goi', 'goj', 'gok', 'gol', 'gom', 'gon', 'goo', 'gop', 'goq', 'gor', 'gos', 'got', 'gou', 'gow', 'gox', 'goy', 'goz', 'gpa', 'gpe', 'gpn', 'gqa', 'gqi', 'gqn', 'gqr', 'gqu', 'gra', 'grb', 'grc', 'grd', 'grg', 'grh', 'gri', 'grj', 'grk', 'grm', 'gro', 'grq', 'grr', 'grs', 'grt', 'gru', 'grv', 'grw', 'grx', 'gry', 'grz', 'gse', 'gsg', 'gsl', 'gsm', 'gsn', 'gso', 'gsp', 'gss', 'gsw', 'gta', 'gti', 'gtu', 'gua', 'gub', 'guc', 'gud', 'gue', 'guf', 'gug', 'guh', 'gui', 'guk', 'gul', 'gum', 'gun', 'guo', 'gup', 'guq', 'gur', 'gus', 'gut', 'guu', 'guv', 'guw', 'gux', 'guz', 'gva', 'gvc', 'gve', 'gvf', 'gvj', 'gvl', 'gvm', 'gvn', 'gvo', 'gvp', 'gvr', 'gvs', 'gvy', 'gwa', 'gwb', 'gwc', 'gwd', 'gwe', 'gwf', 'gwg', 'gwi', 'gwj', 'gwm', 'gwn', 'gwr', 'gwt', 'gwu', 'gww', 'gwx', 'gxx', 'gya', 'gyb', 'gyd', 'gye', 'gyf', 'gyg', 'gyi', 'gyl', 'gym', 'gyn', 'gyo', 'gyr', 'gyy', 'gza', 'gzi', 'gzn', 'haa', 'hab', 'hac', 'had', 'hae', 'haf', 'hag', 'hah', 'hai', 'haj', 'hak', 'hal', 'ham', 'han', 'hao', 'hap', 'haq', 'har', 'has', 'hav', 'haw', 'hax', 'hay', 'haz', 'hba', 'hbb', 'hbn', 'hbo', 'hbu', 'hca', 'hch', 'hdn', 'hds', 'hdy', 'hea', 'hed', 'heg', 'heh', 'hei', 'hem', 'hgm', 'hgw', 'hhi', 'hhr', 'hhy', 'hia', 'hib', 'hid', 'hif', 'hig', 'hih', 'hii', 'hij', 'hik', 'hil', 'him', 'hio', 'hir', 'hit', 'hiw', 'hix', 'hji', 'hka', 'hke', 'hkk', 'hkn', 'hks', 'hla', 'hlb', 'hld', 'hle', 'hlt', 'hlu', 'hma', 'hmb', 'hmc', 'hmd', 'hme', 'hmf', 'hmg', 'hmh', 'hmi', 'hmj', 'hmk', 'hml', 'hmm', 'hmn', 'hmp', 'hmq', 'hmr', 'hms', 'hmt', 'hmu', 'hmv', 'hmw', 'hmx', 'hmy', 'hmz', 'hna', 'hnd', 'hne', 'hnh', 'hni', 'hnj', 'hnn', 'hno', 'hns', 'hnu', 'hoa', 'hob', 'hoc', 'hod', 'hoe', 'hoh', 'hoi', 'hoj', 'hok', 'hol', 'hom', 'hoo', 'hop', 'hor', 'hos', 'hot', 'hov', 'how', 'hoy', 'hoz', 'hpo', 'hps', 'hra', 'hrc', 'hre', 'hrk', 'hrm', 'hro', 'hrp', 'hrr', 'hrt', 'hru', 'hrw', 'hrx', 'hrz', 'hsb', 'hsh', 'hsl', 'hsn', 'hss', 'hti', 'hto', 'hts', 'htu', 'htx', 'hub', 'huc', 'hud', 'hue', 'huf', 'hug', 'huh', 'hui', 'huj', 'huk', 'hul', 'hum', 'huo', 'hup', 'huq', 'hur', 'hus', 'hut', 'huu', 'huv', 'huw', 'hux', 'huy', 'huz', 'hvc', 'hve', 'hvk', 'hvn', 'hvv', 'hwa', 'hwc', 'hwo', 'hya', 'hyw', 'hyx', 'iai', 'ian', 'iap', 'iar', 'iba', 'ibb', 'ibd', 'ibe', 'ibg', 'ibh', 'ibi', 'ibl', 'ibm', 'ibn', 'ibr', 'ibu', 'iby', 'ica', 'ich', 'icl', 'icr', 'ida', 'idb', 'idc', 'idd', 'ide', 'idi', 'idr', 'ids', 'idt', 'idu', 'ifa', 'ifb', 'ife', 'iff', 'ifk', 'ifm', 'ifu', 'ify', 'igb', 'ige', 'igg', 'igl', 'igm', 'ign', 'igo', 'igs', 'igw', 'ihb', 'ihi', 'ihp', 'ihw', 'iin', 'iir', 'ijc', 'ije', 'ijj', 'ijn', 'ijo', 'ijs', 'ike', 'iki', 'ikk', 'ikl', 'iko', 'ikp', 'ikr', 'iks', 'ikt', 'ikv', 'ikw', 'ikx', 'ikz', 'ila', 'ilb', 'ilg', 'ili', 'ilk', 'ill', 'ilm', 'ilo', 'ilp', 'ils', 'ilu', 'ilv', 'ilw', 'ima', 'ime', 'imi', 'iml', 'imn', 'imo', 'imr', 'ims', 'imy', 'inb', 'inc', 'ine', 'ing', 'inh', 'inj', 'inl', 'inm', 'inn', 'ino', 'inp', 'ins', 'int', 'inz', 'ior', 'iou', 'iow', 'ipi', 'ipo', 'iqu', 'iqw', 'ira', 'ire', 'irh', 'iri', 'irk', 'irn', 'iro', 'irr', 'iru', 'irx', 'iry', 'isa', 'isc', 'isd', 'ise', 'isg', 'ish', 'isi', 'isk', 'ism', 'isn', 'iso', 'isr', 'ist', 'isu', 'itb', 'itc', 'itd', 'ite', 'iti', 'itk', 'itl', 'itm', 'ito', 'itr', 'its', 'itt', 'itv', 'itw', 'itx', 'ity', 'itz', 'ium', 'ivb', 'ivv', 'iwk', 'iwm', 'iwo', 'iws', 'ixc', 'ixl', 'iya', 'iyo', 'iyx', 'izh', 'izi', 'izr', 'izz', 'jaa', 'jab', 'jac', 'jad', 'jae', 'jaf', 'jah', 'jaj', 'jak', 'jal', 'jam', 'jan', 'jao', 'jaq', 'jar', 'jas', 'jat', 'jau', 'jax', 'jay', 'jaz', 'jbe', 'jbi', 'jbj', 'jbk', 'jbn', 'jbo', 'jbr', 'jbt', 'jbu', 'jbw', 'jcs', 'jct', 'jda', 'jdg', 'jdt', 'jeb', 'jee', 'jeg', 'jeh', 'jei', 'jek', 'jel', 'jen', 'jer', 'jet', 'jeu', 'jgb', 'jge', 'jgk', 'jgo', 'jhi', 'jhs', 'jia', 'jib', 'jic', 'jid', 'jie', 'jig', 'jih', 'jii', 'jil', 'jim', 'jio', 'jiq', 'jit', 'jiu', 'jiv', 'jiy', 'jje', 'jjr', 'jka', 'jkm', 'jko', 'jkp', 'jkr', 'jku', 'jle', 'jls', 'jma', 'jmb', 'jmc', 'jmd', 'jmi', 'jml', 'jmn', 'jmr', 'jms', 'jmw', 'jmx', 'jna', 'jnd', 'jng', 'jni', 'jnj', 'jnl', 'jns', 'job', 'jod', 'jog', 'jor', 'jos', 'jow', 'jpa', 'jpr', 'jpx', 'jqr', 'jra', 'jrb', 'jrr', 'jrt', 'jru', 'jsl', 'jua', 'jub', 'juc', 'jud', 'juh', 'jui', 'juk', 'jul', 'jum', 'jun', 'juo', 'jup', 'jur', 'jus', 'jut', 'juu', 'juw', 'juy', 'jvd', 'jvn', 'jwi', 'jya', 'jye', 'jyy', 'kaa', 'kab', 'kac', 'kad', 'kae', 'kaf', 'kag', 'kah', 'kai', 'kaj', 'kak', 'kam', 'kao', 'kap', 'kaq', 'kar', 'kav', 'kaw', 'kax', 'kay', 'kba', 'kbb', 'kbc', 'kbd', 'kbe', 'kbf', 'kbg', 'kbh', 'kbi', 'kbj', 'kbk', 'kbl', 'kbm', 'kbn', 'kbo', 'kbp', 'kbq', 'kbr', 'kbs', 'kbt', 'kbu', 'kbv', 'kbw', 'kbx', 'kby', 'kbz', 'kca', 'kcb', 'kcc', 'kcd', 'kce', 'kcf', 'kcg', 'kch', 'kci', 'kcj', 'kck', 'kcl', 'kcm', 'kcn', 'kco', 'kcp', 'kcq', 'kcr', 'kcs', 'kct', 'kcu', 'kcv', 'kcw', 'kcx', 'kcy', 'kcz', 'kda', 'kdc', 'kdd', 'kde', 'kdf', 'kdg', 'kdh', 'kdi', 'kdj', 'kdk', 'kdl', 'kdm', 'kdn', 'kdo', 'kdp', 'kdq', 'kdr', 'kdt', 'kdu', 'kdv', 'kdw', 'kdx', 'kdy', 'kdz', 'kea', 'keb', 'kec', 'ked', 'kee', 'kef', 'keg', 'keh', 'kei', 'kej', 'kek', 'kel', 'kem', 'ken', 'keo', 'kep', 'keq', 'ker', 'kes', 'ket', 'keu', 'kev', 'kew', 'kex', 'key', 'kez', 'kfa', 'kfb', 'kfc', 'kfd', 'kfe', 'kff', 'kfg', 'kfh', 'kfi', 'kfj', 'kfk', 'kfl', 'kfm', 'kfn', 'kfo', 'kfp', 'kfq', 'kfr', 'kfs', 'kft', 'kfu', 'kfv', 'kfw', 'kfx', 'kfy', 'kfz', 'kga', 'kgb', 'kgc', 'kgd', 'kge', 'kgf', 'kgg', 'kgh', 'kgi', 'kgj', 'kgk', 'kgl', 'kgm', 'kgn', 'kgo', 'kgp', 'kgq', 'kgr', 'kgs', 'kgt', 'kgu', 'kgv', 'kgw', 'kgx', 'kgy', 'kha', 'khb', 'khc', 'khd', 'khe', 'khf', 'khg', 'khh', 'khi', 'khj', 'khk', 'khl', 'khn', 'kho', 'khp', 'khq', 'khr', 'khs', 'kht', 'khu', 'khv', 'khw', 'khx', 'khy', 'khz', 'kia', 'kib', 'kic', 'kid', 'kie', 'kif', 'kig', 'kih', 'kii', 'kij', 'kil', 'kim', 'kio', 'kip', 'kiq', 'kis', 'kit', 'kiu', 'kiv', 'kiw', 'kix', 'kiy', 'kiz', 'kja', 'kjb', 'kjc', 'kjd', 'kje', 'kjf', 'kjg', 'kjh', 'kji', 'kjj', 'kjk', 'kjl', 'kjm', 'kjn', 'kjo', 'kjp', 'kjq', 'kjr', 'kjs', 'kjt', 'kju', 'kjv', 'kjx', 'kjy', 'kjz', 'kka', 'kkb', 'kkc', 'kkd', 'kke', 'kkf', 'kkg', 'kkh', 'kki', 'kkj', 'kkk', 'kkl', 'kkm', 'kkn', 'kko', 'kkp', 'kkq', 'kkr', 'kks', 'kkt', 'kku', 'kkv', 'kkw', 'kkx', 'kky', 'kkz', 'kla', 'klb', 'klc', 'kld', 'kle', 'klf', 'klg', 'klh', 'kli', 'klj', 'klk', 'kll', 'klm', 'kln', 'klo', 'klp', 'klq', 'klr', 'kls', 'klt', 'klu', 'klv', 'klw', 'klx', 'kly', 'klz', 'kma', 'kmb', 'kmc', 'kmd', 'kme', 'kmf', 'kmg', 'kmh', 'kmi', 'kmj', 'kmk', 'kml', 'kmm', 'kmn', 'kmo', 'kmp', 'kmq', 'kmr', 'kms', 'kmt', 'kmu', 'kmv', 'kmw', 'kmx', 'kmy', 'kmz', 'kna', 'knb', 'knc', 'knd', 'kne', 'knf', 'kng', 'kni', 'knj', 'knk', 'knl', 'knm', 'knn', 'kno', 'knp', 'knq', 'knr', 'kns', 'knt', 'knu', 'knv', 'knw', 'knx', 'kny', 'knz', 'koa', 'koc', 'kod', 'koe', 'kof', 'kog', 'koh', 'koi', 'koj', 'kok', 'kol', 'koo', 'kop', 'koq', 'kos', 'kot', 'kou', 'kov', 'kow', 'kox', 'koy', 'koz', 'kpa', 'kpb', 'kpc', 'kpd', 'kpe', 'kpf', 'kpg', 'kph', 'kpi', 'kpj', 'kpk', 'kpl', 'kpm', 'kpn', 'kpo', 'kpp', 'kpq', 'kpr', 'kps', 'kpt', 'kpu', 'kpv', 'kpw', 'kpx', 'kpy', 'kpz', 'kqa', 'kqb', 'kqc', 'kqd', 'kqe', 'kqf', 'kqg', 'kqh', 'kqi', 'kqj', 'kqk', 'kql', 'kqm', 'kqn', 'kqo', 'kqp', 'kqq', 'kqr', 'kqs', 'kqt', 'kqu', 'kqv', 'kqw', 'kqx', 'kqy', 'kqz', 'kra', 'krb', 'krc', 'krd', 'kre', 'krf', 'krh', 'kri', 'krj', 'krk', 'krl', 'krm', 'krn', 'kro', 'krp', 'krr', 'krs', 'krt', 'kru', 'krv', 'krw', 'krx', 'kry', 'krz', 'ksa', 'ksb', 'ksc', 'ksd', 'kse', 'ksf', 'ksg', 'ksh', 'ksi', 'ksj', 'ksk', 'ksl', 'ksm', 'ksn', 'kso', 'ksp', 'ksq', 'ksr', 'kss', 'kst', 'ksu', 'ksv', 'ksw', 'ksx', 'ksy', 'ksz', 'kta', 'ktb', 'ktc', 'ktd', 'kte', 'ktf', 'ktg', 'kth', 'kti', 'ktj', 'ktk', 'ktl', 'ktm', 'ktn', 'kto', 'ktp', 'ktq', 'ktr', 'kts', 'ktt', 'ktu', 'ktv', 'ktw', 'ktx', 'kty', 'ktz', 'kub', 'kuc', 'kud', 'kue', 'kuf', 'kug', 'kuh', 'kui', 'kuj', 'kuk', 'kul', 'kum', 'kun', 'kuo', 'kup', 'kuq', 'kus', 'kut', 'kuu', 'kuv', 'kuw', 'kux', 'kuy', 'kuz', 'kva', 'kvb', 'kvc', 'kvd', 'kve', 'kvf', 'kvg', 'kvh', 'kvi', 'kvj', 'kvk', 'kvl', 'kvm', 'kvn', 'kvo', 'kvp', 'kvq', 'kvr', 'kvs', 'kvt', 'kvu', 'kvv', 'kvw', 'kvx', 'kvy', 'kvz', 'kwa', 'kwb', 'kwc', 'kwd', 'kwe', 'kwf', 'kwg', 'kwh', 'kwi', 'kwj', 'kwk', 'kwl', 'kwm', 'kwn', 'kwo', 'kwp', 'kwq', 'kwr', 'kws', 'kwt', 'kwu', 'kwv', 'kww', 'kwx', 'kwy', 'kwz', 'kxa', 'kxb', 'kxc', 'kxd', 'kxe', 'kxf', 'kxh', 'kxi', 'kxj', 'kxk', 'kxl', 'kxm', 'kxn', 'kxo', 'kxp', 'kxq', 'kxr', 'kxs', 'kxt', 'kxu', 'kxv', 'kxw', 'kxx', 'kxy', 'kxz', 'kya', 'kyb', 'kyc', 'kyd', 'kye', 'kyf', 'kyg', 'kyh', 'kyi', 'kyj', 'kyk', 'kyl', 'kym', 'kyn', 'kyo', 'kyp', 'kyq', 'kyr', 'kys', 'kyt', 'kyu', 'kyv', 'kyw', 'kyx', 'kyy', 'kyz', 'kza', 'kzb', 'kzc', 'kzd', 'kze', 'kzf', 'kzg', 'kzh', 'kzi', 'kzj', 'kzk', 'kzl', 'kzm', 'kzn', 'kzo', 'kzp', 'kzq', 'kzr', 'kzs', 'kzt', 'kzu', 'kzv', 'kzw', 'kzx', 'kzy', 'kzz', 'laa', 'lab', 'lac', 'lad', 'lae', 'laf', 'lag', 'lah', 'lai', 'laj', 'lak', 'lal', 'lam', 'lan', 'lap', 'laq', 'lar', 'las', 'lau', 'law', 'lax', 'lay', 'laz', 'lba', 'lbb', 'lbc', 'lbe', 'lbf', 'lbg', 'lbi', 'lbj', 'lbk', 'lbl', 'lbm', 'lbn', 'lbo', 'lbq', 'lbr', 'lbs', 'lbt', 'lbu', 'lbv', 'lbw', 'lbx', 'lby', 'lbz', 'lcc', 'lcd', 'lce', 'lcf', 'lch', 'lcl', 'lcm', 'lcp', 'lcq', 'lcs', 'lda', 'ldb', 'ldd', 'ldg', 'ldh', 'ldi', 'ldj', 'ldk', 'ldl', 'ldm', 'ldn', 'ldo', 'ldp', 'ldq', 'lea', 'leb', 'lec', 'led', 'lee', 'lef', 'leg', 'leh', 'lei', 'lej', 'lek', 'lel', 'lem', 'len', 'leo', 'lep', 'leq', 'ler', 'les', 'let', 'leu', 'lev', 'lew', 'lex', 'ley', 'lez', 'lfa', 'lfn', 'lga', 'lgb', 'lgg', 'lgh', 'lgi', 'lgk', 'lgl', 'lgm', 'lgn', 'lgq', 'lgr', 'lgt', 'lgu', 'lgz', 'lha', 'lhh', 'lhi', 'lhl', 'lhm', 'lhn', 'lhp', 'lhs', 'lht', 'lhu', 'lia', 'lib', 'lic', 'lid', 'lie', 'lif', 'lig', 'lih', 'lii', 'lij', 'lik', 'lil', 'lio', 'lip', 'liq', 'lir', 'lis', 'liu', 'liv', 'liw', 'lix', 'liy', 'liz', 'lja', 'lje', 'lji', 'ljl', 'ljp', 'ljw', 'ljx', 'lka', 'lkb', 'lkc', 'lkd', 'lke', 'lkh', 'lki', 'lkj', 'lkl', 'lkm', 'lkn', 'lko', 'lkr', 'lks', 'lkt', 'lku', 'lky', 'lla', 'llb', 'llc', 'lld', 'lle', 'llf', 'llg', 'llh', 'lli', 'llj', 'llk', 'lll', 'llm', 'lln', 'llo', 'llp', 'llq', 'lls', 'llu', 'llx', 'lma', 'lmb', 'lmc', 'lmd', 'lme', 'lmf', 'lmg', 'lmh', 'lmi', 'lmj', 'lmk', 'lml', 'lmm', 'lmn', 'lmo', 'lmp', 'lmq', 'lmr', 'lmu', 'lmv', 'lmw', 'lmx', 'lmy', 'lmz', 'lna', 'lnb', 'lnd', 'lng', 'lnh', 'lni', 'lnj', 'lnl', 'lnm', 'lnn', 'lno', 'lns', 'lnu', 'lnw', 'lnz', 'loa', 'lob', 'loc', 'loe', 'lof', 'log', 'loh', 'loi', 'loj', 'lok', 'lol', 'lom', 'lon', 'loo', 'lop', 'loq', 'lor', 'los', 'lot', 'lou', 'lov', 'low', 'lox', 'loy', 'loz', 'lpa', 'lpe', 'lpn', 'lpo', 'lpx', 'lra', 'lrc', 'lre', 'lrg', 'lri', 'lrk', 'lrl', 'lrm', 'lrn', 'lro', 'lrr', 'lrt', 'lrv', 'lrz', 'lsa', 'lsd', 'lse', 'lsg', 'lsh', 'lsi', 'lsl', 'lsm', 'lso', 'lsp', 'lsr', 'lss', 'lst', 'lsy', 'ltc', 'ltg', 'lth', 'lti', 'ltn', 'lto', 'lts', 'ltu', 'lua', 'luc', 'lud', 'lue', 'luf', 'lui', 'luj', 'luk', 'lul', 'lum', 'lun', 'luo', 'lup', 'luq', 'lur', 'lus', 'lut', 'luu', 'luv', 'luw', 'luy', 'luz', 'lva', 'lvk', 'lvs', 'lvu', 'lwa', 'lwe', 'lwg', 'lwh', 'lwl', 'lwm', 'lwo', 'lws', 'lwt', 'lwu', 'lww', 'lya', 'lyg', 'lyn', 'lzh', 'lzl', 'lzn', 'lzz', 'maa', 'mab', 'mad', 'mae', 'maf', 'mag', 'mai', 'maj', 'mak', 'mam', 'man', 'map', 'maq', 'mas', 'mat', 'mau', 'mav', 'maw', 'max', 'maz', 'mba', 'mbb', 'mbc', 'mbd', 'mbe', 'mbf', 'mbh', 'mbi', 'mbj', 'mbk', 'mbl', 'mbm', 'mbn', 'mbo', 'mbp', 'mbq', 'mbr', 'mbs', 'mbt', 'mbu', 'mbv', 'mbw', 'mbx', 'mby', 'mbz', 'mca', 'mcb', 'mcc', 'mcd', 'mce', 'mcf', 'mcg', 'mch', 'mci', 'mcj', 'mck', 'mcl', 'mcm', 'mcn', 'mco', 'mcp', 'mcq', 'mcr', 'mcs', 'mct', 'mcu', 'mcv', 'mcw', 'mcx', 'mcy', 'mcz', 'mda', 'mdb', 'mdc', 'mdd', 'mde', 'mdf', 'mdg', 'mdh', 'mdi', 'mdj', 'mdk', 'mdl', 'mdm', 'mdn', 'mdp', 'mdq', 'mdr', 'mds', 'mdt', 'mdu', 'mdv', 'mdw', 'mdx', 'mdy', 'mdz', 'mea', 'meb', 'mec', 'med', 'mee', 'mef', 'meg', 'meh', 'mei', 'mej', 'mek', 'mel', 'mem', 'men', 'meo', 'mep', 'meq', 'mer', 'mes', 'met', 'meu', 'mev', 'mew', 'mey', 'mez', 'mfa', 'mfb', 'mfc', 'mfd', 'mfe', 'mff', 'mfg', 'mfh', 'mfi', 'mfj', 'mfk', 'mfl', 'mfm', 'mfn', 'mfo', 'mfp', 'mfq', 'mfr', 'mfs', 'mft', 'mfu', 'mfv', 'mfw', 'mfx', 'mfy', 'mfz', 'mga', 'mgb', 'mgc', 'mgd', 'mge', 'mgf', 'mgg', 'mgh', 'mgi', 'mgj', 'mgk', 'mgl', 'mgm', 'mgn', 'mgo', 'mgp', 'mgq', 'mgr', 'mgs', 'mgt', 'mgu', 'mgv', 'mgw', 'mgx', 'mgy', 'mgz', 'mha', 'mhb', 'mhc', 'mhd', 'mhe', 'mhf', 'mhg', 'mhh', 'mhi', 'mhj', 'mhk', 'mhl', 'mhm', 'mhn', 'mho', 'mhp', 'mhq', 'mhr', 'mhs', 'mht', 'mhu', 'mhw', 'mhx', 'mhy', 'mhz', 'mia', 'mib', 'mic', 'mid', 'mie', 'mif', 'mig', 'mih', 'mii', 'mij', 'mik', 'mil', 'mim', 'min', 'mio', 'mip', 'miq', 'mir', 'mis', 'mit', 'miu', 'miw', 'mix', 'miy', 'miz', 'mja', 'mjb', 'mjc', 'mjd', 'mje', 'mjg', 'mjh', 'mji', 'mjj', 'mjk', 'mjl', 'mjm', 'mjn', 'mjo', 'mjp', 'mjq', 'mjr', 'mjs', 'mjt', 'mju', 'mjv', 'mjw', 'mjx', 'mjy', 'mjz', 'mka', 'mkb', 'mkc', 'mke', 'mkf', 'mkg', 'mkh', 'mki', 'mkj', 'mkk', 'mkl', 'mkm', 'mkn', 'mko', 'mkp', 'mkq', 'mkr', 'mks', 'mkt', 'mku', 'mkv', 'mkw', 'mkx', 'mky', 'mkz', 'mla', 'mlb', 'mlc', 'mld', 'mle', 'mlf', 'mlh', 'mli', 'mlj', 'mlk', 'mll', 'mlm', 'mln', 'mlo', 'mlp', 'mlq', 'mlr', 'mls', 'mlu', 'mlv', 'mlw', 'mlx', 'mlz', 'mma', 'mmb', 'mmc', 'mmd', 'mme', 'mmf', 'mmg', 'mmh', 'mmi', 'mmj', 'mmk', 'mml', 'mmm', 'mmn', 'mmo', 'mmp', 'mmq', 'mmr', 'mmt', 'mmu', 'mmv', 'mmw', 'mmx', 'mmy', 'mmz', 'mna', 'mnb', 'mnc', 'mnd', 'mne', 'mnf', 'mng', 'mnh', 'mni', 'mnj', 'mnk', 'mnl', 'mnm', 'mnn', 'mno', 'mnp', 'mnq', 'mnr', 'mns', 'mnt', 'mnu', 'mnv', 'mnw', 'mnx', 'mny', 'mnz', 'moa', 'moc', 'mod', 'moe', 'mof', 'mog', 'moh', 'moi', 'moj', 'mok', 'mom', 'moo', 'mop', 'moq', 'mor', 'mos', 'mot', 'mou', 'mov', 'mow', 'mox', 'moy', 'moz', 'mpa', 'mpb', 'mpc', 'mpd', 'mpe', 'mpg', 'mph', 'mpi', 'mpj', 'mpk', 'mpl', 'mpm', 'mpn', 'mpo', 'mpp', 'mpq', 'mpr', 'mps', 'mpt', 'mpu', 'mpv', 'mpw', 'mpx', 'mpy', 'mpz', 'mqa', 'mqb', 'mqc', 'mqe', 'mqf', 'mqg', 'mqh', 'mqi', 'mqj', 'mqk', 'mql', 'mqm', 'mqn', 'mqo', 'mqp', 'mqq', 'mqr', 'mqs', 'mqt', 'mqu', 'mqv', 'mqw', 'mqx', 'mqy', 'mqz', 'mra', 'mrb', 'mrc', 'mrd', 'mre', 'mrf', 'mrg', 'mrh', 'mrj', 'mrk', 'mrl', 'mrm', 'mrn', 'mro', 'mrp', 'mrq', 'mrr', 'mrs', 'mrt', 'mru', 'mrv', 'mrw', 'mrx', 'mry', 'mrz', 'msb', 'msc', 'msd', 'mse', 'msf', 'msg', 'msh', 'msi', 'msj', 'msk', 'msl', 'msm', 'msn', 'mso', 'msp', 'msq', 'msr', 'mss', 'mst', 'msu', 'msv', 'msw', 'msx', 'msy', 'msz', 'mta', 'mtb', 'mtc', 'mtd', 'mte', 'mtf', 'mtg', 'mth', 'mti', 'mtj', 'mtk', 'mtl', 'mtm', 'mtn', 'mto', 'mtp', 'mtq', 'mtr', 'mts', 'mtt', 'mtu', 'mtv', 'mtw', 'mtx', 'mty', 'mua', 'mub', 'muc', 'mud', 'mue', 'mug', 'muh', 'mui', 'muj', 'muk', 'mul', 'mum', 'mun', 'muo', 'mup', 'muq', 'mur', 'mus', 'mut', 'muu', 'muv', 'mux', 'muy', 'muz', 'mva', 'mvb', 'mvd', 'mve', 'mvf', 'mvg', 'mvh', 'mvi', 'mvk', 'mvl', 'mvm', 'mvn', 'mvo', 'mvp', 'mvq', 'mvr', 'mvs', 'mvt', 'mvu', 'mvv', 'mvw', 'mvx', 'mvy', 'mvz', 'mwa', 'mwb', 'mwc', 'mwd', 'mwe', 'mwf', 'mwg', 'mwh', 'mwi', 'mwj', 'mwk', 'mwl', 'mwm', 'mwn', 'mwo', 'mwp', 'mwq', 'mwr', 'mws', 'mwt', 'mwu', 'mwv', 'mww', 'mwx', 'mwy', 'mwz', 'mxa', 'mxb', 'mxc', 'mxd', 'mxe', 'mxf', 'mxg', 'mxh', 'mxi', 'mxj', 'mxk', 'mxl', 'mxm', 'mxn', 'mxo', 'mxp', 'mxq', 'mxr', 'mxs', 'mxt', 'mxu', 'mxv', 'mxw', 'mxx', 'mxy', 'mxz', 'myb', 'myc', 'myd', 'mye', 'myf', 'myg', 'myh', 'myi', 'myj', 'myk', 'myl', 'mym', 'myn', 'myo', 'myp', 'myq', 'myr', 'mys', 'myt', 'myu', 'myv', 'myw', 'myx', 'myy', 'myz', 'mza', 'mzb', 'mzc', 'mzd', 'mze', 'mzg', 'mzh', 'mzi', 'mzj', 'mzk', 'mzl', 'mzm', 'mzn', 'mzo', 'mzp', 'mzq', 'mzr', 'mzs', 'mzt', 'mzu', 'mzv', 'mzw', 'mzx', 'mzy', 'mzz', 'naa', 'nab', 'nac', 'nad', 'nae', 'naf', 'nag', 'nah', 'nai', 'naj', 'nak', 'nal', 'nam', 'nan', 'nao', 'nap', 'naq', 'nar', 'nas', 'nat', 'naw', 'nax', 'nay', 'naz', 'nba', 'nbb', 'nbc', 'nbd', 'nbe', 'nbf', 'nbg', 'nbh', 'nbi', 'nbj', 'nbk', 'nbm', 'nbn', 'nbo', 'nbp', 'nbq', 'nbr', 'nbs', 'nbt', 'nbu', 'nbv', 'nbw', 'nbx', 'nby', 'nca', 'ncb', 'ncc', 'ncd', 'nce', 'ncf', 'ncg', 'nch', 'nci', 'ncj', 'nck', 'ncl', 'ncm', 'ncn', 'nco', 'ncp', 'ncq', 'ncr', 'ncs', 'nct', 'ncu', 'ncx', 'ncz', 'nda', 'ndb', 'ndc', 'ndd', 'ndf', 'ndg', 'ndh', 'ndi', 'ndj', 'ndk', 'ndl', 'ndm', 'ndn', 'ndp', 'ndq', 'ndr', 'nds', 'ndt', 'ndu', 'ndv', 'ndw', 'ndx', 'ndy', 'ndz', 'nea', 'neb', 'nec', 'ned', 'nee', 'nef', 'neg', 'neh', 'nei', 'nej', 'nek', 'nem', 'nen', 'neo', 'neq', 'ner', 'nes', 'net', 'neu', 'nev', 'new', 'nex', 'ney', 'nez', 'nfa', 'nfd', 'nfl', 'nfr', 'nfu', 'nga', 'ngb', 'ngc', 'ngd', 'nge', 'ngf', 'ngg', 'ngh', 'ngi', 'ngj', 'ngk', 'ngl', 'ngm', 'ngn', 'ngo', 'ngp', 'ngq', 'ngr', 'ngs', 'ngt', 'ngu', 'ngv', 'ngw', 'ngx', 'ngy', 'ngz', 'nha', 'nhb', 'nhc', 'nhd', 'nhe', 'nhf', 'nhg', 'nhh', 'nhi', 'nhk', 'nhm', 'nhn', 'nho', 'nhp', 'nhq', 'nhr', 'nht', 'nhu', 'nhv', 'nhw', 'nhx', 'nhy', 'nhz', 'nia', 'nib', 'nic', 'nid', 'nie', 'nif', 'nig', 'nih', 'nii', 'nij', 'nik', 'nil', 'nim', 'nin', 'nio', 'niq', 'nir', 'nis', 'nit', 'niu', 'niv', 'niw', 'nix', 'niy', 'niz', 'nja', 'njb', 'njd', 'njh', 'nji', 'njj', 'njl', 'njm', 'njn', 'njo', 'njr', 'njs', 'njt', 'nju', 'njx', 'njy', 'njz', 'nka', 'nkb', 'nkc', 'nkd', 'nke', 'nkf', 'nkg', 'nkh', 'nki', 'nkj', 'nkk', 'nkm', 'nkn', 'nko', 'nkp', 'nkq', 'nkr', 'nks', 'nkt', 'nku', 'nkv', 'nkw', 'nkx', 'nkz', 'nla', 'nlc', 'nle', 'nlg', 'nli', 'nlj', 'nlk', 'nll', 'nlm', 'nln', 'nlo', 'nlq', 'nlr', 'nlu', 'nlv', 'nlw', 'nlx', 'nly', 'nlz', 'nma', 'nmb', 'nmc', 'nmd', 'nme', 'nmf', 'nmg', 'nmh', 'nmi', 'nmj', 'nmk', 'nml', 'nmm', 'nmn', 'nmo', 'nmp', 'nmq', 'nmr', 'nms', 'nmt', 'nmu', 'nmv', 'nmw', 'nmx', 'nmy', 'nmz', 'nna', 'nnb', 'nnc', 'nnd', 'nne', 'nnf', 'nng', 'nnh', 'nni', 'nnj', 'nnk', 'nnl', 'nnm', 'nnn', 'nnp', 'nnq', 'nnr', 'nns', 'nnt', 'nnu', 'nnv', 'nnw', 'nnx', 'nny', 'nnz', 'noa', 'noc', 'nod', 'noe', 'nof', 'nog', 'noh', 'noi', 'noj', 'nok', 'nol', 'nom', 'non', 'noo', 'nop', 'noq', 'nos', 'not', 'nou', 'nov', 'now', 'noy', 'noz', 'npa', 'npb', 'npg', 'nph', 'npi', 'npl', 'npn', 'npo', 'nps', 'npu', 'npx', 'npy', 'nqg', 'nqk', 'nql', 'nqm', 'nqn', 'nqo', 'nqq', 'nqy', 'nra', 'nrb', 'nrc', 'nre', 'nrf', 'nrg', 'nri', 'nrk', 'nrl', 'nrm', 'nrn', 'nrp', 'nrr', 'nrt', 'nru', 'nrx', 'nrz', 'nsa', 'nsc', 'nsd', 'nse', 'nsf', 'nsg', 'nsh', 'nsi', 'nsk', 'nsl', 'nsm', 'nsn', 'nso', 'nsp', 'nsq', 'nsr', 'nss', 'nst', 'nsu', 'nsv', 'nsw', 'nsx', 'nsy', 'nsz', 'ntd', 'nte', 'ntg', 'nti', 'ntj', 'ntk', 'ntm', 'nto', 'ntp', 'ntr', 'nts', 'ntu', 'ntw', 'ntx', 'nty', 'ntz', 'nua', 'nub', 'nuc', 'nud', 'nue', 'nuf', 'nug', 'nuh', 'nui', 'nuj', 'nuk', 'nul', 'num', 'nun', 'nuo', 'nup', 'nuq', 'nur', 'nus', 'nut', 'nuu', 'nuv', 'nuw', 'nux', 'nuy', 'nuz', 'nvh', 'nvm', 'nvo', 'nwa', 'nwb', 'nwc', 'nwe', 'nwg', 'nwi', 'nwm', 'nwo', 'nwr', 'nwx', 'nwy', 'nxa', 'nxd', 'nxe', 'nxg', 'nxi', 'nxk', 'nxl', 'nxm', 'nxn', 'nxo', 'nxq', 'nxr', 'nxu', 'nxx', 'nyb', 'nyc', 'nyd', 'nye', 'nyf', 'nyg', 'nyh', 'nyi', 'nyj', 'nyk', 'nyl', 'nym', 'nyn', 'nyo', 'nyp', 'nyq', 'nyr', 'nys', 'nyt', 'nyu', 'nyv', 'nyw', 'nyx', 'nyy', 'nza', 'nzb', 'nzd', 'nzi', 'nzk', 'nzm', 'nzs', 'nzu', 'nzy', 'nzz', 'oaa', 'oac', 'oar', 'oav', 'obi', 'obk', 'obl', 'obm', 'obo', 'obr', 'obt', 'obu', 'oca', 'och', 'oco', 'ocu', 'oda', 'odk', 'odt', 'odu', 'ofo', 'ofs', 'ofu', 'ogb', 'ogc', 'oge', 'ogg', 'ogo', 'ogu', 'oht', 'ohu', 'oia', 'oin', 'ojb', 'ojc', 'ojg', 'ojp', 'ojs', 'ojv', 'ojw', 'oka', 'okb', 'okd', 'oke', 'okg', 'okh', 'oki', 'okj', 'okk', 'okl', 'okm', 'okn', 'oko', 'okr', 'oks', 'oku', 'okv', 'okx', 'ola', 'old', 'ole', 'olk', 'olm', 'olo', 'olr', 'olt', 'olu', 'oma', 'omb', 'omc', 'ome', 'omg', 'omi', 'omk', 'oml', 'omn', 'omo', 'omp', 'omq', 'omr', 'omt', 'omu', 'omv', 'omw', 'omx', 'ona', 'onb', 'one', 'ong', 'oni', 'onj', 'onk', 'onn', 'ono', 'onp', 'onr', 'ons', 'ont', 'onu', 'onw', 'onx', 'ood', 'oog', 'oon', 'oor', 'oos', 'opa', 'opk', 'opm', 'opo', 'opt', 'opy', 'ora', 'orc', 'ore', 'org', 'orh', 'orn', 'oro', 'orr', 'ors', 'ort', 'oru', 'orv', 'orw', 'orx', 'ory', 'orz', 'osa', 'osc', 'osi', 'oso', 'osp', 'ost', 'osu', 'osx', 'ota', 'otb', 'otd', 'ote', 'oti', 'otk', 'otl', 'otm', 'otn', 'oto', 'otq', 'otr', 'ots', 'ott', 'otu', 'otw', 'otx', 'oty', 'otz', 'oua', 'oub', 'oue', 'oui', 'oum', 'oun', 'ovd', 'owi', 'owl', 'oyb', 'oyd', 'oym', 'oyy', 'ozm', 'paa', 'pab', 'pac', 'pad', 'pae', 'paf', 'pag', 'pah', 'pai', 'pak', 'pal', 'pam', 'pao', 'pap', 'paq', 'par', 'pas', 'pat', 'pau', 'pav', 'paw', 'pax', 'pay', 'paz', 'pbb', 'pbc', 'pbe', 'pbf', 'pbg', 'pbh', 'pbi', 'pbl', 'pbm', 'pbn', 'pbo', 'pbp', 'pbr', 'pbs', 'pbt', 'pbu', 'pbv', 'pby', 'pbz', 'pca', 'pcb', 'pcc', 'pcd', 'pce', 'pcf', 'pcg', 'pch', 'pci', 'pcj', 'pck', 'pcl', 'pcm', 'pcn', 'pcp', 'pcr', 'pcw', 'pda', 'pdc', 'pdi', 'pdn', 'pdo', 'pdt', 'pdu', 'pea', 'peb', 'ped', 'pee', 'pef', 'peg', 'peh', 'pei', 'pej', 'pek', 'pel', 'pem', 'peo', 'pep', 'peq', 'pes', 'pev', 'pex', 'pey', 'pez', 'pfa', 'pfe', 'pfl', 'pga', 'pgd', 'pgg', 'pgi', 'pgk', 'pgl', 'pgn', 'pgs', 'pgu', 'pgy', 'pgz', 'pha', 'phd', 'phg', 'phh', 'phi', 'phk', 'phl', 'phm', 'phn', 'pho', 'phq', 'phr', 'pht', 'phu', 'phv', 'phw', 'pia', 'pib', 'pic', 'pid', 'pie', 'pif', 'pig', 'pih', 'pii', 'pij', 'pil', 'pim', 'pin', 'pio', 'pip', 'pir', 'pis', 'pit', 'piu', 'piv', 'piw', 'pix', 'piy', 'piz', 'pjt', 'pka', 'pkb', 'pkc', 'pkg', 'pkh', 'pkn', 'pko', 'pkp', 'pkr', 'pks', 'pkt', 'pku', 'pla', 'plb', 'plc', 'pld', 'ple', 'plf', 'plg', 'plh', 'plj', 'plk', 'pll', 'pln', 'plo', 'plp', 'plq', 'plr', 'pls', 'plt', 'plu', 'plv', 'plw', 'ply', 'plz', 'pma', 'pmb', 'pmc', 'pmd', 'pme', 'pmf', 'pmh', 'pmi', 'pmj', 'pmk', 'pml', 'pmm', 'pmn', 'pmo', 'pmq', 'pmr', 'pms', 'pmt', 'pmu', 'pmw', 'pmx', 'pmy', 'pmz', 'pna', 'pnb', 'pnc', 'pne', 'png', 'pnh', 'pni', 'pnj', 'pnk', 'pnl', 'pnm', 'pnn', 'pno', 'pnp', 'pnq', 'pnr', 'pns', 'pnt', 'pnu', 'pnv', 'pnw', 'pnx', 'pny', 'pnz', 'poc', 'pod', 'poe', 'pof', 'pog', 'poh', 'poi', 'pok', 'pom', 'pon', 'poo', 'pop', 'poq', 'pos', 'pot', 'pov', 'pow', 'pox', 'poy', 'poz', 'ppa', 'ppe', 'ppi', 'ppk', 'ppl', 'ppm', 'ppn', 'ppo', 'ppp', 'ppq', 'ppr', 'pps', 'ppt', 'ppu', 'pqa', 'pqe', 'pqm', 'pqw', 'pra', 'prb', 'prc', 'prd', 'pre', 'prf', 'prg', 'prh', 'pri', 'prk', 'prl', 'prm', 'prn', 'pro', 'prp', 'prq', 'prr', 'prs', 'prt', 'pru', 'prw', 'prx', 'pry', 'prz', 'psa', 'psc', 'psd', 'pse', 'psg', 'psh', 'psi', 'psl', 'psm', 'psn', 'pso', 'psp', 'psq', 'psr', 'pss', 'pst', 'psu', 'psw', 'psy', 'pta', 'pth', 'pti', 'ptn', 'pto', 'ptp', 'ptq', 'ptr', 'ptt', 'ptu', 'ptv', 'ptw', 'pty', 'pua', 'pub', 'puc', 'pud', 'pue', 'puf', 'pug', 'pui', 'puj', 'puk', 'pum', 'puo', 'pup', 'puq', 'pur', 'put', 'puu', 'puw', 'pux', 'puy', 'puz', 'pwa', 'pwb', 'pwg', 'pwi', 'pwm', 'pwn', 'pwo', 'pwr', 'pww', 'pxm', 'pye', 'pym', 'pyn', 'pys', 'pyu', 'pyx', 'pyy', 'pzn', 'qaa..qtz', 'qua', 'qub', 'quc', 'qud', 'quf', 'qug', 'quh', 'qui', 'quk', 'qul', 'qum', 'qun', 'qup', 'quq', 'qur', 'qus', 'quv', 'quw', 'qux', 'quy', 'quz', 'qva', 'qvc', 'qve', 'qvh', 'qvi', 'qvj', 'qvl', 'qvm', 'qvn', 'qvo', 'qvp', 'qvs', 'qvw', 'qvy', 'qvz', 'qwa', 'qwc', 'qwe', 'qwh', 'qwm', 'qws', 'qwt', 'qxa', 'qxc', 'qxh', 'qxl', 'qxn', 'qxo', 'qxp', 'qxq', 'qxr', 'qxs', 'qxt', 'qxu', 'qxw', 'qya', 'qyp', 'raa', 'rab', 'rac', 'rad', 'raf', 'rag', 'rah', 'rai', 'raj', 'rak', 'ral', 'ram', 'ran', 'rao', 'rap', 'raq', 'rar', 'ras', 'rat', 'rau', 'rav', 'raw', 'rax', 'ray', 'raz', 'rbb', 'rbk', 'rbl', 'rbp', 'rcf', 'rdb', 'rea', 'reb', 'ree', 'reg', 'rei', 'rej', 'rel', 'rem', 'ren', 'rer', 'res', 'ret', 'rey', 'rga', 'rge', 'rgk', 'rgn', 'rgr', 'rgs', 'rgu', 'rhg', 'rhp', 'ria', 'rie', 'rif', 'ril', 'rim', 'rin', 'rir', 'rit', 'riu', 'rjg', 'rji', 'rjs', 'rka', 'rkb', 'rkh', 'rki', 'rkm', 'rkt', 'rkw', 'rma', 'rmb', 'rmc', 'rmd', 'rme', 'rmf', 'rmg', 'rmh', 'rmi', 'rmk', 'rml', 'rmm', 'rmn', 'rmo', 'rmp', 'rmq', 'rmr', 'rms', 'rmt', 'rmu', 'rmv', 'rmw', 'rmx', 'rmy', 'rmz', 'rna', 'rnd', 'rng', 'rnl', 'rnn', 'rnp', 'rnr', 'rnw', 'roa', 'rob', 'roc', 'rod', 'roe', 'rof', 'rog', 'rol', 'rom', 'roo', 'rop', 'ror', 'rou', 'row', 'rpn', 'rpt', 'rri', 'rro', 'rrt', 'rsb', 'rsi', 'rsl', 'rsm', 'rtc', 'rth', 'rtm', 'rts', 'rtw', 'rub', 'ruc', 'rue', 'ruf', 'rug', 'ruh', 'rui', 'ruk', 'ruo', 'rup', 'ruq', 'rut', 'ruu', 'ruy', 'ruz', 'rwa', 'rwk', 'rwm', 'rwo', 'rwr', 'rxd', 'rxw', 'ryn', 'rys', 'ryu', 'rzh', 'saa', 'sab', 'sac', 'sad', 'sae', 'saf', 'sah', 'sai', 'saj', 'sak', 'sal', 'sam', 'sao', 'sap', 'saq', 'sar', 'sas', 'sat', 'sau', 'sav', 'saw', 'sax', 'say', 'saz', 'sba', 'sbb', 'sbc', 'sbd', 'sbe', 'sbf', 'sbg', 'sbh', 'sbi', 'sbj', 'sbk', 'sbl', 'sbm', 'sbn', 'sbo', 'sbp', 'sbq', 'sbr', 'sbs', 'sbt', 'sbu', 'sbv', 'sbw', 'sbx', 'sby', 'sbz', 'sca', 'scb', 'sce', 'scf', 'scg', 'sch', 'sci', 'sck', 'scl', 'scn', 'sco', 'scp', 'scq', 'scs', 'sct', 'scu', 'scv', 'scw', 'scx', 'sda', 'sdb', 'sdc', 'sde', 'sdf', 'sdg', 'sdh', 'sdj', 'sdk', 'sdl', 'sdm', 'sdn', 'sdo', 'sdp', 'sdr', 'sds', 'sdt', 'sdu', 'sdv', 'sdx', 'sdz', 'sea', 'seb', 'sec', 'sed', 'see', 'sef', 'seg', 'seh', 'sei', 'sej', 'sek', 'sel', 'sem', 'sen', 'seo', 'sep', 'seq', 'ser', 'ses', 'set', 'seu', 'sev', 'sew', 'sey', 'sez', 'sfb', 'sfe', 'sfm', 'sfs', 'sfw', 'sga', 'sgb', 'sgc', 'sgd', 'sge', 'sgg', 'sgh', 'sgi', 'sgj', 'sgk', 'sgl', 'sgm', 'sgn', 'sgo', 'sgp', 'sgr', 'sgs', 'sgt', 'sgu', 'sgw', 'sgx', 'sgy', 'sgz', 'sha', 'shb', 'shc', 'shd', 'she', 'shg', 'shh', 'shi', 'shj', 'shk', 'shl', 'shm', 'shn', 'sho', 'shp', 'shq', 'shr', 'shs', 'sht', 'shu', 'shv', 'shw', 'shx', 'shy', 'shz', 'sia', 'sib', 'sid', 'sie', 'sif', 'sig', 'sih', 'sii', 'sij', 'sik', 'sil', 'sim', 'sio', 'sip', 'siq', 'sir', 'sis', 'sit', 'siu', 'siv', 'siw', 'six', 'siy', 'siz', 'sja', 'sjb', 'sjd', 'sje', 'sjg', 'sjk', 'sjl', 'sjm', 'sjn', 'sjo', 'sjp', 'sjr', 'sjs', 'sjt', 'sju', 'sjw', 'ska', 'skb', 'skc', 'skd', 'ske', 'skf', 'skg', 'skh', 'ski', 'skj', 'skk', 'skm', 'skn', 'sko', 'skp', 'skq', 'skr', 'sks', 'skt', 'sku', 'skv', 'skw', 'skx', 'sky', 'skz', 'sla', 'slc', 'sld', 'sle', 'slf', 'slg', 'slh', 'sli', 'slj', 'sll', 'slm', 'sln', 'slp', 'slq', 'slr', 'sls', 'slt', 'slu', 'slw', 'slx', 'sly', 'slz', 'sma', 'smb', 'smc', 'smd', 'smf', 'smg', 'smh', 'smi', 'smj', 'smk', 'sml', 'smm', 'smn', 'smp', 'smq', 'smr', 'sms', 'smt', 'smu', 'smv', 'smw', 'smx', 'smy', 'smz', 'snb', 'snc', 'sne', 'snf', 'sng', 'snh', 'sni', 'snj', 'snk', 'snl', 'snm', 'snn', 'sno', 'snp', 'snq', 'snr', 'sns', 'snu', 'snv', 'snw', 'snx', 'sny', 'snz', 'soa', 'sob', 'soc', 'sod', 'soe', 'sog', 'soh', 'soi', 'soj', 'sok', 'sol', 'son', 'soo', 'sop', 'soq', 'sor', 'sos', 'sou', 'sov', 'sow', 'sox', 'soy', 'soz', 'spb', 'spc', 'spd', 'spe', 'spg', 'spi', 'spk', 'spl', 'spm', 'spn', 'spo', 'spp', 'spq', 'spr', 'sps', 'spt', 'spu', 'spv', 'spx', 'spy', 'sqa', 'sqh', 'sqj', 'sqk', 'sqm', 'sqn', 'sqo', 'sqq', 'sqr', 'sqs', 'sqt', 'squ', 'sra', 'srb', 'src', 'sre', 'srf', 'srg', 'srh', 'sri', 'srk', 'srl', 'srm', 'srn', 'sro', 'srq', 'srr', 'srs', 'srt', 'sru', 'srv', 'srw', 'srx', 'sry', 'srz', 'ssa', 'ssb', 'ssc', 'ssd', 'sse', 'ssf', 'ssg', 'ssh', 'ssi', 'ssj', 'ssk', 'ssl', 'ssm', 'ssn', 'sso', 'ssp', 'ssq', 'ssr', 'sss', 'sst', 'ssu', 'ssv', 'ssx', 'ssy', 'ssz', 'sta', 'stb', 'std', 'ste', 'stf', 'stg', 'sth', 'sti', 'stj', 'stk', 'stl', 'stm', 'stn', 'sto', 'stp', 'stq', 'str', 'sts', 'stt', 'stu', 'stv', 'stw', 'sty', 'sua', 'sub', 'suc', 'sue', 'sug', 'sui', 'suj', 'suk', 'sul', 'sum', 'suq', 'sur', 'sus', 'sut', 'suv', 'suw', 'sux', 'suy', 'suz', 'sva', 'svb', 'svc', 'sve', 'svk', 'svm', 'svr', 'svs', 'svx', 'swb', 'swc', 'swf', 'swg', 'swh', 'swi', 'swj', 'swk', 'swl', 'swm', 'swn', 'swo', 'swp', 'swq', 'swr', 'sws', 'swt', 'swu', 'swv', 'sww', 'swx', 'swy', 'sxb', 'sxc', 'sxe', 'sxg', 'sxk', 'sxl', 'sxm', 'sxn', 'sxo', 'sxr', 'sxs', 'sxu', 'sxw', 'sya', 'syb', 'syc', 'syd', 'syi', 'syk', 'syl', 'sym', 'syn', 'syo', 'syr', 'sys', 'syw', 'syx', 'syy', 'sza', 'szb', 'szc', 'szd', 'sze', 'szg', 'szl', 'szn', 'szp', 'szs', 'szv', 'szw', 'taa', 'tab', 'tac', 'tad', 'tae', 'taf', 'tag', 'tai', 'taj', 'tak', 'tal', 'tan', 'tao', 'tap', 'taq', 'tar', 'tas', 'tau', 'tav', 'taw', 'tax', 'tay', 'taz', 'tba', 'tbb', 'tbc', 'tbd', 'tbe', 'tbf', 'tbg', 'tbh', 'tbi', 'tbj', 'tbk', 'tbl', 'tbm', 'tbn', 'tbo', 'tbp', 'tbq', 'tbr', 'tbs', 'tbt', 'tbu', 'tbv', 'tbw', 'tbx', 'tby', 'tbz', 'tca', 'tcb', 'tcc', 'tcd', 'tce', 'tcf', 'tcg', 'tch', 'tci', 'tck', 'tcl', 'tcm', 'tcn', 'tco', 'tcp', 'tcq', 'tcs', 'tct', 'tcu', 'tcw', 'tcx', 'tcy', 'tcz', 'tda', 'tdb', 'tdc', 'tdd', 'tde', 'tdf', 'tdg', 'tdh', 'tdi', 'tdj', 'tdk', 'tdl', 'tdm', 'tdn', 'tdo', 'tdq', 'tdr', 'tds', 'tdt', 'tdu', 'tdv', 'tdx', 'tdy', 'tea', 'teb', 'tec', 'ted', 'tee', 'tef', 'teg', 'teh', 'tei', 'tek', 'tem', 'ten', 'teo', 'tep', 'teq', 'ter', 'tes', 'tet', 'teu', 'tev', 'tew', 'tex', 'tey', 'tez', 'tfi', 'tfn', 'tfo', 'tfr', 'tft', 'tga', 'tgb', 'tgc', 'tgd', 'tge', 'tgf', 'tgg', 'tgh', 'tgi', 'tgj', 'tgn', 'tgo', 'tgp', 'tgq', 'tgr', 'tgs', 'tgt', 'tgu', 'tgv', 'tgw', 'tgx', 'tgy', 'tgz', 'thc', 'thd', 'the', 'thf', 'thh', 'thi', 'thk', 'thl', 'thm', 'thn', 'thp', 'thq', 'thr', 'ths', 'tht', 'thu', 'thv', 'thw', 'thx', 'thy', 'thz', 'tia', 'tic', 'tid', 'tie', 'tif', 'tig', 'tih', 'tii', 'tij', 'tik', 'til', 'tim', 'tin', 'tio', 'tip', 'tiq', 'tis', 'tit', 'tiu', 'tiv', 'tiw', 'tix', 'tiy', 'tiz', 'tja', 'tjg', 'tji', 'tjl', 'tjm', 'tjn', 'tjo', 'tjs', 'tju', 'tjw', 'tka', 'tkb', 'tkd', 'tke', 'tkf', 'tkg', 'tkk', 'tkl', 'tkm', 'tkn', 'tkp', 'tkq', 'tkr', 'tks', 'tkt', 'tku', 'tkv', 'tkw', 'tkx', 'tkz', 'tla', 'tlb', 'tlc', 'tld', 'tlf', 'tlg', 'tlh', 'tli', 'tlj', 'tlk', 'tll', 'tlm', 'tln', 'tlo', 'tlp', 'tlq', 'tlr', 'tls', 'tlt', 'tlu', 'tlv', 'tlw', 'tlx', 'tly', 'tma', 'tmb', 'tmc', 'tmd', 'tme', 'tmf', 'tmg', 'tmh', 'tmi', 'tmj', 'tmk', 'tml', 'tmm', 'tmn', 'tmo', 'tmp', 'tmq', 'tmr', 'tms', 'tmt', 'tmu', 'tmv', 'tmw', 'tmy', 'tmz', 'tna', 'tnb', 'tnc', 'tnd', 'tne', 'tnf', 'tng', 'tnh', 'tni', 'tnk', 'tnl', 'tnm', 'tnn', 'tno', 'tnp', 'tnq', 'tnr', 'tns', 'tnt', 'tnu', 'tnv', 'tnw', 'tnx', 'tny', 'tnz', 'tob', 'toc', 'tod', 'toe', 'tof', 'tog', 'toh', 'toi', 'toj', 'tol', 'tom', 'too', 'top', 'toq', 'tor', 'tos', 'tou', 'tov', 'tow', 'tox', 'toy', 'toz', 'tpa', 'tpc', 'tpe', 'tpf', 'tpg', 'tpi', 'tpj', 'tpk', 'tpl', 'tpm', 'tpn', 'tpo', 'tpp', 'tpq', 'tpr', 'tpt', 'tpu', 'tpv', 'tpw', 'tpx', 'tpy', 'tpz', 'tqb', 'tql', 'tqm', 'tqn', 'tqo', 'tqp', 'tqq', 'tqr', 'tqt', 'tqu', 'tqw', 'tra', 'trb', 'trc', 'trd', 'tre', 'trf', 'trg', 'trh', 'tri', 'trj', 'trk', 'trl', 'trm', 'trn', 'tro', 'trp', 'trq', 'trr', 'trs', 'trt', 'tru', 'trv', 'trw', 'trx', 'try', 'trz', 'tsa', 'tsb', 'tsc', 'tsd', 'tse', 'tsf', 'tsg', 'tsh', 'tsi', 'tsj', 'tsk', 'tsl', 'tsm', 'tsp', 'tsq', 'tsr', 'tss', 'tst', 'tsu', 'tsv', 'tsw', 'tsx', 'tsy', 'tsz', 'tta', 'ttb', 'ttc', 'ttd', 'tte', 'ttf', 'ttg', 'tth', 'tti', 'ttj', 'ttk', 'ttl', 'ttm', 'ttn', 'tto', 'ttp', 'ttq', 'ttr', 'tts', 'ttt', 'ttu', 'ttv', 'ttw', 'tty', 'ttz', 'tua', 'tub', 'tuc', 'tud', 'tue', 'tuf', 'tug', 'tuh', 'tui', 'tuj', 'tul', 'tum', 'tun', 'tuo', 'tup', 'tuq', 'tus', 'tut', 'tuu', 'tuv', 'tuw', 'tux', 'tuy', 'tuz', 'tva', 'tvd', 'tve', 'tvk', 'tvl', 'tvm', 'tvn', 'tvo', 'tvs', 'tvt', 'tvu', 'tvw', 'tvy', 'twa', 'twb', 'twc', 'twd', 'twe', 'twf', 'twg', 'twh', 'twl', 'twm', 'twn', 'two', 'twp', 'twq', 'twr', 'twt', 'twu', 'tww', 'twx', 'twy', 'txa', 'txb', 'txc', 'txe', 'txg', 'txh', 'txi', 'txj', 'txm', 'txn', 'txo', 'txq', 'txr', 'txs', 'txt', 'txu', 'txx', 'txy', 'tya', 'tye', 'tyh', 'tyi', 'tyj', 'tyl', 'tyn', 'typ', 'tyr', 'tys', 'tyt', 'tyu', 'tyv', 'tyx', 'tyz', 'tza', 'tzh', 'tzj', 'tzl', 'tzm', 'tzn', 'tzo', 'tzx', 'uam', 'uan', 'uar', 'uba', 'ubi', 'ubl', 'ubr', 'ubu', 'uby', 'uda', 'ude', 'udg', 'udi', 'udj', 'udl', 'udm', 'udu', 'ues', 'ufi', 'uga', 'ugb', 'uge', 'ugn', 'ugo', 'ugy', 'uha', 'uhn', 'uis', 'uiv', 'uji', 'uka', 'ukg', 'ukh', 'ukk', 'ukl', 'ukp', 'ukq', 'uks', 'uku', 'ukw', 'uky', 'ula', 'ulb', 'ulc', 'ule', 'ulf', 'uli', 'ulk', 'ull', 'ulm', 'uln', 'ulu', 'ulw', 'uma', 'umb', 'umc', 'umd', 'umg', 'umi', 'umm', 'umn', 'umo', 'ump', 'umr', 'ums', 'umu', 'una', 'und', 'une', 'ung', 'unk', 'unm', 'unn', 'unp', 'unr', 'unu', 'unx', 'unz', 'uok', 'upi', 'upv', 'ura', 'urb', 'urc', 'ure', 'urf', 'urg', 'urh', 'uri', 'urj', 'urk', 'url', 'urm', 'urn', 'uro', 'urp', 'urr', 'urt', 'uru', 'urv', 'urw', 'urx', 'ury', 'urz', 'usa', 'ush', 'usi', 'usk', 'usp', 'usu', 'uta', 'ute', 'utp', 'utr', 'utu', 'uum', 'uun', 'uur', 'uuu', 'uve', 'uvh', 'uvl', 'uwa', 'uya', 'uzn', 'uzs', 'vaa', 'vae', 'vaf', 'vag', 'vah', 'vai', 'vaj', 'val', 'vam', 'van', 'vao', 'vap', 'var', 'vas', 'vau', 'vav', 'vay', 'vbb', 'vbk', 'vec', 'ved', 'vel', 'vem', 'veo', 'vep', 'ver', 'vgr', 'vgt', 'vic', 'vid', 'vif', 'vig', 'vil', 'vin', 'vis', 'vit', 'viv', 'vka', 'vki', 'vkj', 'vkk', 'vkl', 'vkm', 'vko', 'vkp', 'vkt', 'vku', 'vlp', 'vls', 'vma', 'vmb', 'vmc', 'vmd', 'vme', 'vmf', 'vmg', 'vmh', 'vmi', 'vmj', 'vmk', 'vml', 'vmm', 'vmp', 'vmq', 'vmr', 'vms', 'vmu', 'vmv', 'vmw', 'vmx', 'vmy', 'vmz', 'vnk', 'vnm', 'vnp', 'vor', 'vot', 'vra', 'vro', 'vrs', 'vrt', 'vsi', 'vsl', 'vsv', 'vto', 'vum', 'vun', 'vut', 'vwa', 'waa', 'wab', 'wac', 'wad', 'wae', 'waf', 'wag', 'wah', 'wai', 'waj', 'wak', 'wal', 'wam', 'wan', 'wao', 'wap', 'waq', 'war', 'was', 'wat', 'wau', 'wav', 'waw', 'wax', 'way', 'waz', 'wba', 'wbb', 'wbe', 'wbf', 'wbh', 'wbi', 'wbj', 'wbk', 'wbl', 'wbm', 'wbp', 'wbq', 'wbr', 'wbs', 'wbt', 'wbv', 'wbw', 'wca', 'wci', 'wdd', 'wdg', 'wdj', 'wdk', 'wdu', 'wdy', 'wea', 'wec', 'wed', 'weg', 'weh', 'wei', 'wem', 'wen', 'weo', 'wep', 'wer', 'wes', 'wet', 'weu', 'wew', 'wfg', 'wga', 'wgb', 'wgg', 'wgi', 'wgo', 'wgu', 'wgw', 'wgy', 'wha', 'whg', 'whk', 'whu', 'wib', 'wic', 'wie', 'wif', 'wig', 'wih', 'wii', 'wij', 'wik', 'wil', 'wim', 'win', 'wir', 'wit', 'wiu', 'wiv', 'wiw', 'wiy', 'wja', 'wji', 'wka', 'wkb', 'wkd', 'wkl', 'wku', 'wkw', 'wky', 'wla', 'wlc', 'wle', 'wlg', 'wli', 'wlk', 'wll', 'wlm', 'wlo', 'wlr', 'wls', 'wlu', 'wlv', 'wlw', 'wlx', 'wly', 'wma', 'wmb', 'wmc', 'wmd', 'wme', 'wmh', 'wmi', 'wmm', 'wmn', 'wmo', 'wms', 'wmt', 'wmw', 'wmx', 'wnb', 'wnc', 'wnd', 'wne', 'wng', 'wni', 'wnk', 'wnm', 'wnn', 'wno', 'wnp', 'wnu', 'wnw', 'wny', 'woa', 'wob', 'woc', 'wod', 'woe', 'wof', 'wog', 'woi', 'wok', 'wom', 'won', 'woo', 'wor', 'wos', 'wow', 'woy', 'wpc', 'wra', 'wrb', 'wrd', 'wrg', 'wrh', 'wri', 'wrk', 'wrl', 'wrm', 'wrn', 'wro', 'wrp', 'wrr', 'wrs', 'wru', 'wrv', 'wrw', 'wrx', 'wry', 'wrz', 'wsa', 'wsg', 'wsi', 'wsk', 'wsr', 'wss', 'wsu', 'wsv', 'wtf', 'wth', 'wti', 'wtk', 'wtm', 'wtw', 'wua', 'wub', 'wud', 'wuh', 'wul', 'wum', 'wun', 'wur', 'wut', 'wuu', 'wuv', 'wux', 'wuy', 'wwa', 'wwb', 'wwo', 'wwr', 'www', 'wxa', 'wxw', 'wya', 'wyb', 'wyi', 'wym', 'wyr', 'wyy', 'xaa', 'xab', 'xac', 'xad', 'xae', 'xag', 'xai', 'xaj', 'xak', 'xal', 'xam', 'xan', 'xao', 'xap', 'xaq', 'xar', 'xas', 'xat', 'xau', 'xav', 'xaw', 'xay', 'xba', 'xbb', 'xbc', 'xbd', 'xbe', 'xbg', 'xbi', 'xbj', 'xbm', 'xbn', 'xbo', 'xbp', 'xbr', 'xbw', 'xbx', 'xby', 'xcb', 'xcc', 'xce', 'xcg', 'xch', 'xcl', 'xcm', 'xcn', 'xco', 'xcr', 'xct', 'xcu', 'xcv', 'xcw', 'xcy', 'xda', 'xdc', 'xdk', 'xdm', 'xdo', 'xdy', 'xeb', 'xed', 'xeg', 'xel', 'xem', 'xep', 'xer', 'xes', 'xet', 'xeu', 'xfa', 'xga', 'xgb', 'xgd', 'xgf', 'xgg', 'xgi', 'xgl', 'xgm', 'xgn', 'xgr', 'xgu', 'xgw', 'xha', 'xhc', 'xhd', 'xhe', 'xhr', 'xht', 'xhu', 'xhv', 'xia', 'xib', 'xii', 'xil', 'xin', 'xip', 'xir', 'xis', 'xiv', 'xiy', 'xjb', 'xjt', 'xka', 'xkb', 'xkc', 'xkd', 'xke', 'xkf', 'xkg', 'xkh', 'xki', 'xkj', 'xkk', 'xkl', 'xkn', 'xko', 'xkp', 'xkq', 'xkr', 'xks', 'xkt', 'xku', 'xkv', 'xkw', 'xkx', 'xky', 'xkz', 'xla', 'xlb', 'xlc', 'xld', 'xle', 'xlg', 'xli', 'xln', 'xlo', 'xlp', 'xls', 'xlu', 'xly', 'xma', 'xmb', 'xmc', 'xmd', 'xme', 'xmf', 'xmg', 'xmh', 'xmj', 'xmk', 'xml', 'xmm', 'xmn', 'xmo', 'xmp', 'xmq', 'xmr', 'xms', 'xmt', 'xmu', 'xmv', 'xmw', 'xmx', 'xmy', 'xmz', 'xna', 'xnb', 'xnd', 'xng', 'xnh', 'xni', 'xnk', 'xnn', 'xno', 'xnr', 'xns', 'xnt', 'xnu', 'xny', 'xnz', 'xoc', 'xod', 'xog', 'xoi', 'xok', 'xom', 'xon', 'xoo', 'xop', 'xor', 'xow', 'xpa', 'xpc', 'xpe', 'xpg', 'xpi', 'xpj', 'xpk', 'xpm', 'xpn', 'xpo', 'xpp', 'xpq', 'xpr', 'xps', 'xpt', 'xpu', 'xpy', 'xqa', 'xqt', 'xra', 'xrb', 'xrd', 'xre', 'xrg', 'xri', 'xrm', 'xrn', 'xrq', 'xrr', 'xrt', 'xru', 'xrw', 'xsa', 'xsb', 'xsc', 'xsd', 'xse', 'xsh', 'xsi', 'xsj', 'xsl', 'xsm', 'xsn', 'xso', 'xsp', 'xsq', 'xsr', 'xss', 'xsu', 'xsv', 'xsy', 'xta', 'xtb', 'xtc', 'xtd', 'xte', 'xtg', 'xth', 'xti', 'xtj', 'xtl', 'xtm', 'xtn', 'xto', 'xtp', 'xtq', 'xtr', 'xts', 'xtt', 'xtu', 'xtv', 'xtw', 'xty', 'xtz', 'xua', 'xub', 'xud', 'xug', 'xuj', 'xul', 'xum', 'xun', 'xuo', 'xup', 'xur', 'xut', 'xuu', 'xve', 'xvi', 'xvn', 'xvo', 'xvs', 'xwa', 'xwc', 'xwd', 'xwe', 'xwg', 'xwj', 'xwk', 'xwl', 'xwo', 'xwr', 'xwt', 'xww', 'xxb', 'xxk', 'xxm', 'xxr', 'xxt', 'xya', 'xyb', 'xyj', 'xyk', 'xyl', 'xyt', 'xyy', 'xzh', 'xzm', 'xzp', 'yaa', 'yab', 'yac', 'yad', 'yae', 'yaf', 'yag', 'yah', 'yai', 'yaj', 'yak', 'yal', 'yam', 'yan', 'yao', 'yap', 'yaq', 'yar', 'yas', 'yat', 'yau', 'yav', 'yaw', 'yax', 'yay', 'yaz', 'yba', 'ybb', 'ybd', 'ybe', 'ybh', 'ybi', 'ybj', 'ybk', 'ybl', 'ybm', 'ybn', 'ybo', 'ybx', 'yby', 'ych', 'ycl', 'ycn', 'ycp', 'yda', 'ydd', 'yde', 'ydg', 'ydk', 'yds', 'yea', 'yec', 'yee', 'yei', 'yej', 'yel', 'yen', 'yer', 'yes', 'yet', 'yeu', 'yev', 'yey', 'yga', 'ygi', 'ygl', 'ygm', 'ygp', 'ygr', 'ygs', 'ygu', 'ygw', 'yha', 'yhd', 'yhl', 'yhs', 'yia', 'yif', 'yig', 'yih', 'yii', 'yij', 'yik', 'yil', 'yim', 'yin', 'yip', 'yiq', 'yir', 'yis', 'yit', 'yiu', 'yiv', 'yix', 'yiy', 'yiz', 'yka', 'ykg', 'yki', 'ykk', 'ykl', 'ykm', 'ykn', 'yko', 'ykr', 'ykt', 'yku', 'yky', 'yla', 'ylb', 'yle', 'ylg', 'yli', 'yll', 'ylm', 'yln', 'ylo', 'ylr', 'ylu', 'yly', 'yma', 'ymb', 'ymc', 'ymd', 'yme', 'ymg', 'ymh', 'ymi', 'ymk', 'yml', 'ymm', 'ymn', 'ymo', 'ymp', 'ymq', 'ymr', 'yms', 'ymt', 'ymx', 'ymz', 'yna', 'ynd', 'yne', 'yng', 'ynh', 'ynk', 'ynl', 'ynn', 'yno', 'ynq', 'yns', 'ynu', 'yob', 'yog', 'yoi', 'yok', 'yol', 'yom', 'yon', 'yos', 'yot', 'yox', 'yoy', 'ypa', 'ypb', 'ypg', 'yph', 'ypk', 'ypm', 'ypn', 'ypo', 'ypp', 'ypz', 'yra', 'yrb', 'yre', 'yri', 'yrk', 'yrl', 'yrm', 'yrn', 'yro', 'yrs', 'yrw', 'yry', 'ysc', 'ysd', 'ysg', 'ysl', 'ysn', 'yso', 'ysp', 'ysr', 'yss', 'ysy', 'yta', 'ytl', 'ytp', 'ytw', 'yty', 'yua', 'yub', 'yuc', 'yud', 'yue', 'yuf', 'yug', 'yui', 'yuj', 'yuk', 'yul', 'yum', 'yun', 'yup', 'yuq', 'yur', 'yut', 'yuu', 'yuw', 'yux', 'yuy', 'yuz', 'yva', 'yvt', 'ywa', 'ywg', 'ywl', 'ywn', 'ywq', 'ywr', 'ywt', 'ywu', 'yww', 'yxa', 'yxg', 'yxl', 'yxm', 'yxu', 'yxy', 'yyr', 'yyu', 'yyz', 'yzg', 'yzk', 'zaa', 'zab', 'zac', 'zad', 'zae', 'zaf', 'zag', 'zah', 'zai', 'zaj', 'zak', 'zal', 'zam', 'zao', 'zap', 'zaq', 'zar', 'zas', 'zat', 'zau', 'zav', 'zaw', 'zax', 'zay', 'zaz', 'zbc', 'zbe', 'zbl', 'zbt', 'zbw', 'zca', 'zch', 'zdj', 'zea', 'zeg', 'zeh', 'zen', 'zga', 'zgb', 'zgh', 'zgm', 'zgn', 'zgr', 'zhb', 'zhd', 'zhi', 'zhn', 'zhw', 'zhx', 'zia', 'zib', 'zik', 'zil', 'zim', 'zin', 'zir', 'ziw', 'ziz', 'zka', 'zkb', 'zkd', 'zkg', 'zkh', 'zkk', 'zkn', 'zko', 'zkp', 'zkr', 'zkt', 'zku', 'zkv', 'zkz', 'zle', 'zlj', 'zlm', 'zln', 'zlq', 'zls', 'zlw', 'zma', 'zmb', 'zmc', 'zmd', 'zme', 'zmf', 'zmg', 'zmh', 'zmi', 'zmj', 'zmk', 'zml', 'zmm', 'zmn', 'zmo', 'zmp', 'zmq', 'zmr', 'zms', 'zmt', 'zmu', 'zmv', 'zmw', 'zmx', 'zmy', 'zmz', 'zna', 'znd', 'zne', 'zng', 'znk', 'zns', 'zoc', 'zoh', 'zom', 'zoo', 'zoq', 'zor', 'zos', 'zpa', 'zpb', 'zpc', 'zpd', 'zpe', 'zpf', 'zpg', 'zph', 'zpi', 'zpj', 'zpk', 'zpl', 'zpm', 'zpn', 'zpo', 'zpp', 'zpq', 'zpr', 'zps', 'zpt', 'zpu', 'zpv', 'zpw', 'zpx', 'zpy', 'zpz', 'zqe', 'zra', 'zrg', 'zrn', 'zro', 'zrp', 'zrs', 'zsa', 'zsk', 'zsl', 'zsm', 'zsr', 'zsu', 'zte', 'ztg', 'ztl', 'ztm', 'ztn', 'ztp', 'ztq', 'zts', 'ztt', 'ztu', 'ztx', 'zty', 'zua', 'zuh', 'zum', 'zun', 'zuy', 'zwa', 'zxx', 'zyb', 'zyg', 'zyj', 'zyn', 'zyp', 'zza', 'zzj' ];
+      axe.utils.validLangs = function() {
+        'use strict';
+        return langs;
       };
       return commons;
     }()
   });
-})(typeof window === "object" ? window : this);
+})(typeof window === 'object' ? window : this);

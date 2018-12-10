@@ -19,7 +19,7 @@
         });
         page.switchToMainFrame();
         page.evaluateAsync(function () {
-            axe.a11yCheck(document.body, null, function (results) {
+            axe.run(document.body, function(err, results) {
                 window.callPhantom(results);
             });
         });
