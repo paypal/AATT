@@ -9,7 +9,7 @@
     "debug": "^2.2.0",
     "express": "~4.10.7",
     "express-session": "~1.10.1",
-    "handlebars": "~2.0.0",
+    "handlebars": "~4.0.0",
     "nconf": "^0.7.2",
     "phantomjs": "~2.1.1"
   },
