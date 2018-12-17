@@ -203,16 +203,10 @@ if (fs.existsSync(ssl_path)) {
 	});
 
 	app.post('/evaluate', function(req, res) {
-		var engine	= req.body.engine;		//Eg htmlcs, chrome, axe 		default:htmlcs
-		var output = req.body.output;		// Eg. json, string  		default: string
-		var level = req.body.level;			//E.g. WCAG2AA, WCAG2A, WCAG2AAA, Section508 	default:WCAG2AA
-		var errLevel = req.body.errLevel;	// Eg. 1,2,3   1 means Error, 2 means Warning, 3 means Notice 	default:1,2,3
-		var source = req.body.source;
-
-		evaluate(req.body).then(function(stdout) {
+		evaluate(req.body, true).then(function(stdout) {
 			res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
 			res.write(stdout);
 			res.end();
 			log(stdout);
 		});
-	})
+	});
