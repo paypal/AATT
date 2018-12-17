@@ -1,6 +1,6 @@
 {
   "name": "aatt",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Automated Accessibility Testing Tool",
   "main": "module.js",
   "dependencies": {
