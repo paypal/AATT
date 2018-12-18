@@ -1,7 +1,7 @@
 //R E Q U I R E S
 var express = require('express')
 var app = express();
-var http = require('http'); 
+var http = require('http');
 var https = require('https');
 var cons = require('consolidate')
 var childProcess = require('child_process');
@@ -15,6 +15,7 @@ var debug = require('debug');
 var log = debug('AATT:log');
 var error = debug('AATT:error');
 var nconf = require('nconf');
+var { evaluate } = require('./module.js');
 
 nconf.env().argv();
 
@@ -40,13 +41,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'src')));
 app.use('/test', express.static(__dirname + '/test'));
 app.use('/screenshots', express.static(__dirname + '/screenshots'));
-app.use('/Auditor',express.static(path.join(__dirname, 'src/HTML_CodeSniffer/Auditor')));    
+app.use('/Auditor',express.static(path.join(__dirname, 'src/HTML_CodeSniffer/Auditor')));
 app.use('/Images',express.static(path.join(__dirname, 'src/HTML_CodeSniffer/Auditor/Images')));
 
 
 if (fs.existsSync(ssl_path)) {
 		var hskey = fs.readFileSync(ssl_path);
-		var hscert = fs.readFileSync(cert_file) ; 	
+		var hscert = fs.readFileSync(cert_file) ;
 		var options = {
 		    key: hskey,
 		    cert: hscert
@@ -57,7 +58,7 @@ if (fs.existsSync(ssl_path)) {
 
 } else {
 		var server = http.createServer(app);
-		app.listen(http_port);					
+		app.listen(http_port);
 		log('Express started on port ', http_port);
 }
 
@@ -117,10 +118,10 @@ if (fs.existsSync(ssl_path)) {
 		}
 		if(engine === 'axe'){
 			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'), req.body.textURL, output];
-		}	
+		}
 		if(engine === 'chrome'){
 			childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), req.body.textURL, output];
-		}	
+		}
 		childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 			res.json({ userName: userName, data: stdout });
 			log(stdout);
@@ -154,11 +155,11 @@ if (fs.existsSync(ssl_path)) {
 			}
 			if(engine === 'axe'){
 				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'),  tempFilename, output];
-			}	 	
+			}
 			if(engine === 'chrome'){
 				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), tempFilename, output]
-			}	 	
-	
+			}
+
 			childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
 				res.json(stdout);
 				log(stdout);
@@ -166,9 +167,9 @@ if (fs.existsSync(ssl_path)) {
 					if (err) {
 						console.log("failed to delete : "+ err);
 					} else {
-						console.log('successfully deleted ' + tempFilename);                                
+						console.log('successfully deleted ' + tempFilename);
 					}
-				});				
+				});
 			});
 		});		//fs.writeFile
 	});
@@ -198,50 +199,14 @@ if (fs.existsSync(ssl_path)) {
 				});
 				delete req.session.userName;
 			}
-			res.redirect('/');	
+			res.redirect('/');
 	});
 
 	app.post('/evaluate', function(req, res) {
-		var engine	= req.body.engine;		//Eg htmlcs, chrome, axe 		default:htmlcs
-		var output = req.body.output;		// Eg. json, string  		default: string
-		var level = req.body.level;			//E.g. WCAG2AA, WCAG2A, WCAG2AAA, Section508 	default:WCAG2AA
-		var errLevel = req.body.errLevel;	// Eg. 1,2,3   1 means Error, 2 means Warning, 3 means Notice 	default:1,2,3
-		var tempFilename = 'tmp/'+ new Date().getTime() + '.html';
-
-		if(typeof engine === 'undefined' || engine ==='') engine = 'htmlcs';
-		if(typeof output === 'undefined' || output ==='') output = 'string';
-		if(typeof level === 'undefined' || level ==='') level = 'WCAG2AA';
-		if(typeof errLevel === 'undefined' || errLevel ==='') errLevel = '1';
-
-		var source = req.body.source;
-		source = source.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,'');	//replaces script tags
-
-		fs.writeFile(tempFilename, source , function (err,data) {
-			if (err) throw err;
-			if(engine === 'htmlcs'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/HTMLCS_Run.js'), tempFilename, level, errLevel, output];
-			}
-			if(engine === 'axe'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/axe_url.js'),  tempFilename, output];
-			}	 	
-			if(engine === 'chrome'){
-				var childArgs = ['--config=config/config.json', path.join(__dirname, 'src/chrome_url.js'), tempFilename, output]
-			}
-			console.log('E N G I N E ' , engine, childArgs);
-
-			childProcess.execFile(binPath, childArgs, function(err, stdout, stderr) {
-				stdout = stdout.replace('done','');
-				res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
-				res.write(stdout);
-				res.end();
-				log(stdout);
-				fs.unlink(tempFilename, (err) => {
-					if (err) {
-						console.log("failed to delete : "+ err);
-					} else {
-						console.log('successfully deleted ' + tempFilename);                                
-					}
-				});
-			})
-		})		
-	})
+		evaluate(req.body, true).then(function(stdout) {
+			res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
+			res.write(stdout);
+			res.end();
+			log(stdout);
+		});
+	});

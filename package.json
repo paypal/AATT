@@ -1,8 +1,8 @@
 {
   "name": "aatt",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Automated Accessibility Testing Tool",
-  "main": "app.js",
+  "main": "module.js",
   "dependencies": {
     "body-parser": "~1.10.1",
     "consolidate": "~0.10.0",
