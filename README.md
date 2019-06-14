@@ -186,7 +186,7 @@ evaluate({
 
 ## Copyright and License
 
-Copyright 2016, PayPal under [the BSD license](LICENSE.md).
+Copyright 2019, PayPal under [the BSD license](LICENSE.md).
 
 [1]: https://yourhostname/evaluate "AATT api"
 
