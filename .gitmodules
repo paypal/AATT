@@ -1,3 +1,0 @@
-[submodule "src/chrome"]
-	path = src/chrome
-	url = https://github.com/GoogleChrome/accessibility-developer-tools.git

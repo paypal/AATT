@@ -4,7 +4,11 @@ var childProcess = require('child_process');
 var phantomjs = require('phantomjs-prebuilt');
 var binPath = phantomjs.path;
 
-function evaluate(options, logging = false) {
+var debug = require('debug');
+var log = debug('AATT:log');
+var error = debug('AATT:error');
+
+function evaluate(options) {
     var engine  = options.engine;      //Eg htmlcs, chrome, axe        default:htmlcs
     var output = options.output;       // Eg. json, string         default: string
     var level = options.level;         //E.g. WCAG2AA, WCAG2A, WCAG2AAA, Section508    default:WCAG2AA
@@ -33,7 +37,7 @@ function evaluate(options, logging = false) {
             if(engine === 'chrome'){
                 var childArgs = [config, path.join(__dirname, 'src/chrome_url.js'), tempFilename, output]
             }
-            if (logging) console.log('E N G I N E ' , engine, binPath, childArgs);
+            log('E N G I N E ' , engine, binPath, childArgs);
 
             childProcess.execFile(binPath, childArgs, { cwd: __dirname }, function(err, stdout, stderr) {
                 stdout = stdout.replace('done','');
@@ -41,12 +45,10 @@ function evaluate(options, logging = false) {
                 resolve(stdout);
 
                 fs.unlink(tempFilename, (err) => {
-                    if (!logging) return;
-
                     if (err) {
-                        console.log("failed to delete : "+ err);
+                        log("failed to delete : "+ err);
                     } else {
-                        console.log('successfully deleted ' + tempFilename);
+                        log('successfully deleted ' + tempFilename);
                     }
                 });
             })

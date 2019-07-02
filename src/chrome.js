@@ -1,6 +1,6 @@
     var page = require('webpage').create();
     var args = require('system').args;
-    var PATH_TO_CHROME = './src/chrome/dist/js/axs_testing.js';
+    var PATH_TO_CHROME = './src/chrome/axs_testing.js';
     
     var contentType= args[1];
     var url='';

@@ -1,11 +1,11 @@
     var page = require('webpage').create();
     var args = require('system').args;
-    var PATH_TO_CHROME = './src/chrome/dist/js/axs_testing.js';    
+    var PATH_TO_CHROME = './src/chrome/axs_testing.js';
     var url= args[1];
 	var jsonOp = [];
     var output   = args[2];
 
-    phantom.silent = true;
+    phantom.silent = false;
     page.settings.webSecurityEnabled = false;
 
     page.open(url, function (status) {

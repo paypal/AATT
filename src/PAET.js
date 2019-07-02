@@ -13,12 +13,12 @@ var page = require('webpage').create(),
 	if(userName !== "") {
         var cookieFile = 'cookies/' + userName + ".txt";
 	}
-	phantom.silent = true;
+	phantom.silent = false;
     page.onConsoleMessage = function (msg) {
-        // console.log(msg);
+        console.log(msg);
     };
     page.onError = function (msg) {
-        // console.log(msg);
+        console.log(msg);
         phantom.exit();        
     }; 
 
@@ -209,18 +209,20 @@ var page = require('webpage').create(),
                             HTMLCS.process(standard, document, function() {
                                 messages = HTMLCS.getMessages();
                                 for (var i = 0 ,l = messages.length ; i < l ; i++) {
-                                    var msg = messages[i]
-                                        , outerHTML;
+                                    var msg = messages[i];
 
-                                    if (msg.element.innerHTML.length > 50)  outerHTML = msg.element.outerHTML.replace(msg.element.innerHTML, msg.element.innerHTML.substr(0, 50) + '...');
-                                    else outerHTML = msg.element.outerHTML;
+                                        if (msg.element.innerHTML && msg.element.innerHTML.length > 50) {
+                                            var outerHTML = msg.element.innerHTML.replace(msg.element.innerHTML, msg.element.innerHTML.substr(0, 50) + '...');
+                                        } else {
+                                            var outerHTML = msg.element.outerHTML;
+                                        }
                                     
                                     msgJson[i] = {
                                                       "type"    : msg.type
-                                                    , "element" : splitLine(outerHTML.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'), 30)
+                                                    , "element" : outerHTML
                                                     , "msg"     : msg.msg
                                                     , "code"    : msg.code
-                                                    , "rect"    : JSON.stringify( msg.element.getBoundingClientRect() )
+                                                    // , "rect"    : JSON.stringify( msg.element.getBoundingClientRect() )
                                                 }    
                                 }   //End for loop
 

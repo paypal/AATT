@@ -205,7 +205,7 @@ if (fs.existsSync(ssl_path)) {
 	});
 
 	app.post('/evaluate', function(req, res) {
-		evaluate(req.body, true).then(function(stdout) {
+		evaluate(req.body).then(function(stdout) {
 			res.writeHead(200, { 'Content-Type': 'text/plain', "Access-Control-Allow-Origin":"*" });
 			res.write(stdout);
 			res.end();
