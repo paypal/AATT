@@ -1,7 +1,7 @@
 var fs = require('fs');
 var path =require('path');
 var childProcess = require('child_process');
-var phantomjs = require('phantomjs/lib/phantomjs');
+var phantomjs = require('phantomjs-prebuilt');
 var binPath = phantomjs.path;
 
 function evaluate(options, logging = false) {
