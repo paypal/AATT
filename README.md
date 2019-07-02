@@ -31,8 +31,9 @@ $ cd AATT
 $ sudo npm install
 $ git submodule init
 $ git submodule update
-$ DEBUG=AATT* http_port=3000 node app.js
+$ DEBUG=AATT* http_port=3000 node app.js . (If you want to run in Debug mode printing logs)
 ```
+$sudo node app.js will run in default port 80 without printing log information
 
 You can now access the running instance of AATT from http://localhost:3000
 *Note*: if you get "access" errors from Node, please make sure to shut down your Apache server by running the following from the command line:
