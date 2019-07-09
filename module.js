@@ -19,7 +19,7 @@ function evaluate(options) {
     if(typeof engine === 'undefined' || engine ==='') engine = 'htmlcs';
     if(typeof output === 'undefined' || output ==='') output = 'string';
     if(typeof level === 'undefined' || level ==='') level = 'WCAG2AA';
-    if(typeof errLevel === 'undefined' || errLevel ==='') errLevel = '1';
+    if(typeof errLevel === 'undefined' || errLevel ==='') errLevel = '1,2,3';
 
     source = source.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,'');  //replaces script tags
 
