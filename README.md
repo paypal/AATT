@@ -81,79 +81,9 @@ xmlhttp.send("source=" + document.getElementById('source').value + "&priority=" 
         "arguments": ["https://your_nodejs_accessibility_server/evaluate"]
     }
  ```
-Once `nemo-accessibility` plugin is registered, you should now have `nemo.accessibility` namespace available in your tests. `nemo.accessibility` exposes a method called `scan` to help you run accessibility evaluation against your page/element. `scan` method takes an _optional_ object like below,
-
-```javascript
-  var options = {
-    'element': driver.findElement(wd.tagName('iframe')), //default is entire page
-    'engine': 'axe', 'htmlcs' or 'chrome', //default is htmlcs
-    'output': 'html' or 'json', //default is html,
-    'level': 'WCAG2AA' or 'WCAG2A' or  'WCAG2AAA' //option applies to htmlcs only and default to WCAG2AA
-    'errLevel' : '1,2,3'   // for htmlcs only, 1 means Error, 2 means Warning, 3 means Notice  default:1,2,3
-
- }
-```
-
-`scan` method returns a promise with resulting `HTML` or `json` response from [AATT api][1] when fulfilled. You can then write the HTML to a file or parse JSON response for later reporting. For example,
-
-``` javascript
-   nemo.driver.get('http://www.yahoo.com');
-   nemo.accessibility.scan().then(function (result) {
-     fs.writeFile('report/accessibilityResult.html', result, function (err) {
-           done();
-     });
-   });
-```
-
-You could also run accessibility scan on a _certain_ _element_ like below. This is useful when lets say you scanned an entire page already, and subsequently a certain automated test interaction opened a dialog box; you can now only scan newly opened dialog box since you already scanned the rest of the page before.
-
-Here is a  [example](https://github.com/paypal/nemo-accessibility/blob/master/example/dynamicpage.js), (note this example uses excellent [nemo-view](https://github.com/paypal/nemo-view) plugin for finding elements)
-
-```javascript
-  it('will run scan on an element', function (done) {
-        nemo.driver.get('http://www.paypal.com');
-        var options = {
-            'source': 'btnDonate',
-            'engine' : 'htmlcs',
-            'errLevel': '1,2,3'
-
-        };
-        nemo.accessibility.scan(options).then(function (result) {
-            fs.writeFile('report/entirePage.html',result,function (err) {
-               done();
-            });
-        });
-        var welcomePage = nemo.view.welcomePage;
-        welcomePage.buttonThatOpensAPopup().click();
-        var element = welcomePage.popup(),
-            options = {
-                'element': element,
-                'engine' : 'axe',
-                'errLevel': '1,2,3'
-            };
-        nemo.accessibility.scan(options).then(function (result) {
-            fs.writeFile('report/scanAnElement.html', result, function (err) {
-                done();
-            });
-        });
-    });
-```
-For more details, please refer to: [nemo-accessibility plugin](https://github.com/paypal/nemo-accessibility)
 
 ## How to Use with nightwatchJS
 [Nightwatch JS](http://nightwatchjs.org ) is another UI automated testing framework powered by Node.js and uses the Selenium WebDriver API. To call AATT, you need to use the [request module](https://github.com/request/request). NightwatchJs has call back functions like before and after hooks that would be called before or after executing a test case. Request to AATT API should be done in after hook passing the source code of the page to the API.  Here is an [example commit](https://github.com/mpnkhan/nightwatch/commit/a377e860e0bfbd21d9e365e86fb3e6c4ec0e63f0)  on how to do this with Nightwatch.
-
-## How to Use the AATT web application
-
-The AATT web application can be used to test HTML code snippets or pages. To test logged in pages on a test server, first configure the login credentials in AATT which creates a cookied experience. Then, enter the url for the page you want to test.
-Results are displayed as a table that can be exported as a CSV file.
-Results include:
-* WCAG 2.0 principle: Perceivable, Operable, Understandable or Robust
-* Error description
-* code snippet
-* WCAG 2.0 techniques to help developers fix the issue.
-
-Optionally, you can configure the tool to save a screensnap of the html page you test. You can also configure the tool to display only errors, or also to include warnings and notices. Warning and notices require manual inspection to determine the severity of the warning or notice.
 
 ## How to use as a node module
 
@@ -199,4 +129,3 @@ Copyright 2019, PayPal under [the BSD license](LICENSE.md).
 
 ## Feedback
 We welcome your feedback. Please file issues and/or enhancement requests.
-
