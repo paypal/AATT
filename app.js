@@ -6,7 +6,7 @@ var https = require('https');
 var cons = require('consolidate')
 var childProcess = require('child_process');
 var path =require('path');
-var phantomjs = require('phantomjs/lib/phantomjs');
+var phantomjs = require('phantomjs-prebuilt');
 var binPath = phantomjs.path
 var fs = require('fs');
 var bodyParser = require('body-parser');
@@ -42,6 +42,7 @@ app.use('/test', express.static(__dirname + '/test'));
 app.use('/screenshots', express.static(__dirname + '/screenshots'));
 app.use('/Auditor',express.static(path.join(__dirname, 'src/HTML_CodeSniffer/Auditor')));    
 app.use('/Images',express.static(path.join(__dirname, 'src/HTML_CodeSniffer/Auditor/Images')));
+app.use('/src', express.static(__dirname + '/src'));
 
 
 if (fs.existsSync(ssl_path)) {

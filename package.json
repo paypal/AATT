@@ -1,17 +1,17 @@
 {
   "name": "aatt",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Automated Accessibility Testing Tool",
   "main": "app.js",
   "dependencies": {
-    "body-parser": "~1.10.1",
-    "consolidate": "~0.10.0",
+    "body-parser": "^1.10.2",
+    "consolidate": "^0.10.0",
     "debug": "^2.2.0",
-    "express": "~4.10.7",
-    "express-session": "~1.10.1",
-    "handlebars": "~4.0.12",
+    "express": "^4.17.1",
+    "express-session": "^1.16.2",
+    "handlebars": "^4.0.14",
     "nconf": "^0.7.2",
-    "phantomjs": "~2.1.1"
+    "phantomjs-prebuilt": "^2.1.16"
   },
   "devDependencies": {},
   "scripts": {
