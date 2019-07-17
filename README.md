@@ -13,34 +13,17 @@ For example, it can be used to test Java web applications using [SeLion](https:/
 For node applications, it can be integrated into [NemoJS testing framework](https://github.com/paypal/nemo)  to run accessibility testing during automated unit testing .For Nemo framework use [Nemo-Accessibility plugin] (https://github.com/paypal/nemo-accessibility)
 
 
-
 ## Set up
-
-
-1. NodeJS from http://nodejs.org
-2. GIT from http://git-scm.com/downloads
 
 ```sh
 $ git clone https://github.com/paypal/AATT.git
 $ cd AATT
-```
-
-## Building and Running
-
-```sh
-$ sudo npm install
-$ git submodule init
-$ git submodule update
+$ npm i
 $ DEBUG=AATT* http_port=3000 node app.js . (If you want to run in Debug mode printing logs)
 ```
 $sudo node app.js will run in default port 80 without printing log information
 
 You can now access the running instance of AATT from http://localhost:3000
-*Note*: if you get "access" errors from Node, please make sure to shut down your Apache server by running the following from the command line:
-
-```sh
-$ sudo apachectl stop
-```
 
 ## Integration with AATT API
 AATT provides an API for evaluating HTML Source code from other servers. The API EndPoint is: https://your_nodejs_server/evaluate
