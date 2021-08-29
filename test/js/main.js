@@ -71,6 +71,7 @@ function htmlcsTool(ifrDoc, options){
     var standard = options.standard || 'WCAG2A';
     var source = ifrDoc.body;
     // console.log(options.standard, source)
+    
     HTMLCS.process(standard, source, function() {
         var msgs = HTMLCS.getMessages();
         var content = [];

@@ -9,6 +9,8 @@ var HTMLCS_RUNNER = new function() {
 			var type = '';
 			var outerHTML = '';
 
+			console.log(msgs)
+
 			try {
 				var principles = {
 						'Principle1': 'Perceivable',

@@ -179,7 +179,7 @@ var page = require('webpage').create(),
                 };
 
                 var fs = require('fs');
-                page.injectJs('./src/htmlcs/build/HTMLCS.js');
+                page.injectJs('./src/htmlcs/HTMLCS.js');
 
                 var data = {
                     standard : standard

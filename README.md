@@ -100,14 +100,13 @@ evaluate({
 
 ## Copyright and License
 
-Copyright 2019, PayPal under [the BSD license](LICENSE.md).
+Copyright 2021, PayPal under [the BSD license](LICENSE.md).
 
 [1]: https://yourhostname/evaluate "AATT api"
 
 ## Contributors
  - Prem Nawaz Khan,  developer || [https://github.com/mpnkhan](https://github.com/mpnkhan) || [@mpnkhan](https://twitter.com/mpnkhan)
  - Cathy O'Connor, design || [@cagocon](https://twitter.com/cagocon)
- - Nilesh Kulkarni ,  developer for nemo accessibility plugin ||[https://github.com/nikulkarni](https://github.com/nikulkarni)
  - Srinivasu Chakravarthula, user interaction, testing || @csrinivasu
 
 ## Feedback

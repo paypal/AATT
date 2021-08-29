@@ -144,7 +144,7 @@ if (fs.existsSync(ssl_path)) {
 		var source = req.body.source;
 		source = source.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,'');	//replaces script tags
 
-		log('sniffHTML, E N G I N E ', engine);
+		log('sniffHTML, E N G I N E ', engine, output);
 
 		var source = '<!DOCTYPE html><html lang="en"><meta charset="utf-8"><head><title>Home - PayPal Accessibility Tool</title></head><body>'
 					+ 	req.body.source

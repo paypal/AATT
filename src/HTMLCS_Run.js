@@ -1,6 +1,7 @@
     var page = require('webpage').create();
     var fs = require('fs');
-    var args = require('system').args;    
+    var args = require('system').args;
+
     var url  = args[1];
     var standard = args[2];
     var errLevel = args[3];
@@ -33,16 +34,18 @@
                     phantom.exit();
                 };    
 
-                page.injectJs('./src/htmlcs/build/HTMLCS.js');
+                page.injectJs('./src/htmlcs/HTMLCS.js');
 
                 // console.log('O U T P U T ' , output);
                 // console.log('errLevel' , errLevel);
-
+                
+                // page.injectJs('runner_json.js');
                 if(output==='json'){
                     page.injectJs('runner_json.js');
                 } else{
                     page.injectJs('runner_html.js');
-                }
+                }                
+
                 var data = {
                     standard : standard,
                     screenshot_url : screenshot_url,
@@ -60,6 +63,7 @@
                             var errLevel = data.errLevel;
                             
                             HTMLCS_RUNNER.run(standard, screenshot_url, errLevel);
+
                         }, data);
                     break;
                     default:
