@@ -10,7 +10,7 @@
     "express": "^4.17.1",
     "express-session": "^1.16.2",
     "handlebars": ">=4.7.7",
-    "nconf": "^0.7.2",
+    "nconf": "^0.11.4",
     "phantomjs-prebuilt": "^2.1.16"
   },
   "devDependencies": {},
