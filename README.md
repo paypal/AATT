@@ -34,7 +34,7 @@ AATT provides an API for evaluating HTML Source code from other servers. The API
   3. "ouput" to get the jsonified string. E.g. output=json.  If this parameter is not set or left empty, it will return a string with table data that can be parsed or appended directly into your page. Defaults to json.
 
   4. "errLevel" Error level like Error, Warning or Notices .  Mapped to 1, 2 and 3 respectively. E.g. "1,2,3" . (For HTMLCS engine)
-  5. "level" This option applies only for the default htmlcs evaluation engine. Options can be either of the following WCAG2AA, WCAG2A, WCAG2AAA, Section508  . Defaults to "WCAG2A" (For HTMLCS engine)
+  5. "level" This option applies only for the default htmlcs evaluation engine. Options can be either of the following WCAG2AA, WCAG2A, WCAG2AAA, Section508  . Defaults to "WCAG2AA" (For HTMLCS engine)
 
 
 * Set the Request Header Content-type as application/x-www-form-urlencoded
